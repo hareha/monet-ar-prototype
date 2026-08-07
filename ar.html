@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>모네, 살아나는 그림</title>
+<style>
+  html,body{margin:0;height:100%;background:#0c0b0a;color:#f5f2ec;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
+  #container{width:100%;height:100%;position:relative;}
+  #container video{display:none !important;} /* 카메라는 WebGL 배경으로만 그린다 */
+
+  .screen{position:fixed;inset:0;background:#0c0b0a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;z-index:10;padding:28px;text-align:center;}
+  .frame{padding:10px;background:#161412;box-shadow:0 12px 60px rgba(0,0,0,.7);}
+  .frame img{width:min(46vw,190px);display:block;}
+  .eyebrow{margin-top:34px;font-size:11.5px;letter-spacing:.34em;color:#9a917f;font-weight:600;}
+  h1{font-size:24px;margin:10px 0 0;font-weight:800;letter-spacing:-.01em;}
+  .sub{font-size:13.5px;color:#a39c8e;margin-top:10px;line-height:1.7;font-weight:400;}
+  .btn{background:#f5f2ec;color:#141210;border:0;border-radius:999px;padding:15px 46px;font-size:15.5px;font-weight:800;margin-top:34px;letter-spacing:.02em;}
+  .btn:disabled{opacity:.4;}
+  .btn:active{transform:scale(.97);}
+  #status{display:none;font-size:12.5px;color:#e07a6a;margin-top:16px;max-width:320px;line-height:1.6;word-break:keep-all;}
+  #status.show{display:block;}
+
+  #resume{display:none;z-index:20;}
+  #resume.show{display:flex;}
+  #resume p{font-size:14px;color:#a39c8e;margin:14px 0 0;line-height:1.7;}
+
+  #hint{position:fixed;bottom:20px;left:0;right:0;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;z-index:5;display:none;letter-spacing:.02em;}
+</style>
+</head>
+<body>
+<div id="container"></div>
+<div id="hint">그림을 화면에 담아보세요</div>
+
+<!-- 시작 화면 -->
+<div id="overlay" class="screen">
+  <div class="frame"><img src="target.jpg" alt=""></div>
+  <div class="eyebrow">CLAUDE MONET</div>
+  <h1>살아나는 그림</h1>
+  <p class="sub">벽에 걸린 그림에 카메라를 비추면<br>그림이 깨어납니다</p>
+  <button id="startBtn" class="btn">체험 시작</button>
+  <div id="status"></div>
+</div>
+
+<!-- 세션 중단 화면 -->
+<div id="resume" class="screen">
+  <h1>체험이 중단되었어요</h1>
+  <p>화면을 벗어나면 카메라가 잠시 꺼집니다.<br>다시 시작하면 이어서 감상할 수 있어요.</p>
+  <button class="btn" onclick="location.reload()">다시 시작</button>
+</div>
+
+<video id="vid" src="living.mp4?v=7" playsinline muted loop preload="auto" crossorigin="anonymous"
+  style="position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0.01;"></video>
+
+<script>
+  window.__errors = [];
+  window.addEventListener('error', function(e){ window.__errors.push(e.message || String(e.error||e)); });
+  window.addEventListener('unhandledrejection', function(e){ window.__errors.push('promise: ' + (e.reason && e.reason.message || e.reason)); });
+  // 뒤로가기 후 bfcache로 재진입하면 스트림이 죽은 상태 — 무조건 새로 로드
+  window.addEventListener('pageshow', function(e){ if (e.persisted) location.reload(); });
+  document.getElementById('startBtn').addEventListener('click', function(){
+    if (window.__start) { window.__start(); return; }
+    var s = document.getElementById('status');
+    s.className = 'show';
+    s.textContent = '엔진을 불러오지 못했습니다. ' +
+      (window.__errors.length ? '원인: ' + window.__errors.join(' | ') :
+       '네트워크를 확인하거나 최신 브라우저(iOS 16.4+ / Chrome)로 열어주세요.');
+  });
+</script>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { MindARThree } from 'mindar-image-three';
+
+const statusEl = document.getElementById('status');
+const btn = document.getElementById('startBtn');
+const overlay = document.getElementById('overlay');
+const resumeEl = document.getElementById('resume');
+const hint = document.getElementById('hint');
+const video = document.getElementById('vid');
+const container = document.getElementById('container');
+
+const bad = t => { statusEl.className = 'show'; statusEl.textContent = t; };
+
+async function start() {
+  btn.disabled = true;
+  video.muted = true;
+  try { await video.play(); } catch (e) {}  // 제스처 안에서 재생 시작, 이후 계속 재생
+  try {
+    const mindar = new MindARThree({
+      container, imageTargetSrc: 'targets.mind',
+      uiScanning: 'no', uiLoading: 'no',
+      filterMinCF: 0.0001, filterBeta: 0.003
+    });
+    const { renderer, scene, camera } = mindar;
+
+    // AR 콘텐츠: 살아있는 그림 평면
+    const vidTex = new THREE.VideoTexture(video);
+    vidTex.encoding = THREE.sRGBEncoding;
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.02, (993/800) * 1.02),
+      new THREE.MeshBasicMaterial({ map: vidTex })
+    );
+    const anchor = mindar.addAnchor(0);
+    anchor.group.add(plane);
+
+    // ── 작품 정보 라벨 (미술관 벽 라벨 스타일) ──
+    function makeLabelTexture() {
+      const c = document.createElement('canvas'); c.width = 768; c.height = 960;
+      const x = c.getContext('2d');
+      x.fillStyle = '#faf9f6'; x.fillRect(0, 0, 768, 960);
+      x.strokeStyle = '#e2ded6'; x.lineWidth = 2; x.strokeRect(1, 1, 766, 958);
+      const F = '"Apple SD Gothic Neo","Pretendard",sans-serif';
+      let y = 116;
+      x.fillStyle = '#8a8578'; x.font = '500 30px ' + F;
+      x.fillText('C L A U D E   M O N E T', 64, y); y += 22;
+      x.fillStyle = '#1c1a16'; x.font = '800 64px ' + F;
+      y += 76; x.fillText('산책, 파라솔을 든', 62, y);
+      y += 76; x.fillText('여인', 62, y);
+      y += 46; x.fillStyle = '#6f6a5e'; x.font = '400 30px ' + F;
+      x.fillText('Woman with a Parasol —', 64, y); y += 40;
+      x.fillText('Madame Monet and Her Son', 64, y);
+      y += 52; x.strokeStyle = '#d8d3c8'; x.beginPath(); x.moveTo(64, y); x.lineTo(704, y); x.stroke();
+      y += 58; x.fillStyle = '#3a372f'; x.font = '500 33px ' + F;
+      x.fillText('1875 · 캔버스에 유채', 64, y); y += 46;
+      x.fillText('100 × 81 cm', 64, y); y += 46;
+      x.fillText('내셔널 갤러리 오브 아트, 워싱턴', 64, y);
+      y += 52; x.strokeStyle = '#d8d3c8'; x.beginPath(); x.moveTo(64, y); x.lineTo(704, y); x.stroke();
+      y += 54; x.fillStyle = '#57534a'; x.font = '400 29px ' + F;
+      const desc = ['아르장퇴유 시기, 아내 카미유와 아들 장을',
+                    '그린 야외 인물화. 아래에서 올려다본 시점,',
+                    '바람에 흔들리는 베일과 풀밭의 순간성이',
+                    '인상주의의 정수로 꼽힌다.'];
+      for (const line of desc) { x.fillText(line, 64, y); y += 44; }
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+    const labelMat = new THREE.MeshBasicMaterial({ map: makeLabelTexture(), transparent: true, opacity: 0 });
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.60, 0.75), labelMat);
+    label.position.set(0.90, -0.18, 0.001);
+    anchor.group.add(label);
+    // 인식 시 부드럽게 페이드인
+    let labelTarget = 0;
+    setInterval(() => { labelMat.opacity += (labelTarget - labelMat.opacity) * 0.15; }, 33);
+    anchor.onTargetFound = () => { video.play().catch(()=>{}); hint.style.display = 'none'; labelTarget = 0.97; };
+    anchor.onTargetLost  = () => { /* 계속 재생 유지 — 재인식 시 즉시 움직이는 상태 */ };
+
+    await mindar.start();
+
+    // ── 카메라 피드를 WebGL 배경으로 합성 (DOM 비디오는 숨김) ──
+    const camVideo = container.querySelector('video');
+    const bgTex = new THREE.VideoTexture(camVideo);
+    bgTex.encoding = THREE.sRGBEncoding;
+    bgTex.matrixAutoUpdate = true;
+    const setCover = () => {
+      const cw = container.clientWidth, ch = container.clientHeight;
+      const vw = camVideo.videoWidth || 480, vh = camVideo.videoHeight || 640;
+      const ca = cw / ch, va = vw / vh;
+      if (ca < va) { const r = ca / va; bgTex.repeat.set(r, 1); bgTex.offset.set((1 - r) / 2, 0); }
+      else         { const r = va / ca; bgTex.repeat.set(1, r); bgTex.offset.set(0, (1 - r) / 2); }
+    };
+    setCover();
+    window.addEventListener('resize', () => setTimeout(setCover, 100));
+    camVideo.addEventListener('loadedmetadata', setCover);
+    scene.background = bgTex;
+
+    renderer.setAnimationLoop(() => renderer.render(scene, camera));
+    overlay.style.display = 'none';
+    hint.style.display = 'block';
+
+    // ── 세션 상태 감시: 백그라운드 복귀·재진입 후 카메라가 죽으면 재시작 화면 ──
+    let lastT = -1, stall = 0, halted = false;
+    const showResume = () => {
+      if (halted) return; halted = true;
+      resumeEl.classList.add('show');
+      hint.style.display = 'none';
+    };
+    setInterval(() => {
+      if (halted) return;
+      if (document.hidden) { stall = 0; return; }      // 백그라운드 중엔 판정 유예
+      if (camVideo.paused) camVideo.play().catch(()=>{});
+      if (video.paused && !overlay.style.display) video.play().catch(()=>{});
+      const stream = camVideo.srcObject;
+      const streamDead = stream && stream.active === false;
+      if (camVideo.currentTime === lastT) stall++; else stall = 0;   // 프레임 정지 감지
+      lastT = camVideo.currentTime;
+      if (streamDead || stall >= 3) showResume();
+    }, 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) { stall = 0; camVideo.play().catch(()=>{}); video.play().catch(()=>{}); }
+    });
+  } catch (e) {
+    bad(e && e.message ? '오류: ' + e.message : '카메라를 시작하지 못했어요. 카메라 권한을 허용해 주세요.');
+    btn.disabled = false;
+  }
+}
+window.__start = start;
+</script>
+</body>
+</html>
