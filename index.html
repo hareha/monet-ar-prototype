@@ -79,11 +79,7 @@
       ' | 영상 ' + (video.paused ? '정지' : '▶재생중 ' + video.currentTime.toFixed(1) + 's');
   }, 500);
 
-  btn.addEventListener('click', function(){
-    btn.disabled = true;
-    // iOS 재생 잠금 해제: 제스처 안에서 재생 시작 (숨김 상태로 계속 재생 — targetLost 때만 pause)
-    video.muted = true;
-    video.play().catch(function(){});
+  function doStart(){
     var arSystem = sceneEl.systems['mindar-image-system'];
     if (!arSystem) {
       bad('AR 엔진이 로드되지 않았습니다. ' + (window.__errors.join(' | ') || '브라우저 버전을 확인해 주세요'));
@@ -93,9 +89,26 @@
     ok('카메라 시작 중… 권한을 허용해 주세요');
     try { arSystem.start(); } catch(e) { bad('오류: ' + (e.message||e)); btn.disabled=false; return; }
     sceneEl.addEventListener('arReady', function(){ overlay.style.display = 'none'; }, { once: true });
+  }
+
+  btn.addEventListener('click', function(){
+    btn.disabled = true;
+    // iOS 재생 잠금 해제: 제스처 안에서 재생 시작 (숨김 상태로 계속 재생 — targetLost 때만 pause)
+    video.muted = true;
+    video.play().catch(function(){});
+    // 엔진(씬) 초기화가 끝난 뒤에만 start — 초기화 전 클릭 시 발생하는 this.ui 오류 방지
+    if (sceneEl.hasLoaded) { doStart(); }
+    else {
+      ok('엔진 준비 중… 잠시만요');
+      sceneEl.addEventListener('loaded', doStart, { once: true });
+    }
   });
 
-  ok('준비됨 — 시작을 누르면 바로 카메라가 켜집니다');
+  if (sceneEl.hasLoaded) { ok('준비됨 — 시작을 누르면 바로 카메라가 켜집니다'); }
+  else {
+    ok('엔진 로딩 중…');
+    sceneEl.addEventListener('loaded', function(){ ok('준비됨 — 시작을 누르면 바로 카메라가 켜집니다'); }, { once: true });
+  }
 </script>
 </body>
 </html>
