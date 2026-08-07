@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MONET 100 — 그림 스캐너</title>
+<style>
+  html,body{margin:0;height:100%;background:#0d1420;color:#ece5d3;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
+  #container{width:100%;height:100%;position:relative;}
+  #container video{display:none !important;}
+  .screen{position:fixed;inset:0;background:#0d1420;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;padding:28px;text-align:center;}
+  .brand{font-size:11px;letter-spacing:.32em;color:#c9a961;font-weight:600;}
+  h1{font-size:21px;font-weight:800;margin:12px 0 8px;}
+  .sub{font-size:13.5px;color:#9aa3b5;line-height:1.8;margin:0;max-width:300px;}
+  .mission-box{background:#131c2c;border:1px solid #c9a96144;border-radius:12px;padding:14px 18px;margin-top:18px;font-size:13.5px;line-height:1.7;max-width:300px;}
+  .mission-box b{color:#c9a961;}
+  button{background:linear-gradient(180deg,#d8bc78,#c9a961);color:#1a1508;border:0;border-radius:999px;padding:14px 42px;font-size:15px;font-weight:800;margin-top:26px;}
+  button:disabled{opacity:.4;}
+  #status{display:none;font-size:12.5px;color:#e07a6a;margin-top:14px;max-width:320px;line-height:1.6;}
+  #status.show{display:block;}
+  a{color:#8ab4f8;font-size:12.5px;}
+
+  /* 인식 결과 시트 */
+  #sheet{position:fixed;left:10px;right:10px;bottom:12px;z-index:6;background:rgba(13,20,32,.94);border:1px solid #c9a96155;border-radius:14px;padding:16px 18px;transform:translateY(130%);transition:transform .3s;backdrop-filter:blur(6px);}
+  #sheet.up{transform:none;}
+  #sheet .tag{font-size:10.5px;letter-spacing:.18em;color:#9aa3b5;}
+  #sheet .tag.ok{color:#7fbf9a;} #sheet .tag.no{color:#e07a6a;} #sheet .tag.free{color:#c9a961;}
+  #sheet h2{font-size:17px;margin:5px 0 3px;}
+  #sheet .ar{font-size:12px;color:#9aa3b5;}
+  #sheet p{font-size:13px;line-height:1.7;color:#c9c2b0;margin:8px 0 0;}
+  #sheet .act{display:block;width:100%;text-align:center;background:linear-gradient(180deg,#d8bc78,#c9a961);color:#1a1508;border:0;border-radius:10px;padding:13px;font-size:14px;font-weight:800;margin-top:12px;text-decoration:none;display:none;}
+  #sheet .act.show{display:block;}
+  #hint{position:fixed;top:16px;left:0;right:0;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;z-index:5;display:none;}
+</style>
+</head>
+<body>
+<div id="container"></div>
+<div id="hint">그림을 화면에 담으면 자동으로 인식합니다</div>
+
+<div id="overlay" class="screen">
+  <div class="brand">MONET 100 · 그림 스캐너</div>
+  <h1 id="ttl">그림 인식 데모</h1>
+  <p class="sub">벽에 걸린 그림에 카메라를 비추면<br>어떤 작품인지 실시간으로 알아봅니다</p>
+  <div class="mission-box" id="mbox" style="display:none"></div>
+  <p class="sub" style="margin-top:14px;font-size:12px;">대상 그림이 없다면 다른 화면에<br><a href="candidates.html" target="_blank">candidates.html (살롱 벽)</a>을 띄워 비추세요</p>
+  <button id="startBtn">스캔 시작</button>
+  <div id="status"></div>
+</div>
+
+<div id="sheet">
+  <div class="tag" id="s-tag"></div>
+  <h2 id="s-name"></h2>
+  <div class="ar" id="s-artist"></div>
+  <p id="s-desc"></p>
+  <a class="act" id="s-act" href="quest.html">컬렉션에 저장하고 수집 노트로</a>
+</div>
+
+<script>
+  window.__errors = [];
+  window.addEventListener('error', e => window.__errors.push(e.message || String(e.error||e)));
+  window.addEventListener('unhandledrejection', e => window.__errors.push('promise: ' + (e.reason && e.reason.message || e.reason)));
+  window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
+  document.getElementById('startBtn').addEventListener('click', function(){
+    if (window.__start) { window.__start(); return; }
+    var s = document.getElementById('status');
+    s.className = 'show';
+    s.textContent = '엔진을 불러오지 못했습니다. ' + (window.__errors.join(' | ') || '최신 브라우저로 열어주세요.');
+  });
+</script>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { MindARThree } from 'mindar-image-three';
+
+// 타깃 인덱스 = 컴파일 순서
+const PAINTINGS = [
+  {id:0, ratio:536/640, name:'라 비지옹, 14세기의 전설', artist:'뤽-올리비에 메르송 · 1872', desc:'1873년 살롱 1등급 메달. 위대한 주제, 완성된 묘사 — 아카데미가 사랑한 그림.'},
+  {id:1, ratio:640/337, name:'꼬마 도둑들', artist:'윌리앙 부그로 · 1872', desc:'매끄러운 표면과 정확한 인체 — 살롱의 모범생.'},
+  {id:2, ratio:427/640, name:'코린토스 최후의 날', artist:'토니 로베르-플뢰리', desc:'역사적 대주제의 대형 화면. 살롱이 요구한 "위대한 주제"의 전형.'},
+  {id:3, ratio:441/640, name:'여름', artist:'퓌비 드 샤반 · 1873', desc:'고전적 이상향 — 그러나 이미 단순화된 화면이 아카데미와 다른 곳을 보고 있다.'},
+  {id:4, ratio:497/640, name:'인상, 해돋이', artist:'클로드 모네 · 1872', desc:'"인상이라니! 벽지 밑그림도 이보다는 완성돼 있겠다" — 르루아의 조롱이 시대의 이름이 되었다.'},
+];
+const MISSIONS = {
+  salon:     {answer:0, colKey:'salon',     title:'오늘의 심사위원', prompt:'<b>미션</b> — 1873년 살롱에서 1등급 메달을 받은 그림을 찾아 비추세요. 기준: 위대한 주제, 정확한 인체, 매끄러운 표면.',
+              wrong:'심사위원단의 선택이 아니었습니다. 다른 그림을 비춰보세요.'},
+  monethall: {answer:4, colKey:'monethall', title:'혹평받은 그림', prompt:'<b>미션</b> — 1874년, 평론가 르루아가 혹평하며 "인상주의"라는 이름을 만들게 한 그림을 찾아 비추세요.',
+              wrong:'이 그림은 아닙니다. 평론가가 문제 삼은 건 "미완성처럼 보이는" 그림이었습니다.'},
+};
+const params = new URLSearchParams(location.search);
+const mission = MISSIONS[params.get('m')] || null;
+if (mission) {
+  document.getElementById('ttl').textContent = mission.title;
+  const mb = document.getElementById('mbox');
+  mb.style.display = 'block';
+  mb.innerHTML = mission.prompt;
+}
+
+const overlay = document.getElementById('overlay');
+const hint = document.getElementById('hint');
+const container = document.getElementById('container');
+const statusEl = document.getElementById('status');
+const btn = document.getElementById('startBtn');
+const sheet = document.getElementById('sheet');
+const bad = t => { statusEl.className = 'show'; statusEl.textContent = t; };
+
+function showSheet(p) {
+  const tag = document.getElementById('s-tag');
+  const act = document.getElementById('s-act');
+  document.getElementById('s-name').textContent = '〈' + p.name + '〉';
+  document.getElementById('s-artist').textContent = p.artist;
+  if (!mission) {
+    tag.className = 'tag free'; tag.textContent = '인식됨 — 도슨트 모드';
+    document.getElementById('s-desc').textContent = p.desc;
+    act.classList.remove('show');
+  } else if (p.id === mission.answer) {
+    tag.className = 'tag ok'; tag.textContent = '✓ 정답 — 미션 완료';
+    document.getElementById('s-desc').textContent = p.desc;
+    const S = JSON.parse(localStorage.getItem('monet100') || '{"col":{},"stamps":{}}');
+    S.col[mission.colKey] = 1;
+    localStorage.setItem('monet100', JSON.stringify(S));
+    act.classList.add('show');
+  } else {
+    tag.className = 'tag no'; tag.textContent = '✕ 오답';
+    document.getElementById('s-desc').textContent = mission.wrong;
+    act.classList.remove('show');
+  }
+  sheet.classList.add('up');
+  hint.style.display = 'none';
+}
+
+async function start() {
+  btn.disabled = true;
+  try {
+    const mindar = new MindARThree({
+      container, imageTargetSrc: 'quest_targets.mind',
+      maxTrack: 1, uiScanning: 'no', uiLoading: 'no',
+      filterMinCF: 0.0001, filterBeta: 0.003
+    });
+    const { renderer, scene, camera } = mindar;
+
+    // 각 그림에 금색 인식 프레임
+    const frameTex = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 256;
+      const x = c.getContext('2d');
+      x.strokeStyle = '#c9a961'; x.lineWidth = 10; x.strokeRect(5, 5, 246, 246);
+      x.strokeStyle = 'rgba(201,169,97,.35)'; x.lineWidth = 26; x.strokeRect(13, 13, 230, 230);
+      const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+    })();
+    for (const p of PAINTINGS) {
+      const anchor = mindar.addAnchor(p.id);
+      const mesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.06, p.ratio * 1.06),
+        new THREE.MeshBasicMaterial({ map: frameTex, transparent: true })
+      );
+      anchor.group.add(mesh);
+      anchor.onTargetFound = () => showSheet(p);
+    }
+
+    await mindar.start();
+
+    // 카메라 피드를 WebGL 배경으로 합성 (검증된 방식)
+    const camVideo = container.querySelector('video');
+    const bgTex = new THREE.VideoTexture(camVideo);
+    bgTex.encoding = THREE.sRGBEncoding;
+    const setCover = () => {
+      const cw = container.clientWidth, ch = container.clientHeight;
+      const vw = camVideo.videoWidth || 480, vh = camVideo.videoHeight || 640;
+      const ca = cw / ch, va = vw / vh;
+      if (ca < va) { const r = ca / va; bgTex.repeat.set(r, 1); bgTex.offset.set((1 - r) / 2, 0); }
+      else         { const r = va / ca; bgTex.repeat.set(1, r); bgTex.offset.set(0, (1 - r) / 2); }
+    };
+    setCover();
+    window.addEventListener('resize', () => setTimeout(setCover, 100));
+    camVideo.addEventListener('loadedmetadata', setCover);
+    scene.background = bgTex;
+
+    renderer.setAnimationLoop(() => renderer.render(scene, camera));
+    overlay.style.display = 'none';
+    hint.style.display = 'block';
+
+    // 세션 감시 (index.html과 동일)
+    let lastT = -1, stall = 0;
+    setInterval(() => {
+      if (document.hidden) { stall = 0; return; }
+      if (camVideo.paused) camVideo.play().catch(()=>{});
+      const dead = camVideo.srcObject && camVideo.srcObject.active === false;
+      if (camVideo.currentTime === lastT) stall++; else stall = 0;
+      lastT = camVideo.currentTime;
+      if (dead || stall >= 3) location.reload();
+    }, 1000);
+  } catch (e) {
+    bad(e && e.message ? '오류: ' + e.message : '카메라를 시작하지 못했어요. 권한을 확인해 주세요.');
+    btn.disabled = false;
+  }
+}
+window.__start = start;
+</script>
+</body>
+</html>

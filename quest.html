@@ -157,7 +157,8 @@
 
 <div id="salon-pick" class="screen">
   <a class="back" href="#" onclick="go('salon-intro');return false;">← 심사 기준 다시 보기</a>
-  <div class="ornament"><span>후보작 5점 — 하나를 선택하세요</span></div>
+  <a class="btn" style="text-align:center;text-decoration:none;margin-top:0;" href="scan.html?m=salon">📷 카메라로 실물 심사 — 그림을 비춰 선택</a>
+  <div class="ornament"><span>또는 목록에서 선택</span></div>
   <div class="cand" onclick="salonPick(false)"><div class="ph">이미지<br>수급 예정</div><div><div class="no">N° 1</div><div class="tt">삼손과 들릴라</div><div class="ar">페르디낭 앙베르</div></div></div>
   <div class="cand" onclick="salonPick(false)"><img src="quest_img/fleury.jpg"><div><div class="no">N° 2</div><div class="tt">코린토스 최후의 날</div><div class="ar">토니 로베르-플뢰리</div></div></div>
   <div class="cand" onclick="salonPick(true)"><img src="quest_img/merson.jpg"><div><div class="no">N° 3</div><div class="tt">라 비지옹, 14세기의 전설</div><div class="ar">뤽-올리비에 메르송</div></div></div>
@@ -249,8 +250,8 @@
   <div class="ornament"><span>ZONE C-2 · 산업혁명</span></div>
   <p style="font-size:14px;line-height:1.9;">사업가의 책상 위, 세계가 빨라지고 있습니다.<br>
   이 방 어딘가에 <b>노르망디(에트르타)행 기차표</b>가 있습니다.<br>찾아서 촬영해 주세요 — 이 기차표는 <b>3층 생라자르역에서 실제로 사용</b>됩니다.</p>
-  <button class="btn" onclick="go('industry-good')">📷 기차표 촬영 인증</button>
-  <p class="note">프로토타입: 탭으로 대체 · 실제 운영 시 카메라 촬영 인증</p>
+  <button class="btn" onclick="go('industry-good')">기차표 수령</button>
+  <p class="note">운영 시: 오브제 촬영 인식 (그림 스캔과 동일 기술) — 데모에서는 그림 2종만 인식 대상</p>
 </div>
 
 <div id="industry-good" class="screen">
@@ -274,8 +275,8 @@
   <div class="ornament"><span>ZONE C-3 · 화가의 아틀리에</span></div>
   <p style="font-size:14px;line-height:1.9;">두 개의 방이 있습니다. 어두운 실내의 <b>돼지방광 물감</b> 화가의 방, 그리고 야외의 빛이 쏟아지는 <b>튜브물감</b> 화가의 방.<br><br>
   1841년 발명되어 화가를 화실 밖 자연으로 이끈 물건 — <b>튜브물감을 찾아 촬영</b>하세요.</p>
-  <button class="btn" onclick="go('paint-good')">📷 튜브물감 촬영 인증</button>
-  <p class="note">프로토타입: 탭으로 대체</p>
+  <button class="btn" onclick="go('paint-good')">튜브물감 수령</button>
+  <p class="note">운영 시: 오브제 촬영 인식 — 데모에서는 그림 2종만 인식 대상</p>
 </div>
 
 <div id="paint-good" class="screen">
@@ -294,8 +295,9 @@
   <div class="ornament"><span>ZONE D · 모네 전시관</span></div>
   <p style="font-size:14px;line-height:1.9;">1874년, 첫 인상파 전시회.<br>
   한 평론가는 어느 그림의 제목을 비꼬아 <b>"인상주의자들"</b>이라는 조롱 섞인 이름을 만들어냈습니다.<br><br>
-  전시관에서 <b>그 문제의 그림</b>을 찾아 인증하세요.</p>
-  <button class="btn" onclick="go('monethall-good')">📷 그림 인증</button>
+  전시관에서 <b>그 문제의 그림</b>을 찾아 카메라로 비추세요.</p>
+  <a class="btn" style="text-align:center;text-decoration:none;" href="scan.html?m=monethall">📷 카메라로 그림 스캔</a>
+  <p class="note">그림이 인식되면 자동으로 정답/오답 판정 · 대상 그림은 <a href="candidates.html" target="_blank" style="color:#8ab4f8">candidates.html</a>을 다른 화면에 띄우세요</p>
 </div>
 
 <div id="monethall-good" class="screen">
