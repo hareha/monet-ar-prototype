@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>모네 살아나는 그림 — AR 프로토타입</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#fff;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
+  #container{width:100%;height:100%;position:relative;}
+  #overlay{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:10;padding:24px;text-align:center;}
+  #overlay img{width:150px;border-radius:8px;border:1px solid #333;}
+  h1{font-size:19px;margin:0;font-weight:800;}
+  p{font-size:13.5px;color:#aaa;margin:0;max-width:300px;line-height:1.6;}
+  button{background:#fff;color:#000;border:0;border-radius:999px;padding:13px 34px;font-size:16px;font-weight:800;margin-top:6px;}
+  button:disabled{opacity:.4;}
+  #status{font-size:12.5px;color:#7fbf9a;min-height:18px;}
+  a{color:#8ab4f8;font-size:12.5px;}
+  #hint{position:fixed;bottom:18px;left:0;right:0;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;z-index:5;display:none;}
+</style>
+</head>
+<body>
+<div id="container"></div>
+<div id="hint">그림을 화면에 담아보세요 — 그림이 살아납니다</div>
+
+<div id="overlay">
+  <img src="target.jpg" alt="타깃 그림">
+  <h1>모네 — 살아나는 그림 (프로토타입)</h1>
+  <p>이 그림(벽에 출력했거나, 다른 화면에 띄운 것)에 카메라를 비추면 그림 위에 영상이 붙어 재생됩니다.</p>
+  <p><a href="wall.html" target="_blank">다른 기기에 타깃 그림 띄우기 (wall.html)</a></p>
+  <div id="status">준비됨 — 시작을 누르면 타깃 분석(약 10~30초) 후 카메라가 켜집니다</div>
+  <button id="startBtn">시작</button>
+</div>
+
+<video id="vid" src="living.mp4" playsinline muted loop preload="auto" crossorigin="anonymous" style="display:none"></video>
+
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { MindARThree } from 'mindar-image-three';
+
+const statusEl = document.getElementById('status');
+const btn = document.getElementById('startBtn');
+const overlay = document.getElementById('overlay');
+const hint = document.getElementById('hint');
+const video = document.getElementById('vid');
+
+const setStatus = t => statusEl.textContent = t;
+
+async function compileTarget() {
+  setStatus('타깃 이미지 분석 중… (기기 성능에 따라 10~30초)');
+  const img = new Image();
+  img.src = 'target.jpg';
+  await img.decode();
+  const compiler = new window.MINDAR.IMAGE.Compiler();
+  await compiler.compileImageTargets([img], p => setStatus(`타깃 분석 중… ${p.toFixed(0)}%`));
+  const buffer = await compiler.exportData();
+  return URL.createObjectURL(new Blob([buffer]));
+}
+
+async function start() {
+  btn.disabled = true;
+  try {
+    const targetSrc = await compileTarget();
+    setStatus('카메라 시작 중… (권한을 허용해 주세요)');
+
+    const mindar = new MindARThree({
+      container: document.getElementById('container'),
+      imageTargetSrc: targetSrc,
+      uiScanning: 'no', uiLoading: 'no',
+      filterMinCF: 0.0001, filterBeta: 0.003
+    });
+    const { renderer, scene, camera } = mindar;
+
+    const texture = new THREE.VideoTexture(video);
+    texture.colorSpace = THREE.SRGBColorSpace ?? undefined;
+    const aspect = 993 / 800; // target.jpg h/w
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.02, aspect * 1.02), // 경계 오차 커버용 2% 오버
+      new THREE.MeshBasicMaterial({ map: texture })
+    );
+    const anchor = mindar.addAnchor(0);
+    anchor.group.add(plane);
+
+    anchor.onTargetFound = () => { video.play(); hint.style.display = 'none'; };
+    anchor.onTargetLost  = () => { video.pause(); };
+
+    await mindar.start();
+    renderer.setAnimationLoop(() => renderer.render(scene, camera));
+
+    overlay.style.display = 'none';
+    hint.style.display = 'block';
+  } catch (e) {
+    setStatus('오류: ' + (e?.message || e));
+    btn.disabled = false;
+  }
+}
+btn.addEventListener('click', start);
+</script>
+</body>
+</html>
