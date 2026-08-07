@@ -3,77 +3,105 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MONET 100 — 프로토타입 홈</title>
+<title>MONET 100 — 프로토타입</title>
 <style>
-  :root{--navy:#0d1420;--navy2:#131c2c;--gold:#c9a961;--ink:#ece5d3;--sub:#9aa3b5;}
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;}
   *{box-sizing:border-box;}
-  html,body{margin:0;background:var(--navy);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
-  body{max-width:480px;margin:0 auto;padding:26px 18px 50px;}
-  .brand{font-size:11px;letter-spacing:.32em;color:var(--gold);font-weight:600;text-align:center;}
-  h1{font-size:23px;font-weight:800;text-align:center;margin:8px 0 2px;}
-  .tagline{font-size:12.5px;color:var(--sub);text-align:center;margin:0 0 8px;}
-  .hero{display:block;width:52%;margin:16px auto 6px;border:1px solid #3a2f1a;box-shadow:0 10px 40px rgba(0,0,0,.6);}
-  .ornament{display:flex;align-items:center;gap:10px;margin:22px 0 12px;}
-  .ornament::before,.ornament::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,#8a7a52);}
-  .ornament::after{background:linear-gradient(90deg,#8a7a52,transparent);}
-  .ornament span{font-size:11px;color:var(--gold);letter-spacing:.2em;white-space:nowrap;}
-  .card{display:flex;align-items:flex-start;gap:14px;background:var(--navy2);border:1px solid #223049;border-radius:13px;padding:15px 16px;margin-bottom:10px;cursor:pointer;}
-  .card:active{background:#1a2740;border-color:var(--gold);}
-  .ico{font-size:24px;width:34px;text-align:center;flex:none;margin-top:2px;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
+  body{max-width:520px;margin:0 auto;padding:30px 20px 56px;}
+  .cap{font-size:10.5px;letter-spacing:.34em;color:var(--cap);font-weight:600;text-align:center;}
+  h1{font-size:25px;font-weight:800;text-align:center;margin:10px 0 4px;letter-spacing:-.01em;}
+  .tagline{font-size:12.5px;color:var(--sub);text-align:center;margin:0;}
+  .hero{display:block;width:46%;margin:22px auto 0;border:1px solid #d8d3c8;padding:7px;background:#fff;box-shadow:0 12px 36px rgba(28,26,22,.10);}
+
+  .sect{display:flex;align-items:center;gap:12px;margin:30px 0 12px;}
+  .sect::before,.sect::after{content:'';flex:1;height:1px;background:var(--line);}
+  .sect span{font-size:10.5px;color:var(--cap);letter-spacing:.26em;font-weight:600;white-space:nowrap;}
+
+  .card{display:flex;align-items:flex-start;gap:14px;background:#fff;border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:9px;cursor:pointer;}
+  .card:active{border-color:var(--ink);}
+  .no{font-size:11px;color:var(--cap);letter-spacing:.08em;width:22px;flex:none;margin-top:2px;font-weight:600;}
   .tt{font-size:15px;font-weight:800;}
-  .ds{font-size:12px;color:var(--sub);margin-top:4px;line-height:1.6;}
-  .pair{font-size:11px;color:#5b6880;margin-top:6px;}
-  .pair a{color:#8ab4f8;text-decoration:none;}
-  .foot{font-size:11px;color:#44506a;text-align:center;margin-top:26px;line-height:1.8;}
+  .ds{font-size:12.5px;color:var(--sub);margin-top:4px;line-height:1.7;}
+  .pair{font-size:11.5px;color:#a89f8d;margin-top:6px;}
+  .pair a{color:#3f5a80;text-decoration:none;border-bottom:1px solid #c9d2de;}
+
+  .foot{font-size:11px;color:#a89f8d;text-align:center;margin-top:30px;line-height:1.9;}
 </style>
 </head>
 <body>
-  <div class="brand">MONET 100 · THE NEXT IMPRESSION</div>
+  <div class="cap">MONET 100 · THE NEXT IMPRESSION</div>
   <h1>체험 프로토타입</h1>
   <p class="tagline">신세계 더 헤리티지 명동 · 2026.12 – 2027.2</p>
   <img class="hero" src="target.jpg" alt="">
 
-  <div class="ornament"><span>체험 기능</span></div>
+  <div class="sect"><span>카메라 체험</span></div>
 
   <div class="card" onclick="location.href='ar.html'">
-    <div class="ico">🖼</div>
+    <div class="no">01</div>
     <div>
-      <div class="tt">살아나는 그림 (AR)</div>
+      <div class="tt">살아나는 그림 — AR</div>
       <div class="ds">벽의 그림에 카메라를 비추면 그림이 움직이고, 옆에 작품 정보 라벨이 떠오릅니다</div>
-      <div class="pair">타깃 그림이 없다면 → 다른 화면에 <a href="wall.html" target="_blank" onclick="event.stopPropagation()">벽 그림 띄우기</a></div>
+      <div class="pair">타깃이 없다면 다른 화면에 <a href="wall.html" target="_blank" onclick="event.stopPropagation()">벽 그림 띄우기</a></div>
     </div>
   </div>
 
   <div class="card" onclick="location.href='scan.html'">
-    <div class="ico">🔍</div>
+    <div class="no">02</div>
     <div>
-      <div class="tt">그림 스캐너 · 도슨트 모드</div>
-      <div class="ds">그림 5점 중 무엇을 보고 있는지 실시간 인식 → 작품 해설 표시</div>
-      <div class="pair">스캔 대상 → 다른 화면에 <a href="candidates.html" target="_blank" onclick="event.stopPropagation()">살롱 벽 띄우기</a></div>
+      <div class="tt">그림 스캐너 — 도슨트 모드</div>
+      <div class="ds">그림 5점 중 무엇을 보고 있는지 실시간 인식하고 작품 해설을 띄웁니다</div>
+      <div class="pair">스캔 대상은 다른 화면에 <a href="candidates.html" target="_blank" onclick="event.stopPropagation()">살롱 벽 띄우기</a></div>
     </div>
   </div>
 
-  <div class="card" onclick="location.href='quest.html'">
-    <div class="ico">🗺</div>
+  <div class="card" onclick="location.href='moneteye.html'">
+    <div class="no">03</div>
     <div>
-      <div class="tt">문명탐험가 수집 노트 (퀘스트)</div>
-      <div class="ds">기획안 체험장치 전체 플로우 — 심사위원·바티뇰파·기차표 개찰·초대장, 컬렉션 6종 수집</div>
-      <div class="pair">심사·혹평 미션은 카메라 인식으로 판정됩니다</div>
+      <div class="tt">모네의 눈 — 실시간 유화 필터</div>
+      <div class="ds">카메라가 보는 세계를 유화 셰이더로 실시간 변환 — 에트르타 존 "실사에서 회화로"의 기술 코어</div>
+    </div>
+  </div>
+
+  <div class="card" onclick="location.href='nadar.html'">
+    <div class="no">04</div>
+    <div>
+      <div class="tt">나다르 사진관 — 초상 촬영</div>
+      <div class="ds">셔터 → 3, 2, 1 → 1870년대 세피아 인화로 현상되는 셀프 초상. 사진기 존의 셔터 체험</div>
+    </div>
+  </div>
+
+  <div class="sect"><span>전시 콘텐츠</span></div>
+
+  <div class="card" onclick="location.href='quest.html'">
+    <div class="no">05</div>
+    <div>
+      <div class="tt">문명탐험가 수집 노트 — 퀘스트</div>
+      <div class="ds">기획안 체험장치 전체 플로우: 심사위원 · 바티뇰파 · 기차표 개찰 · 초대장 · 컬렉션 6종</div>
+      <div class="pair">심사·혹평 미션은 카메라 인식으로 판정</div>
     </div>
   </div>
 
   <div class="card" onclick="location.href='scan.html?m=salon'">
-    <div class="ico">⚖️</div>
+    <div class="no">06</div>
     <div>
       <div class="tt">미션 바로가기 — 오늘의 심사위원</div>
-      <div class="ds">1873년 살롱 1등작을 카메라로 찾아내면 정답 판정 + 컬렉션 저장</div>
+      <div class="ds">1873년 살롱 1등작을 카메라로 찾아내면 정답 판정 후 컬렉션에 저장됩니다</div>
     </div>
   </div>
 
-  <div class="ornament"><span>제작 검토용</span></div>
+  <div class="card" onclick="location.href='haystacks.html'">
+    <div class="no">07</div>
+    <div>
+      <div class="tt">건초더미 — 빛의 콘솔</div>
+      <div class="ds">시간·계절을 조작하면 같은 건초더미가 실제 연작 5점으로 바뀝니다. 조명 조작 체험의 콘텐츠 시안</div>
+    </div>
+  </div>
+
+  <div class="sect"><span>제작 검토용</span></div>
 
   <div class="card" onclick="location.href='compare.html'">
-    <div class="ico">🎞</div>
+    <div class="no">08</div>
     <div>
       <div class="tt">모션 프리셋 7종 비교</div>
       <div class="ds">살아나는 그림의 움직임 후보 — 현재 적용: circle ×2</div>
@@ -81,13 +109,13 @@
   </div>
 
   <div class="card" onclick="location.href='preview.html'">
-    <div class="ico">▶️</div>
+    <div class="no">09</div>
     <div>
       <div class="tt">적용 영상 단독 재생</div>
       <div class="ds">현재 AR에 붙는 living.mp4 확인</div>
     </div>
   </div>
 
-  <p class="foot">프로토타입 — KYVIKOS<br>이미지: 퍼블릭 도메인 (Wikimedia Commons)</p>
+  <p class="foot">프로토타입 — KYVIKOS<br>모든 도판: 퍼블릭 도메인 (Wikimedia Commons)</p>
 </body>
 </html>

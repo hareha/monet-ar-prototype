@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>모네의 눈 — 실시간 유화 필터</title>
+<style>
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
+  #view{position:fixed;inset:0;}
+  #view canvas{width:100%;height:100%;display:block;}
+
+  .screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;padding:28px;text-align:center;}
+  .cap{font-size:10.5px;letter-spacing:.3em;color:var(--cap);font-weight:600;}
+  h1{font-size:22px;font-weight:800;margin:10px 0 8px;}
+  .sub{font-size:13.5px;color:var(--sub);line-height:1.8;margin:0;max-width:300px;}
+  .btn{background:var(--ink);color:var(--bg);border:0;border-radius:3px;padding:15px 44px;font-size:14.5px;font-weight:700;margin-top:26px;font-family:inherit;}
+  .btn:disabled{opacity:.35;}
+  #status{display:none;font-size:12.5px;color:#b0392f;margin-top:14px;max-width:320px;line-height:1.6;}
+  #status.show{display:block;}
+  a.home{position:fixed;top:14px;left:14px;z-index:6;font-size:12.5px;color:#fff;text-decoration:none;text-shadow:0 1px 4px rgba(0,0,0,.6);}
+
+  #bar{position:fixed;left:12px;right:12px;bottom:14px;z-index:6;background:rgba(250,249,246,.92);border:1px solid var(--line);border-radius:4px;padding:12px 14px;display:none;align-items:center;gap:12px;backdrop-filter:blur(6px);}
+  #bar.on{display:flex;}
+  #bar button{background:none;border:1px solid var(--line);border-radius:3px;padding:9px 13px;font-size:12.5px;color:var(--sub);font-family:inherit;white-space:nowrap;}
+  #bar button.on{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700;}
+  #bar input[type=range]{flex:1;accent-color:var(--ink);}
+  #bar .lbl{font-size:11px;color:var(--cap);white-space:nowrap;}
+</style>
+</head>
+<body>
+<div id="view"></div>
+<a class="home" href="index.html" id="homeLink" style="display:none">← 홈</a>
+
+<div id="overlay" class="screen">
+  <div class="cap">ZONE B — 에트르타 · 실사에서 회화로</div>
+  <h1>모네의 눈</h1>
+  <p class="sub">카메라가 보는 세계가 실시간으로 유화가 됩니다.<br>형태가 아니라 색면이 남을 때, 세계는 인상이 됩니다.</p>
+  <button class="btn" id="startBtn">카메라 켜기</button>
+  <div id="status"></div>
+</div>
+
+<div id="bar">
+  <button id="toggle" class="on">유화</button>
+  <span class="lbl">붓 크기</span>
+  <input type="range" id="brush" min="1" max="3.2" step="0.1" value="1.6">
+  <button id="snap">캡처</button>
+</div>
+
+<script>
+  window.__errors = [];
+  window.addEventListener('error', e => window.__errors.push(e.message || String(e.error||e)));
+  window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
+</script>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const statusEl = document.getElementById('status');
+const bad = t => { statusEl.className = 'show'; statusEl.textContent = t; };
+
+const FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D map;
+uniform vec2 texel;
+uniform vec2 uvScale, uvOffset;
+uniform float mixv;
+#define R 4
+void main(){
+  vec2 uv = vUv * uvScale + uvOffset;
+  vec3 orig = texture2D(map, uv).rgb;
+  float n = float((R+1)*(R+1));
+  vec3 m0=vec3(0.),m1=vec3(0.),m2=vec3(0.),m3=vec3(0.);
+  vec3 s0=vec3(0.),s1=vec3(0.),s2=vec3(0.),s3=vec3(0.);
+  vec3 c;
+  for (int j=-R;j<=0;j++) for (int i=-R;i<=0;i++){ c=texture2D(map,uv+vec2(float(i),float(j))*texel).rgb; m0+=c; s0+=c*c; }
+  for (int j=-R;j<=0;j++) for (int i=0;i<=R;i++){ c=texture2D(map,uv+vec2(float(i),float(j))*texel).rgb; m1+=c; s1+=c*c; }
+  for (int j=0;j<=R;j++)  for (int i=0;i<=R;i++){ c=texture2D(map,uv+vec2(float(i),float(j))*texel).rgb; m2+=c; s2+=c*c; }
+  for (int j=0;j<=R;j++)  for (int i=-R;i<=0;i++){ c=texture2D(map,uv+vec2(float(i),float(j))*texel).rgb; m3+=c; s3+=c*c; }
+  m0/=n; m1/=n; m2/=n; m3/=n;
+  s0=abs(s0/n-m0*m0); s1=abs(s1/n-m1*m1); s2=abs(s2/n-m2*m2); s3=abs(s3/n-m3*m3);
+  float v0=s0.r+s0.g+s0.b, v1=s1.r+s1.g+s1.b, v2=s2.r+s2.g+s2.b, v3=s3.r+s3.g+s3.b;
+  vec3 col = m0; float mv = v0;
+  if (v1<mv){ col=m1; mv=v1; }
+  if (v2<mv){ col=m2; mv=v2; }
+  if (v3<mv){ col=m3; mv=v3; }
+  float l = dot(col, vec3(.299,.587,.114));
+  col = mix(vec3(l), col, 1.28);            // 채도 — 모네의 팔레트 쪽으로
+  col = (col - .5) * 1.05 + .5 + .015;      // 밝은 키
+  gl_FragColor = vec4(mix(orig, clamp(col,0.,1.), mixv), 1.0);
+}`;
+const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }`;
+
+async function start() {
+  const btn = document.getElementById('startBtn');
+  btn.disabled = true;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: {ideal: 1280} }, audio: false });
+    const video = document.createElement('video');
+    video.setAttribute('playsinline', ''); video.muted = true;
+    video.srcObject = stream;
+    await video.play();
+
+    const view = document.getElementById('view');
+    const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5) * 0.72);  // 셰이더 비용 절충
+    renderer.setSize(view.clientWidth, view.clientHeight);
+    view.appendChild(renderer.domElement);
+
+    const tex = new THREE.VideoTexture(video);
+    tex.minFilter = THREE.LinearFilter;
+    const uniforms = {
+      map: { value: tex },
+      texel: { value: new THREE.Vector2(1/640, 1/480) },
+      uvScale: { value: new THREE.Vector2(1, 1) },
+      uvOffset: { value: new THREE.Vector2(0, 0) },
+      mixv: { value: 1 },
+    };
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2),
+      new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms })));
+
+    let brush = 1.6;
+    const fit = () => {
+      renderer.setSize(view.clientWidth, view.clientHeight);
+      const vw = video.videoWidth || 640, vh = video.videoHeight || 480;
+      const ca = view.clientWidth / view.clientHeight, va = vw / vh;
+      if (ca < va) { const r = ca / va; uniforms.uvScale.value.set(r, 1); uniforms.uvOffset.value.set((1-r)/2, 0); }
+      else         { const r = va / ca; uniforms.uvScale.value.set(1, r); uniforms.uvOffset.value.set(0, (1-r)/2); }
+      uniforms.texel.value.set(brush/vw, brush/vh);
+    };
+    fit();
+    window.addEventListener('resize', () => setTimeout(fit, 100));
+    video.addEventListener('loadedmetadata', fit);
+
+    renderer.setAnimationLoop(() => renderer.render(scene, camera));
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('bar').classList.add('on');
+    document.getElementById('homeLink').style.display = 'block';
+
+    const toggle = document.getElementById('toggle');
+    toggle.onclick = () => {
+      const on = uniforms.mixv.value < .5;
+      uniforms.mixv.value = on ? 1 : 0;
+      toggle.classList.toggle('on', on);
+      toggle.textContent = on ? '유화' : '원본';
+    };
+    document.getElementById('brush').oninput = e => { brush = +e.target.value; fit(); };
+    document.getElementById('snap').onclick = () => {
+      renderer.render(scene, camera);
+      const a = document.createElement('a');
+      a.href = renderer.domElement.toDataURL('image/jpeg', .92);
+      a.download = 'monet_eye.jpg';
+      a.click();
+    };
+
+    setInterval(() => {
+      if (document.hidden) return;
+      if (video.paused) video.play().catch(()=>{});
+      if (stream.active === false) location.reload();
+    }, 1500);
+  } catch (e) {
+    bad('카메라를 열지 못했습니다 — 권한을 확인해 주세요. (' + (e && e.message || e) + ')');
+    btn.disabled = false;
+  }
+}
+document.getElementById('startBtn').onclick = start;
+</script>
+</body>
+</html>

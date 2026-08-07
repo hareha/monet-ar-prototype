@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>나다르 사진관 — 초상 촬영</title>
+<style>
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
+  body{max-width:520px;margin:0 auto;padding:22px 18px 50px;}
+  .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px;}
+  .top a{font-size:12.5px;color:var(--sub);text-decoration:none;}
+  .top .cap{font-size:10.5px;letter-spacing:.28em;color:var(--cap);font-weight:600;}
+  .eyebrow{font-size:11px;letter-spacing:.3em;color:var(--cap);font-weight:600;}
+  h1{font-size:22px;font-weight:800;margin:6px 0 8px;letter-spacing:-.01em;}
+  .lede{font-size:13.5px;color:var(--sub);line-height:1.8;margin:0 0 20px;}
+
+  .studio{background:#fff;border:1px solid var(--line);padding:18px;box-shadow:0 10px 34px rgba(28,26,22,.08);text-align:center;}
+  .oval{width:78%;aspect-ratio:3/4;margin:6px auto 0;position:relative;overflow:hidden;border-radius:50% / 42%;background:#efece4;border:1px solid var(--line);}
+  .oval video,.oval canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
+  #shot{display:none;}
+  #shot.developing{display:block;filter:blur(9px) brightness(2.4) sepia(.4);transition:filter 2.4s ease;}
+  #shot.developed{display:block;filter:none;}
+  .count{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:64px;font-weight:200;color:#fff;text-shadow:0 2px 20px rgba(0,0,0,.5);}
+  .count.on{display:flex;}
+  .plate{border-top:1px solid var(--line);margin-top:16px;padding-top:12px;}
+  .plate .a{font-size:11px;letter-spacing:.34em;color:var(--cap);font-weight:600;}
+  .plate .b{font-size:12px;color:var(--sub);margin-top:4px;}
+
+  .btn{display:block;width:100%;background:var(--ink);color:var(--bg);border:0;border-radius:3px;padding:15px;font-size:14.5px;font-weight:700;margin-top:16px;font-family:inherit;letter-spacing:.02em;}
+  .btn:active{opacity:.85;}
+  .btn:disabled{opacity:.35;}
+  .btn.ghost{background:none;border:1px solid var(--line);color:var(--sub);font-weight:600;}
+  .row{display:flex;gap:8px;}
+  .row .btn{flex:1;}
+  #status{display:none;font-size:12.5px;color:#b0392f;margin-top:12px;text-align:center;line-height:1.6;}
+  #status.show{display:block;}
+  .quote{border-left:2px solid var(--line);padding:2px 0 2px 14px;font-size:12.5px;color:var(--sub);line-height:1.8;margin:20px 0 0;}
+</style>
+</head>
+<body>
+  <div class="top"><a href="index.html">← 홈</a><span class="cap">MONET 100 · PROTOTYPE</span></div>
+
+  <div class="eyebrow">ZONE C-4 — 사진기</div>
+  <h1>나다르 사진관</h1>
+  <p class="lede">셔터를 누르면 당신의 초상이 1870년대 인화 기법으로 현상됩니다.<br>화가가 아니라, 사진기가 초상을 대신하게 된 순간의 체험.</p>
+
+  <div class="studio">
+    <div class="oval">
+      <video id="cam" playsinline muted autoplay></video>
+      <canvas id="shot"></canvas>
+      <div class="count" id="count"></div>
+    </div>
+    <div class="plate">
+      <div class="a">ATELIER NADAR</div>
+      <div class="b">35, Boulevard des Capucines · PARIS · 1874</div>
+    </div>
+  </div>
+
+  <button class="btn" id="startBtn">사진관 입장 — 카메라 켜기</button>
+  <div class="row" id="actions" style="display:none">
+    <button class="btn" id="shootBtn">셔터</button>
+    <button class="btn ghost" id="againBtn" style="display:none">다시 촬영</button>
+    <a class="btn ghost" id="saveBtn" style="display:none;text-decoration:none;line-height:1;padding-top:17px;" download="nadar_1874.jpg">인화지 저장</a>
+  </div>
+  <div id="status"></div>
+
+  <p class="quote">"어머, 이제 화가들은 뭘로 먹고 살지?" — 벽면 초상화의 속삭임<br>
+  사진이 기록을 대신하자, 회화는 '보는 방식'을 그리기 시작했다.</p>
+
+<script>
+const cam = document.getElementById('cam');
+const shot = document.getElementById('shot');
+const countEl = document.getElementById('count');
+const statusEl = document.getElementById('status');
+let stream = null;
+
+document.getElementById('startBtn').onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: {ideal: 960} }, audio: false });
+    cam.srcObject = stream;
+    await cam.play();
+    document.getElementById('startBtn').style.display = 'none';
+    document.getElementById('actions').style.display = 'flex';
+  } catch (e) {
+    statusEl.className = 'show';
+    statusEl.textContent = '카메라를 열지 못했습니다 — 권한을 확인해 주세요. (' + (e && e.message || e) + ')';
+  }
+};
+
+document.getElementById('shootBtn').onclick = async () => {
+  const btn = document.getElementById('shootBtn');
+  btn.disabled = true;
+  for (const n of ['3','2','1']) {
+    countEl.textContent = n; countEl.classList.add('on');
+    await new Promise(r => setTimeout(r, 700));
+  }
+  countEl.classList.remove('on');
+
+  const w = cam.videoWidth || 720, h = cam.videoHeight || 960;
+  shot.width = w; shot.height = h;
+  const x = shot.getContext('2d');
+  x.drawImage(cam, 0, 0, w, h);
+
+  // ── 1874년 인화 처리: 콘트라스트 → 세피아 톤 → 입자 → 비네트 ──
+  const d = x.getImageData(0, 0, w, h);
+  const p = d.data;
+  const cx = w/2, cy = h/2, maxR = Math.hypot(cx, cy);
+  for (let i = 0, px = 0; i < p.length; i += 4, px++) {
+    let g = .299*p[i] + .587*p[i+1] + .114*p[i+2];
+    g = (g - 128) * 1.18 + 132;                       // 콘트라스트
+    g += (Math.random() - .5) * 26;                    // 은염 입자
+    const X = px % w, Y = (px / w) | 0;
+    const v = 1 - Math.pow(Math.hypot(X-cx, Y-cy) / maxR, 2.6) * .55;  // 비네트
+    g *= v;
+    p[i]   = Math.min(255, g*1.10 + 24);               // 세피아
+    p[i+1] = Math.min(255, g*0.94 + 6);
+    p[i+2] = Math.max(0,   g*0.72 - 4);
+  }
+  x.putImageData(d, 0, 0);
+
+  // 현상 연출
+  shot.className = 'developing';
+  requestAnimationFrame(() => requestAnimationFrame(() => shot.className = 'developing developed'));
+  cam.style.display = 'none';
+
+  document.getElementById('saveBtn').href = shot.toDataURL('image/jpeg', .92);
+  btn.style.display = 'none'; btn.disabled = false;
+  document.getElementById('againBtn').style.display = 'block';
+  document.getElementById('saveBtn').style.display = 'block';
+};
+
+document.getElementById('againBtn').onclick = () => {
+  shot.className = ''; shot.style.display = '';
+  cam.style.display = '';
+  document.getElementById('shootBtn').style.display = 'block';
+  document.getElementById('againBtn').style.display = 'none';
+  document.getElementById('saveBtn').style.display = 'none';
+};
+window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>건초더미 — 빛의 콘솔</title>
+<style>
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
+  body{max-width:520px;margin:0 auto;padding:22px 18px 50px;}
+  .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px;}
+  .top a{font-size:12.5px;color:var(--sub);text-decoration:none;}
+  .top .cap{font-size:10.5px;letter-spacing:.28em;color:var(--cap);font-weight:600;}
+
+  .eyebrow{font-size:11px;letter-spacing:.3em;color:var(--cap);font-weight:600;}
+  h1{font-size:22px;font-weight:800;margin:6px 0 8px;letter-spacing:-.01em;}
+  .lede{font-size:13.5px;color:var(--sub);line-height:1.8;margin:0 0 22px;}
+
+  .frame{background:#fff;border:1px solid var(--line);padding:14px;box-shadow:0 10px 34px rgba(28,26,22,.08);}
+  .stage{position:relative;width:100%;aspect-ratio:900/595;background:#efece4;}
+  .stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.1s ease;}
+  .stage img.on{opacity:1;}
+
+  .label{border-top:1px solid var(--line);margin-top:14px;padding-top:12px;}
+  .label .t{font-size:14.5px;font-weight:800;}
+  .label .m{font-size:12px;color:var(--sub);margin-top:3px;line-height:1.6;}
+
+  .console{margin-top:22px;}
+  .console .cap2{font-size:11px;letter-spacing:.22em;color:var(--cap);font-weight:600;margin-bottom:10px;}
+  .times{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
+  .times button{background:#fff;border:1px solid var(--line);border-radius:3px;padding:11px 2px;font-size:12px;color:var(--sub);font-family:inherit;}
+  .times button.on{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700;}
+  .auto{margin-top:12px;width:100%;background:none;border:1px solid var(--line);border-radius:3px;padding:11px;font-size:12.5px;color:var(--sub);font-family:inherit;}
+  .auto.on{border-color:var(--ink);color:var(--ink);font-weight:700;}
+
+  .foot{font-size:11px;color:#a89f8d;line-height:1.8;margin-top:24px;}
+</style>
+</head>
+<body>
+  <div class="top"><a href="index.html">← 홈</a><span class="cap">MONET 100 · PROTOTYPE</span></div>
+
+  <div class="eyebrow">ZONE C — 건초더미</div>
+  <h1>빛의 콘솔</h1>
+  <p class="lede">같은 건초더미, 다른 빛. 시간을 조작하면 실제 연작이 바뀝니다.<br>운영 시 이 콘솔이 전시장 조명(DMX)을 제어합니다.</p>
+
+  <div class="frame">
+    <div class="stage" id="stage">
+      <img src="quest_img/hay_morning.jpg" class="on">
+      <img src="quest_img/hay_midday.jpg">
+      <img src="quest_img/hay_autumn.jpg">
+      <img src="quest_img/hay_snow.jpg">
+      <img src="quest_img/hay_thaw.jpg">
+    </div>
+    <div class="label">
+      <div class="t" id="lt"></div>
+      <div class="m" id="lm"></div>
+    </div>
+  </div>
+
+  <div class="console">
+    <div class="cap2">시간·계절 선택</div>
+    <div class="times" id="times"></div>
+    <button class="auto" id="auto">하루를 자동으로 흐르게 하기</button>
+  </div>
+
+  <p class="foot">클로드 모네, 건초더미 연작 (1890–91) 중 5점 · 퍼블릭 도메인 (Wikimedia Commons)<br>
+  1891년 뒤랑뤼엘 화랑에서 15점이 처음 공개된 연작 — 대상은 하나, 빛이 그림을 완성한다.</p>
+
+<script>
+const DATA = [
+  {btn:'아침',        t:'햇빛 속 건초더미, 아침 효과', m:'1890 · 캔버스에 유채 · 65 × 100 cm'},
+  {btn:'한낮',        t:'건초더미, 한낮',             m:'1890 · 오스트레일리아 국립미술관, 캔버라'},
+  {btn:'가을 저녁',    t:'밀짚더미 — 하루의 끝, 가을',  m:'1890–91 · 시카고 미술관'},
+  {btn:'눈 온 아침',   t:'밀짚더미, 눈 효과, 아침',     m:'1891 · 게티 미술관, 로스앤젤레스'},
+  {btn:'해빙, 해질녘', t:'밀짚더미 — 해빙, 해질녘',     m:'1890–91 · 시카고 미술관'},
+];
+const imgs = [...document.querySelectorAll('.stage img')];
+const wrap = document.getElementById('times');
+let cur = 0, timer = null;
+DATA.forEach((d,i) => {
+  const b = document.createElement('button');
+  b.textContent = d.btn;
+  b.onclick = () => { set(i); stopAuto(); };
+  wrap.appendChild(b);
+});
+const btns = [...wrap.children];
+function set(i){
+  cur = i;
+  imgs.forEach((im,k) => im.classList.toggle('on', k===i));
+  btns.forEach((b,k) => b.classList.toggle('on', k===i));
+  document.getElementById('lt').textContent = '〈' + DATA[i].t + '〉';
+  document.getElementById('lm').textContent = '클로드 모네 · ' + DATA[i].m;
+}
+const autoBtn = document.getElementById('auto');
+function stopAuto(){ clearInterval(timer); timer = null; autoBtn.classList.remove('on'); autoBtn.textContent = '하루를 자동으로 흐르게 하기'; }
+autoBtn.onclick = () => {
+  if (timer) { stopAuto(); return; }
+  autoBtn.classList.add('on'); autoBtn.textContent = '자동 재생 중 — 누르면 멈춤';
+  timer = setInterval(() => set((cur+1) % DATA.length), 2600);
+};
+set(0);
+</script>
+</body>
+</html>
