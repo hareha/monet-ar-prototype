@@ -3,258 +3,167 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>모네의 눈 — 실시간 유화 필터</title>
+<title>모네의 눈</title>
 <style>
   :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;}
   *{box-sizing:border-box;}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
-  #view{position:fixed;inset:0;}
-  #view canvas{width:100%;height:100%;display:block;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
+  body{max-width:520px;margin:0 auto;padding:22px 18px 50px;}
+  .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px;}
+  .top a{font-size:12.5px;color:var(--sub);text-decoration:none;}
+  .top .cap{font-size:10.5px;letter-spacing:.28em;color:var(--cap);font-weight:600;}
+  h1{font-size:22px;font-weight:800;margin:0 0 16px;letter-spacing:-.01em;}
 
-  .screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;padding:28px;text-align:center;}
-  .cap{font-size:10.5px;letter-spacing:.3em;color:var(--cap);font-weight:600;}
-  h1{font-size:22px;font-weight:800;margin:10px 0 8px;}
-  .sub{font-size:13.5px;color:var(--sub);line-height:1.8;margin:0;max-width:300px;}
-  .btn{background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:15px 44px;font-size:14.5px;font-weight:700;margin-top:26px;font-family:inherit;
-       box-shadow:0 4px 12px rgba(28,26,22,.18),0 2px 0 rgba(28,26,22,.4);}
+  .stage-wrap{background:#fff;border:1px solid var(--line);padding:14px;box-shadow:0 10px 34px rgba(28,26,22,.08);}
+  .stage{position:relative;width:100%;aspect-ratio:3/4;background:#efece4;overflow:hidden;}
+  .stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  #result{display:none;}
+  #busy{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(250,249,246,.7);font-size:13.5px;color:var(--ink);font-weight:700;}
+  #busy.on{display:flex;}
+
+  .btn{display:flex;align-items:center;justify-content:center;width:100%;background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:15px;font-size:14.5px;font-weight:700;margin-top:14px;font-family:inherit;text-decoration:none;
+       box-shadow:0 4px 12px rgba(28,26,22,.16),0 2px 0 rgba(28,26,22,.4);cursor:pointer;}
   .btn:active{transform:translateY(2px);box-shadow:0 1px 3px rgba(28,26,22,.2);}
   .btn:disabled{opacity:.35;}
-  #status{display:none;font-size:12.5px;color:#b0392f;margin-top:14px;max-width:320px;line-height:1.6;}
-  #status.show{display:block;}
-  a.home{position:fixed;top:14px;left:14px;z-index:6;font-size:12.5px;color:#fff;text-decoration:none;text-shadow:0 1px 4px rgba(0,0,0,.6);}
+  .btn.ghost{background:#fff;border:1px solid #d8d3c8;color:var(--sub);font-weight:600;box-shadow:0 1px 3px rgba(28,26,22,.07),0 2px 0 #d8d3c8;}
+  .btn.ghost:active{transform:translateY(2px);box-shadow:none;}
+  .row{display:flex;gap:8px;}
+  .row .btn{flex:1;}
 
-  #bar{position:fixed;left:12px;right:12px;bottom:14px;z-index:6;background:rgba(250,249,246,.94);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:none;align-items:center;gap:10px;backdrop-filter:blur(6px);box-shadow:0 6px 24px rgba(28,26,22,.18);}
-  #bar.on{display:flex;}
-  #bar button{background:#fff;border:1px solid #d8d3c8;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--sub);font-family:inherit;white-space:nowrap;
-              box-shadow:0 1px 3px rgba(28,26,22,.08),0 2px 0 #d8d3c8;}
-  #bar button:active{transform:translateY(2px);box-shadow:none;}
-  #bar button.on{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700;box-shadow:0 2px 0 rgba(28,26,22,.4);}
-  #bar input[type=range]{flex:1;accent-color:var(--ink);}
-  #bar .lbl{font-size:11px;color:var(--cap);white-space:nowrap;}
+  .strength{display:none;align-items:center;gap:10px;margin-top:14px;}
+  .strength.on{display:flex;}
+  .strength .lbl{font-size:12px;color:var(--cap);white-space:nowrap;}
+  .strength input{flex:1;accent-color:var(--ink);}
+
+  #status{display:none;font-size:12.5px;color:#b0392f;margin-top:12px;text-align:center;line-height:1.6;}
+  #status.show{display:block;}
+  .credit{font-size:11px;color:#a89f8d;margin-top:20px;text-align:center;}
+  .credit a{color:#a89f8d;}
 </style>
 </head>
 <body>
-<div id="view"></div>
-<a class="home" href="index.html" id="homeLink" style="display:none">← 홈</a>
-
-<div id="overlay" class="screen">
-  <div class="cap">ZONE B — 에트르타 · 실사에서 회화로</div>
+  <div class="top"><a href="index.html">← 홈</a><span class="cap">MONET 100 · PROTOTYPE</span></div>
   <h1>모네의 눈</h1>
-  <p class="sub">카메라가 보는 세계가 실시간으로 유화가 됩니다.<br>
-  붓칠은 화면의 결(구조 텐서)을 따라 방향을 잡습니다 —<br>이방성 쿠와하라 필터.</p>
+
+  <div class="stage-wrap">
+    <div class="stage">
+      <video id="cam" playsinline muted autoplay></video>
+      <canvas id="result"></canvas>
+      <div id="busy">변환 중…</div>
+    </div>
+  </div>
+
   <button class="btn" id="startBtn">카메라 켜기</button>
+  <button class="btn" id="shootBtn" style="display:none">촬영 — 모네 화풍으로 변환</button>
+  <div class="strength" id="strengthRow">
+    <span class="lbl">화풍 강도</span>
+    <input type="range" id="strength" min="0.2" max="1" step="0.05" value="0.8">
+  </div>
+  <div class="row" id="afterRow" style="display:none">
+    <button class="btn ghost" id="againBtn">다시 촬영</button>
+    <a class="btn" id="saveBtn" download="monet_eye.jpg">저장</a>
+  </div>
   <div id="status"></div>
-</div>
 
-<div id="bar">
-  <button id="toggle" class="on">유화</button>
-  <span class="lbl">붓</span>
-  <input type="range" id="brush" min="0.7" max="2.4" step="0.1" value="1.2">
-  <button id="snap">캡처</button>
-</div>
+  <p class="credit">Style transfer: <a href="https://github.com/reiinakano/arbitrary-image-stylization-tfjs" target="_blank">arbitrary-image-stylization-tfjs</a> (Magenta) · 스타일: 모네 〈인상, 해돋이〉</p>
 
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
 <script>
-  window.__errors = [];
-  window.addEventListener('error', e => window.__errors.push(e.message || String(e.error||e)));
-  window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
-</script>
-<script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js" } }
-</script>
-<script type="module">
-import * as THREE from 'three';
-
+const cam = document.getElementById('cam');
+const result = document.getElementById('result');
+const busy = document.getElementById('busy');
 const statusEl = document.getElementById('status');
+const startBtn = document.getElementById('startBtn');
+const shootBtn = document.getElementById('shootBtn');
 const bad = t => { statusEl.className = 'show'; statusEl.textContent = t; };
-const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }`;
 
-// ── 패스 1: 구조 텐서 (Sobel → E,F,G) ──
-const TENSOR_FRAG = `
-precision highp float;
-varying vec2 vUv;
-uniform sampler2D map;
-uniform vec2 texel;
-uniform vec2 uvScale, uvOffset;
-vec3 tx(vec2 o){ return texture2D(map, (vUv * uvScale + uvOffset) + o * texel).rgb; }
-void main(){
-  vec3 gx = (
-    -1.0*tx(vec2(-1.,-1.)) + 1.0*tx(vec2(1.,-1.)) +
-    -2.0*tx(vec2(-1., 0.)) + 2.0*tx(vec2(1., 0.)) +
-    -1.0*tx(vec2(-1., 1.)) + 1.0*tx(vec2(1., 1.))) / 4.0;
-  vec3 gy = (
-    -1.0*tx(vec2(-1.,-1.)) - 2.0*tx(vec2(0.,-1.)) - 1.0*tx(vec2(1.,-1.)) +
-     1.0*tx(vec2(-1., 1.)) + 2.0*tx(vec2(0., 1.)) + 1.0*tx(vec2(1., 1.))) / 4.0;
-  gl_FragColor = vec4(dot(gx,gx), dot(gy,gy), dot(gx,gy) * 0.5 + 0.5, 1.0);
-}`;
+let stream = null, styleNet = null, transformNet = null, styleVec = null;
+let contentCanvas = null;
 
-// ── 패스 2: 텐서 블러 (5×5) ──
-const BLUR_FRAG = `
-precision highp float;
-varying vec2 vUv;
-uniform sampler2D map;
-uniform vec2 texel;
-void main(){
-  vec3 acc = vec3(0.); float tw = 0.;
-  for (int j=-2;j<=2;j++) for (int i=-2;i<=2;i++){
-    float w = exp(-float(i*i+j*j)/6.0);
-    acc += texture2D(map, vUv + vec2(float(i),float(j))*texel).rgb * w;
-    tw += w;
-  }
-  gl_FragColor = vec4(acc/tw, 1.0);
-}`;
-
-// ── 패스 3: 이방성 쿠와하라 (8섹터, 타원 커널이 결 방향을 따름) ──
-const KUWA_FRAG = `
-precision highp float;
-varying vec2 vUv;
-uniform sampler2D map, tensor;
-uniform vec2 texel;
-uniform vec2 uvScale, uvOffset;
-uniform float radius;   // 붓 크기 (px)
-uniform float mixv;
-#define SECTORS 8
-#define RSTEPS 4
-#define ASTEPS 3
-void main(){
-  vec2 uv = vUv * uvScale + uvOffset;
-  vec3 orig = texture2D(map, uv).rgb;
-
-  vec3 t = texture2D(tensor, vUv).rgb;
-  float E = t.x, G = t.y, F = t.z * 2.0 - 1.0;
-  float D = sqrt(max((E-G)*(E-G) + 4.0*F*F, 1e-8));
-  float l1 = 0.5*(E+G+D), l2 = 0.5*(E+G-D);
-  float phi = atan(l1 - E, -F + 1e-8);              // 최소 변화 방향 = 붓 방향
-  float A = (l1 - l2) / (l1 + l2 + 1e-8);           // 이방성 0~1
-  float a = radius * (1.0 + A) ;                     // 결 방향 장축
-  float b = radius / (1.0 + A);                      // 단축
-  float cp = cos(phi), sp = sin(phi);
-
-  vec3 acc = vec3(0.); float accW = 0.;
-  for (int k = 0; k < SECTORS; k++){
-    float base = 6.2831853 * float(k) / float(SECTORS);
-    vec3 m = vec3(0.); vec3 s = vec3(0.); float n = 0.;
-    for (int ai = 0; ai < ASTEPS; ai++){
-      float ang = base + (float(ai)+0.5-float(ASTEPS)*0.5) * (6.2831853/float(SECTORS)/float(ASTEPS)) * float(ASTEPS);
-      float ca = cos(ang), sa = sin(ang);
-      for (int ri = 1; ri <= RSTEPS; ri++){
-        float rr = float(ri)/float(RSTEPS);
-        vec2 e = vec2(ca * a * rr, sa * b * rr);           // 타원 공간
-        vec2 o = vec2(cp*e.x - sp*e.y, sp*e.x + cp*e.y);   // 결 방향 회전
-        vec3 c = texture2D(map, uv + o * texel).rgb;
-        float w = exp(-2.0*rr*rr);
-        m += c * w; s += c*c * w; n += w;
-      }
-    }
-    m /= n; s = abs(s/n - m*m);
-    float sigma = s.r + s.g + s.b;
-    float w = 1.0 / (1.0 + pow(600.0 * sigma, 3.0));       // 균질 섹터 우선 = 붓자국
-    acc += m * w; accW += w;
-  }
-  vec3 col = acc / max(accW, 1e-6);
-  float l = dot(col, vec3(.299,.587,.114));
-  col = mix(vec3(l), col, 1.22);                            // 채도 — 인상파 팔레트
-  col = (col - .5) * 1.04 + .515;
-  gl_FragColor = vec4(mix(orig, clamp(col, 0., 1.), mixv), 1.0);
-}`;
-
-function quadScene(frag, uniforms) {
-  const scene = new THREE.Scene();
-  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2),
-    new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: frag, uniforms })));
-  return scene;
+async function loadModels() {
+  if (styleNet) return;
+  startBtn.textContent = '모델 로딩 중… (최초 1회, 12MB)';
+  styleNet = await tf.loadGraphModel('models/style/model.json');
+  transformNet = await tf.loadGraphModel('models/transformer/model.json');
+  const styleImg = new Image();
+  styleImg.src = 'quest_img/monet_sunrise.jpg';
+  await new Promise(r => { styleImg.onload = r; });
+  styleVec = tf.tidy(() =>
+    styleNet.predict(tf.browser.fromPixels(styleImg).toFloat().div(tf.scalar(255)).expandDims()));
 }
 
-async function start() {
-  const btn = document.getElementById('startBtn');
-  btn.disabled = true;
+startBtn.onclick = async () => {
+  startBtn.disabled = true;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: {ideal: 1280} }, audio: false });
-    const video = document.createElement('video');
-    video.setAttribute('playsinline', ''); video.muted = true;
-    video.srcObject = stream;
-    await video.play();
-
-    const view = document.getElementById('view');
-    const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
-    const SCALE = 0.66;
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2) * SCALE);
-    renderer.setSize(view.clientWidth, view.clientHeight);
-    view.appendChild(renderer.domElement);
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-
-    const tex = new THREE.VideoTexture(video);
-    tex.minFilter = THREE.LinearFilter;
-
-    const rtType = renderer.capabilities.isWebGL2 ? THREE.HalfFloatType : THREE.UnsignedByteType;
-    const mkRT = () => new THREE.WebGLRenderTarget(4, 4, { type: rtType, depthBuffer: false });
-    let rtA = mkRT(), rtB = mkRT();
-
-    const uCommon = { uvScale: { value: new THREE.Vector2(1,1) }, uvOffset: { value: new THREE.Vector2(0,0) } };
-    const tensorU = { map: {value: tex}, texel: {value: new THREE.Vector2()}, uvScale: uCommon.uvScale, uvOffset: uCommon.uvOffset };
-    const blurU   = { map: {value: rtA.texture}, texel: {value: new THREE.Vector2()} };
-    const kuwaU   = { map: {value: tex}, tensor: {value: rtB.texture}, texel: {value: new THREE.Vector2()},
-                      uvScale: uCommon.uvScale, uvOffset: uCommon.uvOffset,
-                      radius: {value: 5}, mixv: {value: 1} };
-    const sTensor = quadScene(TENSOR_FRAG, tensorU);
-    const sBlur   = quadScene(BLUR_FRAG, blurU);
-    const sKuwa   = quadScene(KUWA_FRAG, kuwaU);
-
-    let brush = 1.2;
-    const fit = () => {
-      renderer.setSize(view.clientWidth, view.clientHeight);
-      const sz = renderer.getDrawingBufferSize(new THREE.Vector2());
-      rtA.setSize(sz.x, sz.y); rtB.setSize(sz.x, sz.y);
-      const vw = video.videoWidth || 640, vh = video.videoHeight || 480;
-      const ca = view.clientWidth / view.clientHeight, va = vw / vh;
-      if (ca < va) { const r = ca/va; uCommon.uvScale.value.set(r,1); uCommon.uvOffset.value.set((1-r)/2,0); }
-      else         { const r = va/ca; uCommon.uvScale.value.set(1,r); uCommon.uvOffset.value.set(0,(1-r)/2); }
-      tensorU.texel.value.set(1/vw, 1/vh);
-      blurU.texel.value.set(1/sz.x, 1/sz.y);
-      kuwaU.texel.value.set(1/vw, 1/vh);
-      kuwaU.radius.value = 4.5 * brush;
-    };
-    fit();
-    window.addEventListener('resize', () => setTimeout(fit, 100));
-    video.addEventListener('loadedmetadata', fit);
-
-    renderer.setAnimationLoop(() => {
-      if (kuwaU.mixv.value > 0.01) {
-        renderer.setRenderTarget(rtA); renderer.render(sTensor, camera);
-        renderer.setRenderTarget(rtB); renderer.render(sBlur, camera);
-      }
-      renderer.setRenderTarget(null); renderer.render(sKuwa, camera);
-    });
-
-    document.getElementById('overlay').style.display = 'none';
-    document.getElementById('bar').classList.add('on');
-    document.getElementById('homeLink').style.display = 'block';
-
-    const toggle = document.getElementById('toggle');
-    toggle.onclick = () => {
-      const on = kuwaU.mixv.value < .5;
-      kuwaU.mixv.value = on ? 1 : 0;
-      toggle.classList.toggle('on', on);
-      toggle.textContent = on ? '유화' : '원본';
-    };
-    document.getElementById('brush').oninput = e => { brush = +e.target.value; fit(); };
-    document.getElementById('snap').onclick = () => {
-      const a = document.createElement('a');
-      a.href = renderer.domElement.toDataURL('image/jpeg', .92);
-      a.download = 'monet_eye.jpg';
-      a.click();
-    };
-
-    setInterval(() => {
-      if (document.hidden) return;
-      if (video.paused) video.play().catch(()=>{});
-      if (stream.active === false) location.reload();
-    }, 1500);
+    await loadModels();
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: {ideal: 1280} }, audio: false });
+    cam.srcObject = stream;
+    await cam.play();
+    startBtn.style.display = 'none';
+    shootBtn.style.display = 'flex';
   } catch (e) {
-    bad('카메라를 열지 못했습니다 — 권한을 확인해 주세요. (' + (e && e.message || e) + ')');
-    btn.disabled = false;
+    bad('시작 실패 — ' + (e && e.message || e));
+    startBtn.disabled = false;
+    startBtn.textContent = '카메라 켜기';
   }
+};
+
+function grabFrame() {
+  const vw = cam.videoWidth, vh = cam.videoHeight;
+  const MAX = 420;
+  const s = Math.min(1, MAX / Math.max(vw, vh));
+  const c = document.createElement('canvas');
+  c.width = Math.round(vw * s); c.height = Math.round(vh * s);
+  c.getContext('2d').drawImage(cam, 0, 0, c.width, c.height);
+  return c;
 }
-document.getElementById('startBtn').onclick = start;
+
+async function stylize() {
+  const strength = +document.getElementById('strength').value;
+  busy.classList.add('on');
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    const content = tf.tidy(() =>
+      tf.browser.fromPixels(contentCanvas).toFloat().div(tf.scalar(255)).expandDims());
+    const identity = tf.tidy(() => styleNet.predict(content));
+    const blended = tf.tidy(() =>
+      styleVec.mul(tf.scalar(strength)).add(identity.mul(tf.scalar(1 - strength))));
+    const out = tf.tidy(() => transformNet.predict([content, blended]).squeeze());
+    result.width = contentCanvas.width; result.height = contentCanvas.height;
+    await tf.browser.toPixels(out, result);
+    content.dispose(); identity.dispose(); blended.dispose(); out.dispose();
+    result.style.display = 'block';
+    document.getElementById('saveBtn').href = result.toDataURL('image/jpeg', .92);
+  } catch (e) {
+    bad('변환 실패 — ' + (e && e.message || e));
+  }
+  busy.classList.remove('on');
+}
+
+shootBtn.onclick = async () => {
+  contentCanvas = grabFrame();
+  cam.style.display = 'none';
+  shootBtn.style.display = 'none';
+  document.getElementById('strengthRow').classList.add('on');
+  document.getElementById('afterRow').style.display = 'flex';
+  await stylize();
+};
+
+let debounce = null;
+document.getElementById('strength').oninput = () => {
+  clearTimeout(debounce);
+  debounce = setTimeout(() => { if (contentCanvas) stylize(); }, 350);
+};
+
+document.getElementById('againBtn').onclick = () => {
+  result.style.display = 'none';
+  cam.style.display = '';
+  contentCanvas = null;
+  shootBtn.style.display = 'flex';
+  document.getElementById('strengthRow').classList.remove('on');
+  document.getElementById('afterRow').style.display = 'none';
+};
+window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
 </script>
 </body>
 </html>
