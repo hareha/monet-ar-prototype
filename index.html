@@ -33,7 +33,7 @@
   <button id="startBtn">시작</button>
 </div>
 
-<video id="vid" src="living.mp4" playsinline muted loop preload="auto" crossorigin="anonymous" style="display:none"></video>
+<video id="vid" src="living.mp4" playsinline muted loop preload="auto" crossorigin="anonymous" style="position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0.01;"></video>
 
 <!-- 부트가드: 모듈이 죽어도 버튼은 반드시 반응하고 에러를 화면에 띄운다 -->
 <script>
@@ -72,6 +72,8 @@ const bad = t => { statusEl.className='err'; statusEl.textContent = t; };
 
 async function start() {
   btn.disabled = true;
+  // iOS 재생 잠금 해제: 사용자 제스처 안에서 한 번 재생-정지
+  try { await video.play(); video.pause(); video.currentTime = 0; } catch (e) {}
   try {
     ok('카메라 시작 중… 권한을 허용해 주세요');
     const mindar = new MindARThree({
@@ -111,15 +113,22 @@ async function start() {
     const rectOf = el => { const r = el.getBoundingClientRect();
       return Math.round(r.width)+'x'+Math.round(r.height)+'@'+Math.round(r.left)+','+Math.round(r.top); };
 
-    // 표시 레이어 강제 고정 (lum 정상인데 검은 화면 대응)
-    const forceLayout = () => {
-      if (camVideo) camVideo.style.cssText =
-        'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:0;display:block;visibility:visible;opacity:1;';
-      const cnv0 = container.querySelector('canvas');
-      if (cnv0) cnv0.style.cssText +=
-        ';position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
-    };
-    forceLayout(); setTimeout(forceLayout, 800); setTimeout(forceLayout, 2000);
+    // 엔진 좌표계와 일치하는 레이아웃 복구: 엔진의 resize 재계산을 트리거
+    const nudge = () => window.dispatchEvent(new Event('resize'));
+    setTimeout(nudge, 150); setTimeout(nudge, 1000);
+    // 엔진 재계산 후에도 비디오가 0 크기면, 엔진과 동일한 cover 공식으로 수동 배치
+    setTimeout(() => {
+      if (!camVideo) return;
+      const r = camVideo.getBoundingClientRect();
+      if (r.width < 5 || r.height < 5) {
+        const cw = container.clientWidth, ch = container.clientHeight;
+        const vw2 = camVideo.videoWidth || 480, vh2 = camVideo.videoHeight || 640;
+        const s = Math.max(cw / vw2, ch / vh2);
+        const w = vw2 * s, h = vh2 * s;
+        camVideo.style.cssText = 'position:absolute;display:block;width:' + w + 'px;height:' + h +
+          'px;left:' + ((cw - w) / 2) + 'px;top:' + ((ch - h) / 2) + 'px;';
+      }
+    }, 1600);
 
     let restarted = false;
     async function restartStream() {
