@@ -54,6 +54,12 @@
   </div>
 
   <button class="btn" id="startBtn">카메라 켜기</button>
+  <div id="prog" style="display:none;margin-top:14px;">
+    <div style="height:6px;background:#eee7d8;border-radius:3px;overflow:hidden;">
+      <i id="progFill" style="display:block;height:100%;width:0%;background:#1c1a16;transition:width .2s;"></i>
+    </div>
+    <div id="progText" style="font-size:11.5px;color:#8a8578;margin-top:6px;text-align:center;">모델 내려받는 중 0%</div>
+  </div>
   <button class="btn" id="shootBtn" style="display:none">촬영 — 모네 화풍으로 변환</button>
   <div class="strength" id="strengthRow">
     <span class="lbl">화풍 강도</span>
@@ -69,6 +75,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
 <script>
+try { tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0); } catch (e) {}
 const cam = document.getElementById('cam');
 const result = document.getElementById('result');
 const busy = document.getElementById('busy');
@@ -80,16 +87,35 @@ const bad = t => { statusEl.className = 'show'; statusEl.textContent = t; };
 let stream = null, styleNet = null, transformNet = null, styleVec = null;
 let contentCanvas = null;
 
+const prog = document.getElementById('prog');
+const progFill = document.getElementById('progFill');
+const progText = document.getElementById('progText');
+const setProg = f => {
+  const pct = Math.min(100, Math.round(f * 100));
+  progFill.style.width = pct + '%';
+  progText.textContent = '모델 내려받는 중 ' + pct + '% (최초 1회만)';
+};
+
+async function loadOne(key, url, base, weight) {
+  try { return await tf.loadGraphModel('indexeddb://' + key); } catch (e) {}
+  const model = await tf.loadGraphModel(url, { onProgress: f => setProg(base + f * weight) });
+  try { await model.save('indexeddb://' + key); } catch (e) {}   // 저장 실패해도 동작엔 지장 없음
+  return model;
+}
+
 async function loadModels() {
   if (styleNet) return;
-  startBtn.textContent = '모델 로딩 중… (최초 1회 44MB, 이후 캐시)';
-  styleNet = await tf.loadGraphModel('models/style_hq/model.json');
-  transformNet = await tf.loadGraphModel('models/transformer_hq/model.json');
+  startBtn.textContent = '모델 준비 중…';
+  prog.style.display = 'block';
+  styleNet = await loadOne('monet-style-hq', 'models/style_hq/model.json', 0, 0.82);
+  transformNet = await loadOne('monet-transformer-hq', 'models/transformer_hq/model.json', 0.82, 0.18);
+  setProg(1);
   const styleImg = new Image();
   styleImg.src = 'quest_img/monet_sunrise.jpg';
   await new Promise(r => { styleImg.onload = r; });
   styleVec = tf.tidy(() =>
     styleNet.predict(tf.browser.fromPixels(styleImg).toFloat().div(tf.scalar(255)).expandDims()));
+  prog.style.display = 'none';
 }
 
 startBtn.onclick = async () => {
@@ -110,7 +136,8 @@ startBtn.onclick = async () => {
 
 function grabFrame() {
   const vw = cam.videoWidth, vh = cam.videoHeight;
-  const MAX = 640;
+  const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const MAX = IOS ? 480 : 640;
   const s = Math.min(1, MAX / Math.max(vw, vh));
   const c = document.createElement('canvas');
   c.width = Math.round(vw * s); c.height = Math.round(vh * s);
@@ -125,7 +152,13 @@ async function stylize() {
   try {
     const content = tf.tidy(() =>
       tf.browser.fromPixels(contentCanvas).toFloat().div(tf.scalar(255)).expandDims());
-    const identity = tf.tidy(() => styleNet.predict(content));
+    const small = document.createElement('canvas');
+    const ss = 256 / Math.max(contentCanvas.width, contentCanvas.height);
+    small.width = Math.round(contentCanvas.width * ss);
+    small.height = Math.round(contentCanvas.height * ss);
+    small.getContext('2d').drawImage(contentCanvas, 0, 0, small.width, small.height);
+    const identity = tf.tidy(() =>
+      styleNet.predict(tf.browser.fromPixels(small).toFloat().div(tf.scalar(255)).expandDims()));
     const blended = tf.tidy(() =>
       styleVec.mul(tf.scalar(strength)).add(identity.mul(tf.scalar(1 - strength))));
     const out = tf.tidy(() => transformNet.predict([content, blended]).squeeze());
