@@ -98,27 +98,53 @@ async function start() {
     overlay.style.display = 'none';
     hint.style.display = 'block';
 
-    // camera feed watchdog (iOS black-screen recovery)
+    // camera watchdog v2: 프레임 밝기 샘플링 + 레이아웃 진단 + 자동 스트림 복구
     const dbg = document.getElementById('dbg');
-    const camVideo = document.querySelector('#container video');
-    if (camVideo) {
-      camVideo.setAttribute('playsinline', '');
-      camVideo.muted = true;
-      try { await camVideo.play(); } catch (err) {}
+    const container = document.getElementById('container');
+    let camVideo = container.querySelector('video');
+    const sc = document.createElement('canvas'); sc.width = 32; sc.height = 32;
+    const sctx = sc.getContext('2d', { willReadFrequently: true });
+    const lumOf = v => { try { sctx.drawImage(v, 0, 0, 32, 32);
+      const d = sctx.getImageData(0, 0, 32, 32).data; let s = 0;
+      for (let k = 0; k < d.length; k += 4) s += d[k] + d[k+1] + d[k+2];
+      return Math.round(s / (32*32*3)); } catch (e) { return -1; } };
+    const rectOf = el => { const r = el.getBoundingClientRect();
+      return Math.round(r.width)+'x'+Math.round(r.height)+'@'+Math.round(r.left)+','+Math.round(r.top); };
+
+    let restarted = false;
+    async function restartStream() {
+      if (restarted || !camVideo) return; restarted = true;
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+        const oldS = camVideo.srcObject;
+        camVideo.srcObject = s;
+        if (oldS) oldS.getTracks().forEach(t => t.stop());
+        await camVideo.play().catch(()=>{});
+      } catch (e) { dbg.textContent += ' | 재획득 실패: ' + (e.message || e); }
     }
-    const kick = () => { if (camVideo) camVideo.play().catch(()=>{}); };
+
     setInterval(() => {
+      camVideo = camVideo || container.querySelector('video');
       if (!camVideo) { dbg.textContent = 'cam element 없음'; return; }
-      dbg.textContent = 'cam ' + camVideo.videoWidth + 'x' + camVideo.videoHeight + ' rs' + camVideo.readyState + (camVideo.paused ? ' PAUSED' : ' live');
-      if (camVideo.paused) kick();
-    }, 1000);
-    setTimeout(() => {
-      if (camVideo && (camVideo.videoWidth === 0 || camVideo.paused)) {
-        hint.textContent = '카메라 화면이 멈춰 있으면 화면을 한 번 탭해 주세요';
-        document.body.addEventListener('click', kick);
-        document.body.addEventListener('touchend', kick);
+      const lum = lumOf(camVideo);
+      const cnv = container.querySelector('canvas');
+      const track = camVideo.srcObject && camVideo.srcObject.getVideoTracks()[0];
+      dbg.innerHTML = 'cam ' + camVideo.videoWidth + 'x' + camVideo.videoHeight +
+        ' rs' + camVideo.readyState + (camVideo.paused ? ' PAUSED' : ' live') +
+        ' lum:' + lum +
+        (track ? ' trk:' + track.readyState + (track.muted ? '/muted' : '') : '') +
+        '<br>vid ' + rectOf(camVideo) + ' cnv ' + (cnv ? rectOf(cnv) : '없음');
+      if (camVideo.paused) camVideo.play().catch(()=>{});
+      // 프레임이 사실상 검으면(밝기<6) 스트림 1회 재획득
+      if (lum >= 0 && lum < 6 && camVideo.readyState >= 2) restartStream();
+      // 영상 요소가 0 크기이면 강제 표시
+      const r = camVideo.getBoundingClientRect();
+      if (r.width < 5 || r.height < 5) {
+        camVideo.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:0;display:block;';
+        if (cnv) cnv.style.cssText += ';position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;';
       }
-    }, 2500);
+    }, 1000);
   } catch (e) {
     bad(e && e.message ? '오류: ' + e.message : '카메라를 시작하지 못했습니다 — 브라우저의 카메라 권한을 확인해 주세요');
     btn.disabled = false;
