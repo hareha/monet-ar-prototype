@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>모션 프리셋 비교</title>
+<style>
+html,body{margin:0;background:#000;color:#fff;font-family:"Apple SD Gothic Neo",system-ui;}
+h1{font-size:17px;text-align:center;margin:16px 0 4px;}
+p{font-size:12px;color:#999;text-align:center;margin:0 0 14px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;padding:0 10px 30px;}
+figure{margin:0;}
+video{width:100%;border-radius:8px;}
+figcaption{font-size:12.5px;text-align:center;padding:4px 0;color:#ccc;}
+figcaption b{color:#fff;}
+</style></head>
+<body>
+<h1>살아나는 그림 — 모션 7종 비교</h1>
+<p>전부 자동재생(음소거) · 마음에 드는 걸 알려주면 그걸로 확정합니다</p>
+<div class="grid">
+  <figure><video src="preset_circle.mp4" autoplay muted loop playsinline></video><figcaption><b>circle</b> — 원형 (현재 적용본)</figcaption></figure>
+  <figure><video src="preset_circle_x2.mp4" autoplay muted loop playsinline></video><figcaption><b>circle ×2</b> — 원형 강화</figcaption></figure>
+  <figure><video src="preset_orbital.mp4" autoplay muted loop playsinline></video><figcaption><b>orbital</b> — 초점 공전</figcaption></figure>
+  <figure><video src="preset_orbital_x2.mp4" autoplay muted loop playsinline></video><figcaption><b>orbital ×2</b> — 공전 강화</figcaption></figure>
+  <figure><video src="preset_dolly.mp4" autoplay muted loop playsinline></video><figcaption><b>dolly</b> — 현기증 줌 (가장 극적)</figcaption></figure>
+  <figure><video src="preset_zoom.mp4" autoplay muted loop playsinline></video><figcaption><b>zoom</b> — 숨쉬는 줌인아웃</figcaption></figure>
+  <figure><video src="preset_horizontal.mp4" autoplay muted loop playsinline></video><figcaption><b>horizontal</b> — 좌우 스윕</figcaption></figure>
+</div>
+<script>document.body.addEventListener('click',function(){document.querySelectorAll('video').forEach(function(v){v.play();});});</script>
+</body></html>
