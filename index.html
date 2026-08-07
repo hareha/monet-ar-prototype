@@ -21,6 +21,7 @@
 </head>
 <body>
 <div id="container"></div>
+<div id="dbg" style="position:fixed;top:8px;left:8px;z-index:6;font:11px monospace;color:#7fbf9a;text-shadow:0 1px 2px #000;"></div>
 <div id="hint">그림을 화면에 담아보세요 — 그림이 살아납니다</div>
 
 <div id="overlay">
@@ -96,6 +97,28 @@ async function start() {
     renderer.setAnimationLoop(() => renderer.render(scene, camera));
     overlay.style.display = 'none';
     hint.style.display = 'block';
+
+    // camera feed watchdog (iOS black-screen recovery)
+    const dbg = document.getElementById('dbg');
+    const camVideo = document.querySelector('#container video');
+    if (camVideo) {
+      camVideo.setAttribute('playsinline', '');
+      camVideo.muted = true;
+      try { await camVideo.play(); } catch (err) {}
+    }
+    const kick = () => { if (camVideo) camVideo.play().catch(()=>{}); };
+    setInterval(() => {
+      if (!camVideo) { dbg.textContent = 'cam element 없음'; return; }
+      dbg.textContent = 'cam ' + camVideo.videoWidth + 'x' + camVideo.videoHeight + ' rs' + camVideo.readyState + (camVideo.paused ? ' PAUSED' : ' live');
+      if (camVideo.paused) kick();
+    }, 1000);
+    setTimeout(() => {
+      if (camVideo && (camVideo.videoWidth === 0 || camVideo.paused)) {
+        hint.textContent = '카메라 화면이 멈춰 있으면 화면을 한 번 탭해 주세요';
+        document.body.addEventListener('click', kick);
+        document.body.addEventListener('touchend', kick);
+      }
+    }, 2500);
   } catch (e) {
     bad(e && e.message ? '오류: ' + e.message : '카메라를 시작하지 못했습니다 — 브라우저의 카메라 권한을 확인해 주세요');
     btn.disabled = false;
