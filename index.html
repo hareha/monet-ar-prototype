@@ -35,7 +35,7 @@
   <button id="startBtn">시작</button>
 </div>
 
-<video id="vid" src="living.mp4?v=6" playsinline muted loop preload="auto" crossorigin="anonymous"
+<video id="vid" src="living.mp4?v=7" playsinline muted loop preload="auto" crossorigin="anonymous"
   style="position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0.01;"></video>
 
 <script>
@@ -96,7 +96,47 @@ async function start() {
     );
     const anchor = mindar.addAnchor(0);
     anchor.group.add(plane);
-    anchor.onTargetFound = () => { video.play().catch(()=>{}); hint.style.display = 'none'; };
+
+    // ── 작품 정보 라벨 (미술관 벽 라벨 스타일) ──
+    function makeLabelTexture() {
+      const c = document.createElement('canvas'); c.width = 768; c.height = 960;
+      const x = c.getContext('2d');
+      x.fillStyle = '#faf9f6'; x.fillRect(0, 0, 768, 960);
+      x.strokeStyle = '#e2ded6'; x.lineWidth = 2; x.strokeRect(1, 1, 766, 958);
+      const F = '"Apple SD Gothic Neo","Pretendard",sans-serif';
+      let y = 116;
+      x.fillStyle = '#8a8578'; x.font = '500 30px ' + F;
+      x.fillText('C L A U D E   M O N E T', 64, y); y += 22;
+      x.fillStyle = '#1c1a16'; x.font = '800 64px ' + F;
+      y += 76; x.fillText('산책, 파라솔을 든', 62, y);
+      y += 76; x.fillText('여인', 62, y);
+      y += 46; x.fillStyle = '#6f6a5e'; x.font = '400 30px ' + F;
+      x.fillText('Woman with a Parasol —', 64, y); y += 40;
+      x.fillText('Madame Monet and Her Son', 64, y);
+      y += 52; x.strokeStyle = '#d8d3c8'; x.beginPath(); x.moveTo(64, y); x.lineTo(704, y); x.stroke();
+      y += 58; x.fillStyle = '#3a372f'; x.font = '500 33px ' + F;
+      x.fillText('1875 · 캔버스에 유채', 64, y); y += 46;
+      x.fillText('100 × 81 cm', 64, y); y += 46;
+      x.fillText('내셔널 갤러리 오브 아트, 워싱턴', 64, y);
+      y += 52; x.strokeStyle = '#d8d3c8'; x.beginPath(); x.moveTo(64, y); x.lineTo(704, y); x.stroke();
+      y += 54; x.fillStyle = '#57534a'; x.font = '400 29px ' + F;
+      const desc = ['아르장퇴유 시기, 아내 카미유와 아들 장을',
+                    '그린 야외 인물화. 아래에서 올려다본 시점,',
+                    '바람에 흔들리는 베일과 풀밭의 순간성이',
+                    '인상주의의 정수로 꼽힌다.'];
+      for (const line of desc) { x.fillText(line, 64, y); y += 44; }
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+    const labelMat = new THREE.MeshBasicMaterial({ map: makeLabelTexture(), transparent: true, opacity: 0 });
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.60, 0.75), labelMat);
+    label.position.set(0.90, -0.18, 0.001);
+    anchor.group.add(label);
+    // 인식 시 부드럽게 페이드인
+    let labelTarget = 0;
+    setInterval(() => { labelMat.opacity += (labelTarget - labelMat.opacity) * 0.15; }, 33);
+    anchor.onTargetFound = () => { video.play().catch(()=>{}); hint.style.display = 'none'; labelTarget = 0.97; };
     anchor.onTargetLost  = () => { /* 계속 재생 유지 — 재인식 시 즉시 움직이는 상태 */ };
 
     await mindar.start();
