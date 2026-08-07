@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>모네 살아나는 그림 — AR 프로토타입</title>
+<script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 <style>
-  html,body{margin:0;height:100%;background:#000;color:#fff;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
-  #container{width:100%;height:100%;position:relative;}
-  #container video{display:none !important;} /* 카메라는 WebGL 배경으로만 그린다 */
+  html,body{margin:0;height:100%;background:#000;color:#fff;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
   #overlay{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:10;padding:24px;text-align:center;}
   #overlay img{width:150px;border-radius:8px;border:1px solid #333;}
   h1{font-size:19px;margin:0;font-weight:800;}
@@ -18,13 +18,10 @@
   #status.err{color:#e07a6a;}
   a{color:#8ab4f8;font-size:12.5px;}
   #dbg{position:fixed;top:8px;left:8px;z-index:6;font:11px monospace;color:#7fbf9a;text-shadow:0 1px 2px #000;}
-  #hint{position:fixed;bottom:18px;left:0;right:0;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;z-index:5;display:none;}
 </style>
 </head>
 <body>
-<div id="container"></div>
 <div id="dbg"></div>
-<div id="hint">그림을 화면에 담아보세요 — 그림이 살아납니다</div>
 
 <div id="overlay">
   <img src="target.jpg" alt="타깃 그림">
@@ -35,107 +32,70 @@
   <button id="startBtn">시작</button>
 </div>
 
-<video id="vid" src="living.mp4" playsinline muted loop preload="auto" crossorigin="anonymous"
-  style="position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0.01;"></video>
+<!-- MindAR 공식 image-tracking 비디오 예제 구조 그대로 -->
+<a-scene id="scene"
+  mindar-image="imageTargetSrc: ./targets.mind; autoStart: no; uiLoading: no; uiScanning: no; uiError: no; filterMinCF: 0.0001; filterBeta: 0.001"
+  color-space="sRGB"
+  renderer="colorManagement: true, physicallyCorrectLights"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false">
+  <a-assets>
+    <video id="vid" src="./living.mp4" preload="auto" loop muted playsinline webkit-playsinline crossorigin="anonymous"></video>
+  </a-assets>
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <a-entity id="anchor" mindar-image-target="targetIndex: 0">
+    <a-video src="#vid" width="1.02" height="1.266" position="0 0 0"></a-video>
+  </a-entity>
+</a-scene>
 
 <script>
+  var statusEl = document.getElementById('status');
+  var dbg = document.getElementById('dbg');
+  var btn = document.getElementById('startBtn');
+  var overlay = document.getElementById('overlay');
   window.__errors = [];
   window.addEventListener('error', function(e){ window.__errors.push(e.message || String(e.error||e)); });
-  window.addEventListener('unhandledrejection', function(e){ window.__errors.push('promise: ' + (e.reason && e.reason.message || e.reason)); });
-  document.getElementById('startBtn').addEventListener('click', function(){
-    if (window.__start) { window.__start(); return; }
-    var s = document.getElementById('status');
-    s.className = 'err';
-    s.textContent = 'AR 엔진이 로드되지 않았습니다. ' +
-      (window.__errors.length ? '원인: ' + window.__errors.join(' | ') :
-       '브라우저가 오래됐을 수 있습니다 (iOS 16.4+ / 최신 Chrome 필요).');
+
+  function ok(t){ statusEl.className=''; statusEl.textContent=t; }
+  function bad(t){ statusEl.className='err'; statusEl.textContent=t; }
+
+  var sceneEl = document.getElementById('scene');
+  var anchorEl = document.getElementById('anchor');
+  var video = document.getElementById('vid');
+  var tracked = false;
+
+  anchorEl.addEventListener('targetFound', function(){
+    tracked = true;
+    video.play().catch(function(){});
   });
-</script>
+  anchorEl.addEventListener('targetLost', function(){
+    tracked = false;
+    video.pause();
+  });
+  sceneEl.addEventListener('arError', function(){ bad('AR 시작 실패 — 카메라 권한을 확인해 주세요'); btn.disabled = false; });
 
-<script type="importmap">
-{ "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/",
-    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
-} }
-</script>
-<script type="module">
-import * as THREE from 'three';
-import { MindARThree } from 'mindar-image-three';
+  setInterval(function(){
+    dbg.textContent = (tracked ? '타깃 인식됨' : '타깃 찾는 중') +
+      ' | 영상 ' + (video.paused ? '정지' : '▶재생중 ' + video.currentTime.toFixed(1) + 's');
+  }, 500);
 
-const statusEl = document.getElementById('status');
-const btn = document.getElementById('startBtn');
-const overlay = document.getElementById('overlay');
-const hint = document.getElementById('hint');
-const dbg = document.getElementById('dbg');
-const video = document.getElementById('vid');
-const container = document.getElementById('container');
-
-const ok  = t => { statusEl.className='';    statusEl.textContent = t; };
-const bad = t => { statusEl.className='err'; statusEl.textContent = t; };
-
-async function start() {
-  btn.disabled = true;
-  try { await video.play(); video.pause(); video.currentTime = 0; } catch (e) {}
-  try {
+  btn.addEventListener('click', function(){
+    btn.disabled = true;
+    // iOS 재생 잠금 해제: 제스처 안에서 재생 시작 (숨김 상태로 계속 재생 — targetLost 때만 pause)
+    video.muted = true;
+    video.play().catch(function(){});
+    var arSystem = sceneEl.systems['mindar-image-system'];
+    if (!arSystem) {
+      bad('AR 엔진이 로드되지 않았습니다. ' + (window.__errors.join(' | ') || '브라우저 버전을 확인해 주세요'));
+      btn.disabled = false;
+      return;
+    }
     ok('카메라 시작 중… 권한을 허용해 주세요');
-    const mindar = new MindARThree({
-      container, imageTargetSrc: 'targets.mind',
-      uiScanning: 'no', uiLoading: 'no',
-      filterMinCF: 0.0001, filterBeta: 0.003
-    });
-    const { renderer, scene, camera } = mindar;
+    try { arSystem.start(); } catch(e) { bad('오류: ' + (e.message||e)); btn.disabled=false; return; }
+    sceneEl.addEventListener('arReady', function(){ overlay.style.display = 'none'; }, { once: true });
+  });
 
-    // AR 콘텐츠: 살아있는 그림 평면
-    const vidTex = new THREE.VideoTexture(video);
-    vidTex.encoding = THREE.sRGBEncoding;
-    const plane = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.02, (993/800) * 1.02),
-      new THREE.MeshBasicMaterial({ map: vidTex })
-    );
-    const anchor = mindar.addAnchor(0);
-    anchor.group.add(plane);
-    anchor.onTargetFound = () => { video.play().catch(()=>{}); hint.style.display = 'none'; };
-    anchor.onTargetLost  = () => { video.pause(); };
-
-    await mindar.start();
-
-    // ── 카메라 피드를 WebGL 배경으로 합성 (DOM 비디오는 숨김) ──
-    const camVideo = container.querySelector('video');
-    const bgTex = new THREE.VideoTexture(camVideo);
-    bgTex.encoding = THREE.sRGBEncoding;
-    bgTex.matrixAutoUpdate = true;
-    const setCover = () => {
-      const cw = container.clientWidth, ch = container.clientHeight;
-      const vw = camVideo.videoWidth || 480, vh = camVideo.videoHeight || 640;
-      const ca = cw / ch, va = vw / vh;
-      if (ca < va) { const r = ca / va; bgTex.repeat.set(r, 1); bgTex.offset.set((1 - r) / 2, 0); }
-      else         { const r = va / ca; bgTex.repeat.set(1, r); bgTex.offset.set(0, (1 - r) / 2); }
-    };
-    setCover();
-    window.addEventListener('resize', () => setTimeout(setCover, 100));
-    camVideo.addEventListener('loadedmetadata', setCover);
-    scene.background = bgTex;
-
-    renderer.setAnimationLoop(() => renderer.render(scene, camera));
-    overlay.style.display = 'none';
-    hint.style.display = 'block';
-
-    // 진단 + 카메라 재생 유지
-    setInterval(() => {
-      if (camVideo.paused) camVideo.play().catch(()=>{});
-      dbg.textContent = 'cam ' + camVideo.videoWidth + 'x' + camVideo.videoHeight +
-        (camVideo.paused ? ' PAUSED' : ' live') +
-        ' | 영상 ' + (video.paused ? '정지' : '재생중') +
-        ' | bg cover ' + bgTex.repeat.x.toFixed(2) + ',' + bgTex.repeat.y.toFixed(2);
-    }, 1000);
-  } catch (e) {
-    bad(e && e.message ? '오류: ' + e.message : '카메라를 시작하지 못했습니다 — 카메라 권한을 확인해 주세요');
-    btn.disabled = false;
-  }
-}
-window.__start = start;
-ok('준비됨 — 시작을 누르면 바로 카메라가 켜집니다');
+  ok('준비됨 — 시작을 누르면 바로 카메라가 켜집니다');
 </script>
 </body>
 </html>
