@@ -97,7 +97,7 @@ async function start() {
     overlay.style.display = 'none';
     hint.style.display = 'block';
   } catch (e) {
-    bad('오류: ' + (e && e.message || e));
+    bad(e && e.message ? '오류: ' + e.message : '카메라를 시작하지 못했습니다 — 브라우저의 카메라 권한을 확인해 주세요');
     btn.disabled = false;
   }
 }
