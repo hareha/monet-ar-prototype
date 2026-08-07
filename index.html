@@ -3,36 +3,50 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>모네 살아나는 그림 — AR 프로토타입</title>
+<title>모네, 살아나는 그림</title>
 <style>
-  html,body{margin:0;height:100%;background:#000;color:#fff;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
+  html,body{margin:0;height:100%;background:#0c0b0a;color:#f5f2ec;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
   #container{width:100%;height:100%;position:relative;}
   #container video{display:none !important;} /* 카메라는 WebGL 배경으로만 그린다 */
-  #overlay{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:10;padding:24px;text-align:center;}
-  #overlay img{width:150px;border-radius:8px;border:1px solid #333;}
-  h1{font-size:19px;margin:0;font-weight:800;}
-  p{font-size:13.5px;color:#aaa;margin:0;max-width:300px;line-height:1.6;}
-  button{background:#fff;color:#000;border:0;border-radius:999px;padding:13px 34px;font-size:16px;font-weight:800;margin-top:6px;}
-  button:disabled{opacity:.4;}
-  #status{font-size:12.5px;color:#7fbf9a;min-height:36px;max-width:320px;word-break:break-all;}
-  #status.err{color:#e07a6a;}
-  a{color:#8ab4f8;font-size:12.5px;}
-  #dbg{position:fixed;top:8px;left:8px;z-index:6;font:11px monospace;color:#7fbf9a;text-shadow:0 1px 2px #000;}
-  #hint{position:fixed;bottom:18px;left:0;right:0;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;z-index:5;display:none;}
+
+  .screen{position:fixed;inset:0;background:#0c0b0a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;z-index:10;padding:28px;text-align:center;}
+  .frame{padding:10px;background:#161412;box-shadow:0 12px 60px rgba(0,0,0,.7);}
+  .frame img{width:min(46vw,190px);display:block;}
+  .eyebrow{margin-top:34px;font-size:11.5px;letter-spacing:.34em;color:#9a917f;font-weight:600;}
+  h1{font-size:24px;margin:10px 0 0;font-weight:800;letter-spacing:-.01em;}
+  .sub{font-size:13.5px;color:#a39c8e;margin-top:10px;line-height:1.7;font-weight:400;}
+  .btn{background:#f5f2ec;color:#141210;border:0;border-radius:999px;padding:15px 46px;font-size:15.5px;font-weight:800;margin-top:34px;letter-spacing:.02em;}
+  .btn:disabled{opacity:.4;}
+  .btn:active{transform:scale(.97);}
+  #status{display:none;font-size:12.5px;color:#e07a6a;margin-top:16px;max-width:320px;line-height:1.6;word-break:keep-all;}
+  #status.show{display:block;}
+
+  #resume{display:none;z-index:20;}
+  #resume.show{display:flex;}
+  #resume p{font-size:14px;color:#a39c8e;margin:14px 0 0;line-height:1.7;}
+
+  #hint{position:fixed;bottom:20px;left:0;right:0;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;z-index:5;display:none;letter-spacing:.02em;}
 </style>
 </head>
 <body>
 <div id="container"></div>
-<div id="dbg"></div>
-<div id="hint">그림을 화면에 담아보세요 — 그림이 살아납니다</div>
+<div id="hint">그림을 화면에 담아보세요</div>
 
-<div id="overlay">
-  <img src="target.jpg" alt="타깃 그림">
-  <h1>모네 — 살아나는 그림 (프로토타입)</h1>
-  <p>이 그림(벽 출력물 또는 다른 화면)에 카메라를 비추면 그림 위에 영상이 붙어 재생됩니다.</p>
-  <p><a href="wall.html" target="_blank">다른 기기에 타깃 그림 띄우기 (wall.html)</a></p>
-  <div id="status">엔진 로딩 중…</div>
-  <button id="startBtn">시작</button>
+<!-- 시작 화면 -->
+<div id="overlay" class="screen">
+  <div class="frame"><img src="target.jpg" alt=""></div>
+  <div class="eyebrow">CLAUDE MONET</div>
+  <h1>살아나는 그림</h1>
+  <p class="sub">벽에 걸린 그림에 카메라를 비추면<br>그림이 깨어납니다</p>
+  <button id="startBtn" class="btn">체험 시작</button>
+  <div id="status"></div>
+</div>
+
+<!-- 세션 중단 화면 -->
+<div id="resume" class="screen">
+  <h1>체험이 중단되었어요</h1>
+  <p>화면을 벗어나면 카메라가 잠시 꺼집니다.<br>다시 시작하면 이어서 감상할 수 있어요.</p>
+  <button class="btn" onclick="location.reload()">다시 시작</button>
 </div>
 
 <video id="vid" src="living.mp4?v=7" playsinline muted loop preload="auto" crossorigin="anonymous"
@@ -42,13 +56,15 @@
   window.__errors = [];
   window.addEventListener('error', function(e){ window.__errors.push(e.message || String(e.error||e)); });
   window.addEventListener('unhandledrejection', function(e){ window.__errors.push('promise: ' + (e.reason && e.reason.message || e.reason)); });
+  // 뒤로가기 후 bfcache로 재진입하면 스트림이 죽은 상태 — 무조건 새로 로드
+  window.addEventListener('pageshow', function(e){ if (e.persisted) location.reload(); });
   document.getElementById('startBtn').addEventListener('click', function(){
     if (window.__start) { window.__start(); return; }
     var s = document.getElementById('status');
-    s.className = 'err';
-    s.textContent = 'AR 엔진이 로드되지 않았습니다. ' +
+    s.className = 'show';
+    s.textContent = '엔진을 불러오지 못했습니다. ' +
       (window.__errors.length ? '원인: ' + window.__errors.join(' | ') :
-       '브라우저가 오래됐을 수 있습니다 (iOS 16.4+ / 최신 Chrome 필요).');
+       '네트워크를 확인하거나 최신 브라우저(iOS 16.4+ / Chrome)로 열어주세요.');
   });
 </script>
 
@@ -66,20 +82,18 @@ import { MindARThree } from 'mindar-image-three';
 const statusEl = document.getElementById('status');
 const btn = document.getElementById('startBtn');
 const overlay = document.getElementById('overlay');
+const resumeEl = document.getElementById('resume');
 const hint = document.getElementById('hint');
-const dbg = document.getElementById('dbg');
 const video = document.getElementById('vid');
 const container = document.getElementById('container');
 
-const ok  = t => { statusEl.className='';    statusEl.textContent = t; };
-const bad = t => { statusEl.className='err'; statusEl.textContent = t; };
+const bad = t => { statusEl.className = 'show'; statusEl.textContent = t; };
 
 async function start() {
   btn.disabled = true;
   video.muted = true;
   try { await video.play(); } catch (e) {}  // 제스처 안에서 재생 시작, 이후 계속 재생
   try {
-    ok('카메라 시작 중… 권한을 허용해 주세요');
     const mindar = new MindARThree({
       container, imageTargetSrc: 'targets.mind',
       uiScanning: 'no', uiLoading: 'no',
@@ -162,21 +176,33 @@ async function start() {
     overlay.style.display = 'none';
     hint.style.display = 'block';
 
-    // 진단 + 카메라 재생 유지
+    // ── 세션 상태 감시: 백그라운드 복귀·재진입 후 카메라가 죽으면 재시작 화면 ──
+    let lastT = -1, stall = 0, halted = false;
+    const showResume = () => {
+      if (halted) return; halted = true;
+      resumeEl.classList.add('show');
+      hint.style.display = 'none';
+    };
     setInterval(() => {
+      if (halted) return;
+      if (document.hidden) { stall = 0; return; }      // 백그라운드 중엔 판정 유예
       if (camVideo.paused) camVideo.play().catch(()=>{});
-      dbg.textContent = 'cam ' + camVideo.videoWidth + 'x' + camVideo.videoHeight +
-        (camVideo.paused ? ' PAUSED' : ' live') +
-        ' | 영상 ' + (video.paused ? '정지' : '▶' + video.currentTime.toFixed(1) + 's') +
-        ' | bg cover ' + bgTex.repeat.x.toFixed(2) + ',' + bgTex.repeat.y.toFixed(2);
+      if (video.paused && !overlay.style.display) video.play().catch(()=>{});
+      const stream = camVideo.srcObject;
+      const streamDead = stream && stream.active === false;
+      if (camVideo.currentTime === lastT) stall++; else stall = 0;   // 프레임 정지 감지
+      lastT = camVideo.currentTime;
+      if (streamDead || stall >= 3) showResume();
     }, 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) { stall = 0; camVideo.play().catch(()=>{}); video.play().catch(()=>{}); }
+    });
   } catch (e) {
-    bad(e && e.message ? '오류: ' + e.message : '카메라를 시작하지 못했습니다 — 카메라 권한을 확인해 주세요');
+    bad(e && e.message ? '오류: ' + e.message : '카메라를 시작하지 못했어요. 카메라 권한을 허용해 주세요.');
     btn.disabled = false;
   }
 }
 window.__start = start;
-ok('준비됨 — 시작을 누르면 바로 카메라가 켜집니다');
 </script>
 </body>
 </html>
