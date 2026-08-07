@@ -57,7 +57,7 @@
   <button class="btn" id="shootBtn" style="display:none">촬영 — 모네 화풍으로 변환</button>
   <div class="strength" id="strengthRow">
     <span class="lbl">화풍 강도</span>
-    <input type="range" id="strength" min="0.2" max="1" step="0.05" value="0.8">
+    <input type="range" id="strength" min="0.2" max="1" step="0.05" value="0.85">
   </div>
   <div class="row" id="afterRow" style="display:none">
     <button class="btn ghost" id="againBtn">다시 촬영</button>
@@ -82,9 +82,9 @@ let contentCanvas = null;
 
 async function loadModels() {
   if (styleNet) return;
-  startBtn.textContent = '모델 로딩 중… (최초 1회, 12MB)';
-  styleNet = await tf.loadGraphModel('models/style/model.json');
-  transformNet = await tf.loadGraphModel('models/transformer/model.json');
+  startBtn.textContent = '모델 로딩 중… (최초 1회 44MB, 이후 캐시)';
+  styleNet = await tf.loadGraphModel('models/style_hq/model.json');
+  transformNet = await tf.loadGraphModel('models/transformer_hq/model.json');
   const styleImg = new Image();
   styleImg.src = 'quest_img/monet_sunrise.jpg';
   await new Promise(r => { styleImg.onload = r; });
@@ -110,7 +110,7 @@ startBtn.onclick = async () => {
 
 function grabFrame() {
   const vw = cam.videoWidth, vh = cam.videoHeight;
-  const MAX = 420;
+  const MAX = 640;
   const s = Math.min(1, MAX / Math.max(vw, vh));
   const c = document.createElement('canvas');
   c.width = Math.round(vw * s); c.height = Math.round(vh * s);
