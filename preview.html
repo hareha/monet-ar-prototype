@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>영상 확인</title>
+<style>html,body{margin:0;background:#000;color:#fff;font-family:system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;}
+video{max-width:94vw;max-height:80vh;} #t{font:14px monospace;color:#7fbf9a;}</style></head>
+<body>
+<video id="v" src="living.mp4?v=6" autoplay muted loop playsinline webkit-playsinline></video>
+<div id="t">로딩…</div>
+<script>
+var v=document.getElementById('v'), t=document.getElementById('t');
+v.play().catch(function(){ t.textContent='화면을 탭하면 재생됩니다'; document.body.onclick=function(){v.play();}; });
+setInterval(function(){ t.textContent = v.paused ? '⏸ 정지됨 — 화면 탭' : '▶ 재생중 ' + v.currentTime.toFixed(1) + 's / 8s'; }, 300);
+</script>
+</body></html>
