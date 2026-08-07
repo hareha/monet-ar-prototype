@@ -13,7 +13,8 @@
   p{font-size:13.5px;color:#aaa;margin:0;max-width:300px;line-height:1.6;}
   button{background:#fff;color:#000;border:0;border-radius:999px;padding:13px 34px;font-size:16px;font-weight:800;margin-top:6px;}
   button:disabled{opacity:.4;}
-  #status{font-size:12.5px;color:#7fbf9a;min-height:18px;}
+  #status{font-size:12.5px;color:#7fbf9a;min-height:36px;max-width:320px;word-break:break-all;}
+  #status.err{color:#e07a6a;}
   a{color:#8ab4f8;font-size:12.5px;}
   #hint{position:fixed;bottom:18px;left:0;right:0;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;z-index:5;display:none;}
 </style>
@@ -25,23 +26,39 @@
 <div id="overlay">
   <img src="target.jpg" alt="타깃 그림">
   <h1>모네 — 살아나는 그림 (프로토타입)</h1>
-  <p>이 그림(벽에 출력했거나, 다른 화면에 띄운 것)에 카메라를 비추면 그림 위에 영상이 붙어 재생됩니다.</p>
+  <p>이 그림(벽 출력물 또는 다른 화면)에 카메라를 비추면 그림 위에 영상이 붙어 재생됩니다.</p>
   <p><a href="wall.html" target="_blank">다른 기기에 타깃 그림 띄우기 (wall.html)</a></p>
-  <div id="status">준비됨 — 시작을 누르면 타깃 분석(약 10~30초) 후 카메라가 켜집니다</div>
+  <div id="status">준비 중… 엔진 로딩</div>
   <button id="startBtn">시작</button>
 </div>
 
 <video id="vid" src="living.mp4" playsinline muted loop preload="auto" crossorigin="anonymous" style="display:none"></video>
 
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
+<!-- 부트가드: 모듈이 죽어도 버튼은 반드시 반응하고 에러를 화면에 띄운다 -->
+<script>
+  window.__errors = [];
+  window.addEventListener('error', function(e){ window.__errors.push(e.message || String(e.error||e)); });
+  window.addEventListener('unhandledrejection', function(e){ window.__errors.push('promise: ' + (e.reason && e.reason.message || e.reason)); });
+  document.getElementById('startBtn').addEventListener('click', function(){
+    if (window.__start) { window.__start(); return; }
+    var s = document.getElementById('status');
+    s.className = 'err';
+    s.textContent = 'AR 엔진이 로드되지 않았습니다. ' +
+      (window.__errors.length ? '원인: ' + window.__errors.join(' | ') :
+       '브라우저가 오래됐을 수 있습니다 (iOS 16.4+ / 최신 Chrome 필요).');
+  });
+</script>
+
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
+    "mindar-image": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js",
     "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
 } }
 </script>
 <script type="module">
 import * as THREE from 'three';
+import { Compiler } from 'mindar-image';
 import { MindARThree } from 'mindar-image-three';
 
 const statusEl = document.getElementById('status');
@@ -50,25 +67,23 @@ const overlay = document.getElementById('overlay');
 const hint = document.getElementById('hint');
 const video = document.getElementById('vid');
 
-const setStatus = t => statusEl.textContent = t;
-
-async function compileTarget() {
-  setStatus('타깃 이미지 분석 중… (기기 성능에 따라 10~30초)');
-  const img = new Image();
-  img.src = 'target.jpg';
-  await img.decode();
-  const compiler = new window.MINDAR.IMAGE.Compiler();
-  await compiler.compileImageTargets([img], p => setStatus(`타깃 분석 중… ${p.toFixed(0)}%`));
-  const buffer = await compiler.exportData();
-  return URL.createObjectURL(new Blob([buffer]));
-}
+const ok  = t => { statusEl.className='';    statusEl.textContent = t; };
+const bad = t => { statusEl.className='err'; statusEl.textContent = t; };
 
 async function start() {
   btn.disabled = true;
   try {
-    const targetSrc = await compileTarget();
-    setStatus('카메라 시작 중… (권한을 허용해 주세요)');
+    ok('타깃 이미지 분석 중… 0% (기기에 따라 10~30초)');
+    const img = new Image();
+    img.src = 'target.jpg';
+    await img.decode();
 
+    const compiler = new Compiler();
+    await compiler.compileImageTargets([img], p => ok(`타깃 분석 중… ${p.toFixed(0)}%`));
+    const buffer = await compiler.exportData();
+    const targetSrc = URL.createObjectURL(new Blob([buffer]));
+
+    ok('카메라 시작 중… 권한을 허용해 주세요');
     const mindar = new MindARThree({
       container: document.getElementById('container'),
       imageTargetSrc: targetSrc,
@@ -78,29 +93,27 @@ async function start() {
     const { renderer, scene, camera } = mindar;
 
     const texture = new THREE.VideoTexture(video);
-    texture.colorSpace = THREE.SRGBColorSpace ?? undefined;
-    const aspect = 993 / 800; // target.jpg h/w
+    texture.encoding = THREE.sRGBEncoding;
     const plane = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.02, aspect * 1.02), // 경계 오차 커버용 2% 오버
+      new THREE.PlaneGeometry(1.02, (993/800) * 1.02),
       new THREE.MeshBasicMaterial({ map: texture })
     );
     const anchor = mindar.addAnchor(0);
     anchor.group.add(plane);
-
     anchor.onTargetFound = () => { video.play(); hint.style.display = 'none'; };
     anchor.onTargetLost  = () => { video.pause(); };
 
     await mindar.start();
     renderer.setAnimationLoop(() => renderer.render(scene, camera));
-
     overlay.style.display = 'none';
     hint.style.display = 'block';
   } catch (e) {
-    setStatus('오류: ' + (e?.message || e));
+    bad('오류: ' + (e && e.message || e));
     btn.disabled = false;
   }
 }
-btn.addEventListener('click', start);
+window.__start = start;
+ok('준비됨 — 시작을 누르면 타깃 분석(약 10~30초) 후 카메라가 켜집니다');
 </script>
 </body>
 </html>
