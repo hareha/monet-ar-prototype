@@ -7,6 +7,7 @@
 <style>
   html,body{margin:0;height:100%;background:#000;color:#fff;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
   #container{width:100%;height:100%;position:relative;}
+  #container video{display:none !important;} /* 카메라는 WebGL 배경으로만 그린다 */
   #overlay{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:10;padding:24px;text-align:center;}
   #overlay img{width:150px;border-radius:8px;border:1px solid #333;}
   h1{font-size:19px;margin:0;font-weight:800;}
@@ -16,12 +17,13 @@
   #status{font-size:12.5px;color:#7fbf9a;min-height:36px;max-width:320px;word-break:break-all;}
   #status.err{color:#e07a6a;}
   a{color:#8ab4f8;font-size:12.5px;}
+  #dbg{position:fixed;top:8px;left:8px;z-index:6;font:11px monospace;color:#7fbf9a;text-shadow:0 1px 2px #000;}
   #hint{position:fixed;bottom:18px;left:0;right:0;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;z-index:5;display:none;}
 </style>
 </head>
 <body>
 <div id="container"></div>
-<div id="dbg" style="position:fixed;top:8px;left:8px;z-index:6;font:11px monospace;color:#7fbf9a;text-shadow:0 1px 2px #000;"></div>
+<div id="dbg"></div>
 <div id="hint">그림을 화면에 담아보세요 — 그림이 살아납니다</div>
 
 <div id="overlay">
@@ -33,9 +35,9 @@
   <button id="startBtn">시작</button>
 </div>
 
-<video id="vid" src="living.mp4" playsinline muted loop preload="auto" crossorigin="anonymous" style="position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0.01;"></video>
+<video id="vid" src="living.mp4" playsinline muted loop preload="auto" crossorigin="anonymous"
+  style="position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0.01;"></video>
 
-<!-- 부트가드: 모듈이 죽어도 버튼은 반드시 반응하고 에러를 화면에 띄운다 -->
 <script>
   window.__errors = [];
   window.addEventListener('error', function(e){ window.__errors.push(e.message || String(e.error||e)); });
@@ -65,101 +67,70 @@ const statusEl = document.getElementById('status');
 const btn = document.getElementById('startBtn');
 const overlay = document.getElementById('overlay');
 const hint = document.getElementById('hint');
+const dbg = document.getElementById('dbg');
 const video = document.getElementById('vid');
+const container = document.getElementById('container');
 
 const ok  = t => { statusEl.className='';    statusEl.textContent = t; };
 const bad = t => { statusEl.className='err'; statusEl.textContent = t; };
 
 async function start() {
   btn.disabled = true;
-  // iOS 재생 잠금 해제: 사용자 제스처 안에서 한 번 재생-정지
   try { await video.play(); video.pause(); video.currentTime = 0; } catch (e) {}
   try {
     ok('카메라 시작 중… 권한을 허용해 주세요');
     const mindar = new MindARThree({
-      container: document.getElementById('container'),
-      imageTargetSrc: 'targets.mind',
+      container, imageTargetSrc: 'targets.mind',
       uiScanning: 'no', uiLoading: 'no',
       filterMinCF: 0.0001, filterBeta: 0.003
     });
     const { renderer, scene, camera } = mindar;
 
-    const texture = new THREE.VideoTexture(video);
-    texture.encoding = THREE.sRGBEncoding;
+    // AR 콘텐츠: 살아있는 그림 평면
+    const vidTex = new THREE.VideoTexture(video);
+    vidTex.encoding = THREE.sRGBEncoding;
     const plane = new THREE.Mesh(
       new THREE.PlaneGeometry(1.02, (993/800) * 1.02),
-      new THREE.MeshBasicMaterial({ map: texture })
+      new THREE.MeshBasicMaterial({ map: vidTex })
     );
     const anchor = mindar.addAnchor(0);
     anchor.group.add(plane);
-    anchor.onTargetFound = () => { video.play(); hint.style.display = 'none'; };
+    anchor.onTargetFound = () => { video.play().catch(()=>{}); hint.style.display = 'none'; };
     anchor.onTargetLost  = () => { video.pause(); };
 
     await mindar.start();
+
+    // ── 카메라 피드를 WebGL 배경으로 합성 (DOM 비디오는 숨김) ──
+    const camVideo = container.querySelector('video');
+    const bgTex = new THREE.VideoTexture(camVideo);
+    bgTex.encoding = THREE.sRGBEncoding;
+    bgTex.matrixAutoUpdate = true;
+    const setCover = () => {
+      const cw = container.clientWidth, ch = container.clientHeight;
+      const vw = camVideo.videoWidth || 480, vh = camVideo.videoHeight || 640;
+      const ca = cw / ch, va = vw / vh;
+      if (ca < va) { const r = ca / va; bgTex.repeat.set(r, 1); bgTex.offset.set((1 - r) / 2, 0); }
+      else         { const r = va / ca; bgTex.repeat.set(1, r); bgTex.offset.set(0, (1 - r) / 2); }
+    };
+    setCover();
+    window.addEventListener('resize', () => setTimeout(setCover, 100));
+    camVideo.addEventListener('loadedmetadata', setCover);
+    scene.background = bgTex;
+
     renderer.setAnimationLoop(() => renderer.render(scene, camera));
     overlay.style.display = 'none';
     hint.style.display = 'block';
 
-    // camera watchdog v2: 프레임 밝기 샘플링 + 레이아웃 진단 + 자동 스트림 복구
-    const dbg = document.getElementById('dbg');
-    const container = document.getElementById('container');
-    let camVideo = container.querySelector('video');
-    const sc = document.createElement('canvas'); sc.width = 32; sc.height = 32;
-    const sctx = sc.getContext('2d', { willReadFrequently: true });
-    const lumOf = v => { try { sctx.drawImage(v, 0, 0, 32, 32);
-      const d = sctx.getImageData(0, 0, 32, 32).data; let s = 0;
-      for (let k = 0; k < d.length; k += 4) s += d[k] + d[k+1] + d[k+2];
-      return Math.round(s / (32*32*3)); } catch (e) { return -1; } };
-    const rectOf = el => { const r = el.getBoundingClientRect();
-      return Math.round(r.width)+'x'+Math.round(r.height)+'@'+Math.round(r.left)+','+Math.round(r.top); };
-
-    // 엔진 좌표계와 일치하는 레이아웃 복구: 엔진의 resize 재계산을 트리거
-    const nudge = () => window.dispatchEvent(new Event('resize'));
-    setTimeout(nudge, 150); setTimeout(nudge, 1000);
-    // 엔진 재계산 후에도 비디오가 0 크기면, 엔진과 동일한 cover 공식으로 수동 배치
-    setTimeout(() => {
-      if (!camVideo) return;
-      const r = camVideo.getBoundingClientRect();
-      if (r.width < 5 || r.height < 5) {
-        const cw = container.clientWidth, ch = container.clientHeight;
-        const vw2 = camVideo.videoWidth || 480, vh2 = camVideo.videoHeight || 640;
-        const s = Math.max(cw / vw2, ch / vh2);
-        const w = vw2 * s, h = vh2 * s;
-        camVideo.style.cssText = 'position:absolute;display:block;width:' + w + 'px;height:' + h +
-          'px;left:' + ((cw - w) / 2) + 'px;top:' + ((ch - h) / 2) + 'px;';
-      }
-    }, 1600);
-
-    let restarted = false;
-    async function restartStream() {
-      if (restarted || !camVideo) return; restarted = true;
-      try {
-        const s = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-        const oldS = camVideo.srcObject;
-        camVideo.srcObject = s;
-        if (oldS) oldS.getTracks().forEach(t => t.stop());
-        await camVideo.play().catch(()=>{});
-      } catch (e) { dbg.textContent += ' | 재획득 실패: ' + (e.message || e); }
-    }
-
+    // 진단 + 카메라 재생 유지
     setInterval(() => {
-      camVideo = camVideo || container.querySelector('video');
-      if (!camVideo) { dbg.textContent = 'cam element 없음'; return; }
-      const lum = lumOf(camVideo);
-      const cnv = container.querySelector('canvas');
-      const track = camVideo.srcObject && camVideo.srcObject.getVideoTracks()[0];
-      dbg.innerHTML = 'cam ' + camVideo.videoWidth + 'x' + camVideo.videoHeight +
-        ' rs' + camVideo.readyState + (camVideo.paused ? ' PAUSED' : ' live') +
-        ' lum:' + lum +
-        (track ? ' trk:' + track.readyState + (track.muted ? '/muted' : '') : '') +
-        '<br>vid ' + rectOf(camVideo) + ' cnv ' + (cnv ? rectOf(cnv) : '없음') + ' glA:' + (renderer.getContext().getContextAttributes().alpha ? 'T' : 'F');
       if (camVideo.paused) camVideo.play().catch(()=>{});
-      // 프레임이 사실상 검으면(밝기<6) 스트림 1회 재획득
-      if (lum >= 0 && lum < 6 && camVideo.readyState >= 2) restartStream();
+      dbg.textContent = 'cam ' + camVideo.videoWidth + 'x' + camVideo.videoHeight +
+        (camVideo.paused ? ' PAUSED' : ' live') +
+        ' | 영상 ' + (video.paused ? '정지' : '재생중') +
+        ' | bg cover ' + bgTex.repeat.x.toFixed(2) + ',' + bgTex.repeat.y.toFixed(2);
     }, 1000);
   } catch (e) {
-    bad(e && e.message ? '오류: ' + e.message : '카메라를 시작하지 못했습니다 — 브라우저의 카메라 권한을 확인해 주세요');
+    bad(e && e.message ? '오류: ' + e.message : '카메라를 시작하지 못했습니다 — 카메라 권한을 확인해 주세요');
     btn.disabled = false;
   }
 }
