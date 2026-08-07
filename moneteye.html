@@ -73,9 +73,9 @@
 
   <p class="credit">Style transfer: <a href="https://github.com/reiinakano/arbitrary-image-stylization-tfjs" target="_blank">arbitrary-image-stylization-tfjs</a> (Magenta) · 스타일: 모네 〈인상, 해돋이〉</p>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 <script>
-try { tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0); } catch (e) {}
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 const cam = document.getElementById('cam');
 const result = document.getElementById('result');
 const busy = document.getElementById('busy');
@@ -84,8 +84,15 @@ const startBtn = document.getElementById('startBtn');
 const shootBtn = document.getElementById('shootBtn');
 const bad = t => { statusEl.className = 'show'; statusEl.textContent = t; };
 
-let stream = null, styleNet = null, transformNet = null, styleVec = null;
-let contentCanvas = null;
+// ── 해상도 자동 강등: 변환 중 탭이 죽으면 다음 시도는 한 단계 낮게 ──
+const RES = IOS ? [448, 384, 320, 256] : [640, 512, 448, 384];
+let resIdx = Math.min(+localStorage.getItem('me_res') || 0, RES.length - 1);
+if (sessionStorage.getItem('me_inflight')) {
+  sessionStorage.removeItem('me_inflight');
+  resIdx = Math.min(resIdx + 1, RES.length - 1);
+  localStorage.setItem('me_res', resIdx);
+  bad('이전 변환이 기기에서 중단되어 해상도를 ' + RES[resIdx] + 'px로 낮췄습니다. 다시 시도해 주세요.');
+}
 
 const prog = document.getElementById('prog');
 const progFill = document.getElementById('progFill');
@@ -96,18 +103,25 @@ const setProg = f => {
   progText.textContent = '모델 내려받는 중 ' + pct + '% (최초 1회만)';
 };
 
+let stream = null, styleNet = null, transformNet = null, styleVec = null;
+let contentCanvas = null, identityVec = null;
+
 async function loadOne(key, url, base, weight) {
   try { return await tf.loadGraphModel('indexeddb://' + key); } catch (e) {}
   const model = await tf.loadGraphModel(url, { onProgress: f => setProg(base + f * weight) });
-  try { await model.save('indexeddb://' + key); } catch (e) {}   // 저장 실패해도 동작엔 지장 없음
+  try { await model.save('indexeddb://' + key); } catch (e) {}
   return model;
 }
+const loadStyleNet = () => loadOne('monet-style-hq', 'models/style_hq/model.json', 0, 0.82);
 
 async function loadModels() {
-  if (styleNet) return;
+  if (transformNet) return;
+  await tf.ready();
+  if (IOS) { try { tf.env().set('WEBGL_FORCE_F16_TEXTURES', true); } catch (e) {} }
+  try { tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0); } catch (e) {}
   startBtn.textContent = '모델 준비 중…';
   prog.style.display = 'block';
-  styleNet = await loadOne('monet-style-hq', 'models/style_hq/model.json', 0, 0.82);
+  styleNet = await loadStyleNet();
   transformNet = await loadOne('monet-transformer-hq', 'models/transformer_hq/model.json', 0.82, 0.18);
   setProg(1);
   const styleImg = new Image();
@@ -118,13 +132,20 @@ async function loadModels() {
   prog.style.display = 'none';
 }
 
+async function openCam() {
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: {ideal: 1280} }, audio: false });
+  cam.srcObject = stream;
+  await cam.play();
+}
+function closeCam() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+}
+
 startBtn.onclick = async () => {
   startBtn.disabled = true;
   try {
     await loadModels();
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: {ideal: 1280} }, audio: false });
-    cam.srcObject = stream;
-    await cam.play();
+    await openCam();
     startBtn.style.display = 'none';
     shootBtn.style.display = 'flex';
   } catch (e) {
@@ -136,8 +157,7 @@ startBtn.onclick = async () => {
 
 function grabFrame() {
   const vw = cam.videoWidth, vh = cam.videoHeight;
-  const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const MAX = IOS ? 480 : 640;
+  const MAX = RES[resIdx];
   const s = Math.min(1, MAX / Math.max(vw, vh));
   const c = document.createElement('canvas');
   c.width = Math.round(vw * s); c.height = Math.round(vh * s);
@@ -145,56 +165,67 @@ function grabFrame() {
   return c;
 }
 
-async function stylize() {
+async function runTransform() {
   const strength = +document.getElementById('strength').value;
   busy.classList.add('on');
+  sessionStorage.setItem('me_inflight', '1');
   await new Promise(r => setTimeout(r, 30));
   try {
     const content = tf.tidy(() =>
       tf.browser.fromPixels(contentCanvas).toFloat().div(tf.scalar(255)).expandDims());
-    const small = document.createElement('canvas');
-    const ss = 256 / Math.max(contentCanvas.width, contentCanvas.height);
-    small.width = Math.round(contentCanvas.width * ss);
-    small.height = Math.round(contentCanvas.height * ss);
-    small.getContext('2d').drawImage(contentCanvas, 0, 0, small.width, small.height);
-    const identity = tf.tidy(() =>
-      styleNet.predict(tf.browser.fromPixels(small).toFloat().div(tf.scalar(255)).expandDims()));
     const blended = tf.tidy(() =>
-      styleVec.mul(tf.scalar(strength)).add(identity.mul(tf.scalar(1 - strength))));
+      styleVec.mul(tf.scalar(strength)).add(identityVec.mul(tf.scalar(1 - strength))));
     const out = tf.tidy(() => transformNet.predict([content, blended]).squeeze());
+    content.dispose(); blended.dispose();
     result.width = contentCanvas.width; result.height = contentCanvas.height;
     await tf.browser.toPixels(out, result);
-    content.dispose(); identity.dispose(); blended.dispose(); out.dispose();
+    out.dispose();
     result.style.display = 'block';
     document.getElementById('saveBtn').href = result.toDataURL('image/jpeg', .92);
   } catch (e) {
     bad('변환 실패 — ' + (e && e.message || e));
   }
+  sessionStorage.removeItem('me_inflight');
   busy.classList.remove('on');
 }
 
 shootBtn.onclick = async () => {
   contentCanvas = grabFrame();
+  closeCam();                       // 변환 동안 카메라 메모리 반납
   cam.style.display = 'none';
   shootBtn.style.display = 'none';
   document.getElementById('strengthRow').classList.add('on');
   document.getElementById('afterRow').style.display = 'flex';
-  await stylize();
+  busy.classList.add('on');
+  // 이 사진의 identity 벡터(강도 블렌딩용)를 한 번만 계산
+  const small = document.createElement('canvas');
+  const ss = 256 / Math.max(contentCanvas.width, contentCanvas.height);
+  small.width = Math.round(contentCanvas.width * ss);
+  small.height = Math.round(contentCanvas.height * ss);
+  small.getContext('2d').drawImage(contentCanvas, 0, 0, small.width, small.height);
+  if (identityVec) identityVec.dispose();
+  identityVec = tf.tidy(() =>
+    styleNet.predict(tf.browser.fromPixels(small).toFloat().div(tf.scalar(255)).expandDims()));
+  // 36MB Inception을 GPU에서 내림 — 변환기만 남긴다
+  styleNet.dispose(); styleNet = null;
+  await runTransform();
 };
 
 let debounce = null;
 document.getElementById('strength').oninput = () => {
   clearTimeout(debounce);
-  debounce = setTimeout(() => { if (contentCanvas) stylize(); }, 350);
+  debounce = setTimeout(() => { if (contentCanvas) runTransform(); }, 350);
 };
 
-document.getElementById('againBtn').onclick = () => {
+document.getElementById('againBtn').onclick = async () => {
   result.style.display = 'none';
   cam.style.display = '';
   contentCanvas = null;
   shootBtn.style.display = 'flex';
   document.getElementById('strengthRow').classList.remove('on');
   document.getElementById('afterRow').style.display = 'none';
+  if (!styleNet) styleNet = await loadStyleNet();   // IndexedDB에서 즉시 재로드
+  await openCam();
 };
 window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
 </script>
