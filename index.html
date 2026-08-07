@@ -28,7 +28,7 @@
   <h1>모네 — 살아나는 그림 (프로토타입)</h1>
   <p>이 그림(벽 출력물 또는 다른 화면)에 카메라를 비추면 그림 위에 영상이 붙어 재생됩니다.</p>
   <p><a href="wall.html" target="_blank">다른 기기에 타깃 그림 띄우기 (wall.html)</a></p>
-  <div id="status">준비 중… 엔진 로딩</div>
+  <div id="status">엔진 로딩 중…</div>
   <button id="startBtn">시작</button>
 </div>
 
@@ -53,13 +53,11 @@
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/",
-    "mindar-image": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js",
     "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
 } }
 </script>
 <script type="module">
 import * as THREE from 'three';
-import { Compiler } from 'mindar-image';
 import { MindARThree } from 'mindar-image-three';
 
 const statusEl = document.getElementById('status');
@@ -74,20 +72,10 @@ const bad = t => { statusEl.className='err'; statusEl.textContent = t; };
 async function start() {
   btn.disabled = true;
   try {
-    ok('타깃 이미지 분석 중… 0% (기기에 따라 10~30초)');
-    const img = new Image();
-    img.src = 'target.jpg';
-    await img.decode();
-
-    const compiler = new Compiler();
-    await compiler.compileImageTargets([img], p => ok(`타깃 분석 중… ${p.toFixed(0)}%`));
-    const buffer = await compiler.exportData();
-    const targetSrc = URL.createObjectURL(new Blob([buffer]));
-
     ok('카메라 시작 중… 권한을 허용해 주세요');
     const mindar = new MindARThree({
       container: document.getElementById('container'),
-      imageTargetSrc: targetSrc,
+      imageTargetSrc: 'targets.mind',
       uiScanning: 'no', uiLoading: 'no',
       filterMinCF: 0.0001, filterBeta: 0.003
     });
@@ -114,7 +102,7 @@ async function start() {
   }
 }
 window.__start = start;
-ok('준비됨 — 시작을 누르면 타깃 분석(약 10~30초) 후 카메라가 켜집니다');
+ok('준비됨 — 시작을 누르면 바로 카메라가 켜집니다');
 </script>
 </body>
 </html>
