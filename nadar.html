@@ -18,7 +18,8 @@
 
   .studio{background:#fff;border:1px solid var(--line);padding:18px;box-shadow:0 10px 34px rgba(28,26,22,.08);text-align:center;}
   .oval{width:78%;aspect-ratio:3/4;margin:6px auto 0;position:relative;overflow:hidden;border-radius:50% / 42%;background:#efece4;border:1px solid var(--line);}
-  .oval video,.oval canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
+  .oval video,.oval canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .oval.mirror video,.oval.mirror canvas{transform:scaleX(-1);}
   #shot{display:none;}
   #shot.developing{display:block;filter:blur(9px) brightness(2.4) sepia(.4);transition:filter 2.4s ease;}
   #shot.developed{display:block;filter:none;}
@@ -28,10 +29,12 @@
   .plate .a{font-size:11px;letter-spacing:.34em;color:var(--cap);font-weight:600;}
   .plate .b{font-size:12px;color:var(--sub);margin-top:4px;}
 
-  .btn{display:block;width:100%;background:var(--ink);color:var(--bg);border:0;border-radius:3px;padding:15px;font-size:14.5px;font-weight:700;margin-top:16px;font-family:inherit;letter-spacing:.02em;}
-  .btn:active{opacity:.85;}
+  .btn{display:block;width:100%;background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:15px;font-size:14.5px;font-weight:700;margin-top:16px;font-family:inherit;letter-spacing:.02em;
+       box-shadow:0 4px 12px rgba(28,26,22,.16),0 2px 0 rgba(28,26,22,.4);cursor:pointer;}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 3px rgba(28,26,22,.2);}
   .btn:disabled{opacity:.35;}
-  .btn.ghost{background:none;border:1px solid var(--line);color:var(--sub);font-weight:600;}
+  .btn.ghost{background:#fff;border:1px solid #d8d3c8;color:var(--sub);font-weight:600;box-shadow:0 1px 3px rgba(28,26,22,.07),0 2px 0 #d8d3c8;}
+  .btn.ghost:active{transform:translateY(2px);box-shadow:none;}
   .row{display:flex;gap:8px;}
   .row .btn{flex:1;}
   #status{display:none;font-size:12.5px;color:#b0392f;margin-top:12px;text-align:center;line-height:1.6;}
@@ -61,6 +64,7 @@
   <button class="btn" id="startBtn">사진관 입장 — 카메라 켜기</button>
   <div class="row" id="actions" style="display:none">
     <button class="btn" id="shootBtn">셔터</button>
+    <button class="btn ghost" id="flipBtn" style="flex:0 0 auto;padding-left:18px;padding-right:18px;">전·후면</button>
     <button class="btn ghost" id="againBtn" style="display:none">다시 촬영</button>
     <a class="btn ghost" id="saveBtn" style="display:none;text-decoration:none;line-height:1;padding-top:17px;" download="nadar_1874.jpg">인화지 저장</a>
   </div>
@@ -75,17 +79,32 @@ const shot = document.getElementById('shot');
 const countEl = document.getElementById('count');
 const statusEl = document.getElementById('status');
 let stream = null;
+let facing = 'environment';   // 기본: 후면
+
+async function openCam() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: {ideal: 960} }, audio: false });
+  cam.srcObject = stream;
+  await cam.play();
+  document.querySelector('.oval').classList.toggle('mirror', facing === 'user');
+}
 
 document.getElementById('startBtn').onclick = async () => {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: {ideal: 960} }, audio: false });
-    cam.srcObject = stream;
-    await cam.play();
+    await openCam();
     document.getElementById('startBtn').style.display = 'none';
     document.getElementById('actions').style.display = 'flex';
   } catch (e) {
     statusEl.className = 'show';
     statusEl.textContent = '카메라를 열지 못했습니다 — 권한을 확인해 주세요. (' + (e && e.message || e) + ')';
+  }
+};
+
+document.getElementById('flipBtn').onclick = async () => {
+  facing = (facing === 'user') ? 'environment' : 'user';
+  try { await openCam(); } catch (e) {
+    statusEl.className = 'show';
+    statusEl.textContent = '카메라 전환 실패 — ' + (e && e.message || e);
   }
 };
 
@@ -102,6 +121,7 @@ document.getElementById('shootBtn').onclick = async () => {
   shot.width = w; shot.height = h;
   const x = shot.getContext('2d');
   x.drawImage(cam, 0, 0, w, h);
+  shot.style.transform = '';   // 처리 결과는 항상 정방향 (전면일 땐 CSS 미러가 적용됨)
 
   // ── 1874년 인화 처리: 콘트라스트 → 세피아 톤 → 입자 → 비네트 ──
   const d = x.getImageData(0, 0, w, h);
