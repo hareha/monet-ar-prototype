@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MONET 100 — 문명탐험가</title>
+<style>
+  :root{
+    --navy:#0d1420; --navy2:#131c2c; --card:#182338;
+    --gold:#c9a961; --gold-dim:#8a7a52; --ink:#ece5d3; --sub:#9aa3b5;
+    --ok:#7fbf9a; --bad:#e07a6a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--navy);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
+  body{max-width:480px;margin:0 auto;min-height:100vh;}
+  .screen{display:none;padding:22px 18px 60px;animation:fade .25s;}
+  .screen.on{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  .brand{font-size:11px;letter-spacing:.32em;color:var(--gold);font-weight:600;text-align:center;}
+  h1{font-size:21px;font-weight:800;text-align:center;margin:8px 0 2px;}
+  .tagline{font-size:12.5px;color:var(--sub);text-align:center;margin:0 0 20px;}
+
+  .ornament{display:flex;align-items:center;gap:10px;margin:18px 0;}
+  .ornament::before,.ornament::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--gold-dim));}
+  .ornament::after{background:linear-gradient(90deg,var(--gold-dim),transparent);}
+  .ornament span{font-size:11px;color:var(--gold);letter-spacing:.2em;}
+
+  .progress{background:var(--navy2);border:1px solid #223049;border-radius:14px;padding:14px 16px;margin-bottom:18px;}
+  .progress .row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;}
+  .progress b{color:var(--gold);font-size:17px;}
+  .bar{height:6px;background:#0a0f18;border-radius:3px;margin-top:10px;overflow:hidden;}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,#a8894b,var(--gold));border-radius:3px;transition:width .5s;}
+
+  .colgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px;}
+  .col{aspect-ratio:3/4;background:var(--card);border:1px solid #223049;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;overflow:hidden;position:relative;}
+  .col .q{font-size:26px;color:#31405d;font-weight:800;}
+  .col .nm{font-size:10px;color:#31405d;padding:0 6px;text-align:center;}
+  .col.got{border-color:var(--gold-dim);}
+  .col.got img{width:100%;height:72%;object-fit:cover;}
+  .col.got .obj{width:100%;height:72%;display:flex;align-items:center;justify-content:center;font-size:34px;background:#0f1626;}
+  .col.got .nm{color:var(--gold);font-weight:600;}
+
+  .mission{background:var(--navy2);border:1px solid #223049;border-radius:12px;padding:14px 15px;margin-bottom:10px;display:flex;align-items:center;gap:12px;}
+  .mission:active{background:#1a2740;}
+  .mission .zone{font-size:10px;color:var(--sub);letter-spacing:.06em;}
+  .mission .tt{font-size:14.5px;font-weight:700;margin-top:2px;}
+  .mission .state{margin-left:auto;font-size:12px;color:#44557a;white-space:nowrap;}
+  .mission.done .state{color:var(--ok);}
+  .mission.locked{opacity:.45;}
+  .floor{font-size:11.5px;color:var(--sub);letter-spacing:.14em;margin:20px 0 8px;}
+
+  .btn{display:block;width:100%;background:linear-gradient(180deg,#d8bc78,var(--gold));color:#1a1508;border:0;border-radius:12px;padding:15px;font-size:15px;font-weight:800;margin-top:18px;letter-spacing:.02em;}
+  .btn:active{transform:scale(.98);}
+  .btn.ghost{background:none;border:1px solid #2c3c5c;color:var(--sub);font-weight:600;}
+  .btn.sm{padding:11px;font-size:13.5px;margin-top:10px;}
+
+  .paper{background:#f4efe2;color:#241f14;border-radius:12px;padding:22px 20px;box-shadow:0 6px 30px rgba(0,0,0,.4);}
+  .paper h2{font-size:17px;margin:0 0 4px;text-align:center;}
+  .paper .cap{font-size:11px;color:#7a7059;text-align:center;letter-spacing:.1em;margin-bottom:14px;}
+  .paper ul{margin:10px 0;padding-left:18px;font-size:13.5px;line-height:1.9;}
+  .paper p{font-size:13.5px;line-height:1.8;margin:8px 0;}
+
+  .cand{display:flex;gap:12px;background:var(--card);border:1px solid #223049;border-radius:12px;padding:10px;margin-bottom:10px;align-items:center;}
+  .cand:active{border-color:var(--gold);}
+  .cand img{width:84px;height:104px;object-fit:cover;border-radius:6px;border:3px solid #3a2f1a;}
+  .cand .ph{width:84px;height:104px;border-radius:6px;border:3px solid #3a2f1a;background:#0f1626;display:flex;align-items:center;justify-content:center;font-size:10px;color:#44557a;text-align:center;padding:4px;}
+  .cand .no{font-size:11px;color:var(--gold);letter-spacing:.1em;}
+  .cand .tt{font-size:14px;font-weight:700;margin:3px 0 2px;}
+  .cand .ar{font-size:11.5px;color:var(--sub);}
+
+  .quiz-opt{background:var(--card);border:1px solid #223049;border-radius:10px;padding:14px;font-size:14px;margin-bottom:9px;}
+  .quiz-opt:active{border-color:var(--gold);}
+
+  .verdict{text-align:center;padding:26px 0 8px;}
+  .verdict .mark{font-size:44px;}
+  .verdict h2{font-size:18px;margin:12px 0 6px;}
+  .verdict p{font-size:13.5px;color:var(--sub);line-height:1.8;margin:0;}
+  .goldframe{border:4px solid var(--gold);border-radius:8px;box-shadow:0 0 30px rgba(201,169,97,.35);width:70%;margin:16px auto 0;display:block;}
+
+  .npc{background:var(--card);border-left:3px solid var(--gold-dim);border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:10px;}
+  .npc .who{font-size:11px;color:var(--gold);margin-bottom:4px;}
+  .npc .say{font-size:13.5px;line-height:1.7;}
+
+  .ticket{background:#efe6cf;color:#241f14;border-radius:10px;padding:18px;position:relative;overflow:hidden;margin-top:14px;}
+  .ticket::before,.ticket::after{content:'';position:absolute;width:22px;height:22px;background:var(--navy);border-radius:50%;top:50%;transform:translateY(-50%);}
+  .ticket::before{left:-11px;} .ticket::after{right:-11px;}
+  .ticket .co{font-size:10px;letter-spacing:.2em;color:#7a7059;}
+  .ticket .route{font-size:18px;font-weight:800;margin:6px 0 2px;}
+  .ticket .meta{font-size:11.5px;color:#5a5342;line-height:1.7;}
+  .stamp{position:absolute;right:14px;bottom:10px;border:2.5px solid #b0392f;color:#b0392f;border-radius:50%;width:74px;height:74px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:800;transform:rotate(-14deg);opacity:0;}
+  .stamp b{font-size:12px;}
+  .stamp.on{animation:slam .4s forwards;}
+  @keyframes slam{0%{opacity:0;transform:rotate(-14deg) scale(2.2);}60%{opacity:1;transform:rotate(-14deg) scale(.92);}100%{opacity:.92;transform:rotate(-14deg) scale(1);}}
+
+  .invite{background:#10182a;border:1px solid var(--gold-dim);border-radius:12px;padding:22px;text-align:center;margin-top:14px;position:relative;}
+  .invite .fl{font-size:10px;letter-spacing:.3em;color:var(--gold);}
+  .invite h3{font-size:17px;margin:10px 0 6px;}
+  .invite p{font-size:12.5px;color:var(--sub);line-height:1.8;margin:0;}
+
+  .back{font-size:13px;color:var(--sub);margin-bottom:14px;display:inline-block;}
+  .note{font-size:11.5px;color:#5b6880;line-height:1.7;margin-top:14px;text-align:center;}
+  .quote{border-left:3px solid var(--gold-dim);padding:4px 0 4px 14px;font-size:13.5px;color:var(--sub);line-height:1.8;margin:14px 0;font-style:italic;}
+  .ending{text-align:center;padding:40px 10px;}
+  .ending p{font-size:15px;line-height:2.2;color:var(--ink);}
+  .ending .q{color:var(--gold);font-weight:700;font-size:16.5px;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ 홈 ═══════════ -->
+<div id="home" class="screen on">
+  <div class="brand">MONET 100 · THE NEXT IMPRESSION</div>
+  <h1>문명탐험가의 수집 노트</h1>
+  <p class="tagline">전시장 곳곳의 QR을 스캔하고, 시대의 파편을 수집하세요</p>
+
+  <div class="progress">
+    <div class="row"><span>나의 수집품</span><span><b id="cnt">0</b> / 6</span></div>
+    <div class="bar"><i id="pbar" style="width:0%"></i></div>
+  </div>
+
+  <div class="colgrid" id="colgrid"></div>
+
+  <div class="floor">4층 — 이해하는 공간</div>
+  <div class="mission" data-m="salon"><div><div class="zone">ZONE B · 아카데미 살롱</div><div class="tt">오늘의 심사위원</div></div><div class="state"></div></div>
+  <div class="mission" data-m="citizen"><div><div class="zone">ZONE C-1 · 시민사회</div><div class="tt">바티놀파의 소문</div></div><div class="state"></div></div>
+  <div class="mission" data-m="industry"><div><div class="zone">ZONE C-2 · 산업혁명</div><div class="tt">노르망디행 기차표</div></div><div class="state"></div></div>
+  <div class="mission" data-m="paint"><div><div class="zone">ZONE C-3 · 튜브물감</div><div class="tt">화가를 야외로 이끈 발명품</div></div><div class="state"></div></div>
+  <div class="mission" data-m="monethall"><div><div class="zone">ZONE D · 모네 전시관</div><div class="tt">혹평받은 그림</div></div><div class="state"></div></div>
+
+  <div class="floor">3층 — 체험하는 공간</div>
+  <div class="mission" data-m="lazare"><div><div class="zone">ZONE A · 생라자르역</div><div class="tt">개찰 — 기차표를 제시하세요</div></div><div class="state"></div></div>
+  <div class="mission" data-m="giverny"><div><div class="zone">ZONE D · 지베르니</div><div class="tt">정원에서 모네 찾기 (AR)</div></div><div class="state"></div></div>
+  <div class="mission" data-m="misia"><div><div class="zone">ZONE E · 미시아 살롱</div><div class="tt">초대장을 제시하세요</div></div><div class="state"></div></div>
+
+  <button class="btn ghost sm" onclick="resetAll()">처음부터 다시 (초기화)</button>
+  <p class="note">프로토타입 — 실제 운영 시 각 미션은 전시장 QR 스캔으로 진입합니다</p>
+</div>
+
+<!-- ═══════════ 살롱 심사위원 ═══════════ -->
+<div id="salon-intro" class="screen">
+  <a class="back" href="#" onclick="go('home');return false;">← 수집 노트</a>
+  <div class="paper">
+    <h2>1873년, 파리 아카데미 공식 살롱전</h2>
+    <div class="cap">LE SALON DE 1873 · 샹젤리제 궁전</div>
+    <p><b>당신은 오늘의 심사위원입니다.</b><br>올해 가장 잘 그린 그림을 골라 주십시오.</p>
+    <ul>
+      <li>위대한 주제 (신화, 종교, 역사)</li>
+      <li>정확한 인체 · 명확한 구도</li>
+      <li>완성된 묘사 · 고상한 감정</li>
+      <li>매끄러운 표면 — 붓질이 보이면 안 됨</li>
+      <li>캔버스가 안 보이는 완벽한 채색</li>
+    </ul>
+  </div>
+  <button class="btn" onclick="go('salon-pick')">심사위원 자격으로 입장하기</button>
+</div>
+
+<div id="salon-pick" class="screen">
+  <a class="back" href="#" onclick="go('salon-intro');return false;">← 심사 기준 다시 보기</a>
+  <div class="ornament"><span>후보작 5점 — 하나를 선택하세요</span></div>
+  <div class="cand" onclick="salonPick(false)"><div class="ph">이미지<br>수급 예정</div><div><div class="no">N° 1</div><div class="tt">삼손과 들릴라</div><div class="ar">페르디낭 앙베르</div></div></div>
+  <div class="cand" onclick="salonPick(false)"><img src="quest_img/fleury.jpg"><div><div class="no">N° 2</div><div class="tt">코린토스 최후의 날</div><div class="ar">토니 로베르-플뢰리</div></div></div>
+  <div class="cand" onclick="salonPick(true)"><img src="quest_img/merson.jpg"><div><div class="no">N° 3</div><div class="tt">라 비지옹, 14세기의 전설</div><div class="ar">뤽-올리비에 메르송</div></div></div>
+  <div class="cand" onclick="salonPick(false)"><img src="quest_img/bouguereau.jpg"><div><div class="no">N° 4</div><div class="tt">꼬마 도둑들</div><div class="ar">윌리앙 부그로</div></div></div>
+  <div class="cand" onclick="salonPick(false)"><img src="quest_img/chavannes.jpg"><div><div class="no">N° 5</div><div class="tt">여름</div><div class="ar">퓌비 드 샤반</div></div></div>
+</div>
+
+<div id="salon-bad" class="screen">
+  <div class="verdict">
+    <div class="mark" style="color:var(--bad)">✕</div>
+    <h2>안타깝지만, 이 그림은<br>심사 기준을 충족하지 못했습니다</h2>
+    <p>심사위원 카드를 다시 확인하고,<br>다른 작품을 골라보세요.</p>
+  </div>
+  <button class="btn" onclick="go('salon-pick')">다시 심사하기</button>
+</div>
+
+<div id="salon-good" class="screen">
+  <div class="verdict">
+    <div class="mark" style="color:var(--gold)">✦</div>
+    <h2>축하합니다!</h2>
+    <img class="goldframe" src="quest_img/merson.jpg">
+    <p style="margin-top:14px"><b style="color:var(--ink)">〈라 비지옹, 14세기의 전설〉</b> — 뤽-올리비에 메르송<br>
+    1873년 살롱에서 실제로 1등급 메달을 받은 그림입니다.<br>
+    당신은 아카데미 심사위원의 안목을 갖추셨군요!</p>
+  </div>
+  <button class="btn" onclick="collect('salon','salon-after')">컬렉션에 저장</button>
+</div>
+
+<div id="salon-after" class="screen">
+  <div class="ending" style="padding:80px 10px;">
+    <p>아카데미 살롱은<br>그 시대 아름다움의 기준을 정했다.<br><br>그러나 시대는 이미<br>그 기준을 넘어 움직이고 있었다.</p>
+  </div>
+  <button class="btn" onclick="go('home')">수집 노트로</button>
+</div>
+
+<!-- ═══════════ 시민사회 ═══════════ -->
+<div id="citizen-intro" class="screen">
+  <a class="back" href="#" onclick="go('home');return false;">← 수집 노트</a>
+  <div class="ornament"><span>ZONE C-1 · 시민사회</span></div>
+  <p style="font-size:14px;line-height:1.9;">잠깐, 이 동네 소문 들었어요?<br>
+  <b>카페 게르부아에 매주 모이는 예술가들</b>이 있는데, 그 모임 이름이 뭐였더라?<br>
+  혹시 아시면 알려주세요. 모리스 칼럼에 전단지가 붙어 있다고 하던데…</p>
+  <div class="quiz-opt" onclick="go('citizen-bad')">① 인상파</div>
+  <div class="quiz-opt" onclick="go('citizen-good')">② 바티뇰파</div>
+  <div class="quiz-opt" onclick="go('citizen-bad')">③ 낭만파</div>
+  <div class="quiz-opt" onclick="go('citizen-bad')">④ 아카데미파</div>
+  <button class="btn ghost sm" onclick="go('citizen-npc')">벽면 속 사람들의 대화 엿듣기</button>
+</div>
+
+<div id="citizen-npc" class="screen">
+  <a class="back" href="#" onclick="go('citizen-intro');return false;">← 문제로 돌아가기</a>
+  <div class="ornament"><span>카페 게르부아</span></div>
+  <div class="npc"><div class="who">테이블의 화가</div><div class="say">"아카데미 살롱의 기준은 너무 낡았어. 세상이 바뀌었는데, 언제까지 그런 그림만 그릴 거냐고."</div></div>
+  <div class="npc"><div class="who">신문을 든 남자</div><div class="say">"마네가 살롱에서 또 낙선했다며? 그 사람 그림이 뭐가 문제인지 나는 도통 모르겠어."</div></div>
+  <div class="npc"><div class="who">구석의 젊은 화가</div><div class="say">"그런데 말이야, 우리끼리 전시회를 연다고 누가 봐주기나 할까? 살롱 없이 팔리긴 할까?"</div></div>
+  <div class="ornament"><span>1867 만국박람회</span></div>
+  <div class="npc"><div class="who">관람객 1</div><div class="say">"박람회 참가국이 42개국이라고? 이걸 다 보려면 며칠은 걸리겠어."</div></div>
+  <div class="npc"><div class="who">관람객 2</div><div class="say">"그 동양 전시관 가 봤어요? 그림이 너무 특이하고 신기해요."</div></div>
+  <div class="npc"><div class="who">관람객 3</div><div class="say">"이런 건 귀족들이나 보는 줄 알았는데 말야."</div></div>
+  <div class="npc"><div class="who">관람객 4</div><div class="say">"예전엔 다들 비슷하게 입고 다녔는데, 요즘은 다들 자기만의 느낌이 있는 것 같아."</div></div>
+</div>
+
+<div id="citizen-bad" class="screen">
+  <div class="verdict">
+    <div class="mark" style="color:var(--bad)">✕</div>
+    <h2>다시 한번 전단지를 읽어보세요</h2>
+    <p>힌트: 이 모임 이름은<br>카페가 있던 <b>동네 이름</b>에서 따왔습니다.</p>
+  </div>
+  <button class="btn" onclick="go('citizen-intro')">다시 답하기</button>
+</div>
+
+<div id="citizen-good" class="screen">
+  <div class="verdict">
+    <div class="mark" style="color:var(--ok)">✓</div>
+    <h2>정답입니다 — 바티뇰파</h2>
+    <p>École des Batignolles.<br>카페가 있던 바티뇰 지역의 이름을 딴 것으로,<br>마네를 중심으로 모네·르누아르·드가·바지유가 모였습니다.<br>이들 대부분이 훗날 <b style="color:var(--ink)">'인상주의'</b>라는 이름으로 불리게 됩니다.</p>
+  </div>
+  <div class="paper" style="margin-top:16px">
+    <h2>까페 게르부아 안내문</h2>
+    <div class="cap">그랑드 뤼 데 바티뇰 11번지 · 1870년대</div>
+    <p>화가, 작가, 그리고 뜻을 같이하는 모든 이들께.<br>매주 목요일과 일요일 저녁, 까페 게르부아의 한 켠에서 바티뇰파 모임이 열립니다. 담배 연기 자욱한 이 작은 탁자 위에서 다음 시대의 예술이 태어나고 있습니다.<br><b>관심 있는 자, 누구든 환영합니다. — 바티뇰파</b></p>
+  </div>
+  <button class="btn" onclick="collect('citizen','home')">컬렉션에 저장</button>
+</div>
+
+<!-- ═══════════ 산업혁명 · 기차표 ═══════════ -->
+<div id="industry-intro" class="screen">
+  <a class="back" href="#" onclick="go('home');return false;">← 수집 노트</a>
+  <div class="ornament"><span>ZONE C-2 · 산업혁명</span></div>
+  <p style="font-size:14px;line-height:1.9;">사업가의 책상 위, 세계가 빨라지고 있습니다.<br>
+  이 방 어딘가에 <b>노르망디(에트르타)행 기차표</b>가 있습니다.<br>찾아서 촬영해 주세요 — 이 기차표는 <b>3층 생라자르역에서 실제로 사용</b>됩니다.</p>
+  <button class="btn" onclick="go('industry-good')">📷 기차표 촬영 인증</button>
+  <p class="note">프로토타입: 탭으로 대체 · 실제 운영 시 카메라 촬영 인증</p>
+</div>
+
+<div id="industry-good" class="screen">
+  <div class="verdict">
+    <div class="mark" style="color:var(--ok)">✓</div>
+    <h2>기차표를 손에 넣었습니다</h2>
+  </div>
+  <div class="ticket">
+    <div class="co">CHEMINS DE FER DE L'OUEST — 서부 철도</div>
+    <div class="route">파리 생라자르 → 노르망디 (에트르타)</div>
+    <div class="meta">2등석 · 편도 · 증기기관차<br>"기차는 시간의 감각을 바꾸었다"</div>
+    <div class="stamp" id="stamp-preview"><span>VISÉ</span><b>승차 확인</b><span>ST-LAZARE</span></div>
+  </div>
+  <p class="note">3층 생라자르역 입장 시 역무원에게 이 화면을 제시하세요</p>
+  <button class="btn" onclick="collect('industry','home')">컬렉션에 저장</button>
+</div>
+
+<!-- ═══════════ 튜브물감 ═══════════ -->
+<div id="paint-intro" class="screen">
+  <a class="back" href="#" onclick="go('home');return false;">← 수집 노트</a>
+  <div class="ornament"><span>ZONE C-3 · 화가의 아틀리에</span></div>
+  <p style="font-size:14px;line-height:1.9;">두 개의 방이 있습니다. 어두운 실내의 <b>돼지방광 물감</b> 화가의 방, 그리고 야외의 빛이 쏟아지는 <b>튜브물감</b> 화가의 방.<br><br>
+  1841년 발명되어 화가를 화실 밖 자연으로 이끈 물건 — <b>튜브물감을 찾아 촬영</b>하세요.</p>
+  <button class="btn" onclick="go('paint-good')">📷 튜브물감 촬영 인증</button>
+  <p class="note">프로토타입: 탭으로 대체</p>
+</div>
+
+<div id="paint-good" class="screen">
+  <div class="verdict">
+    <div class="mark" style="color:var(--ok)">✓</div>
+    <h2>튜브물감 수집!</h2>
+    <div style="font-size:52px;margin:14px 0;">🎨</div>
+    <p>물감을 들고 나갈 수 있게 되자,<br>화가는 <b style="color:var(--ink)">순간의 빛</b>을 현장에서 그릴 수 있게 되었습니다.<br>같은 도구가 주어져도, 무엇을 보느냐가 그림을 바꿉니다.</p>
+  </div>
+  <button class="btn" onclick="collect('paint','home')">컬렉션에 저장</button>
+</div>
+
+<!-- ═══════════ 모네 전시관 ═══════════ -->
+<div id="monethall-intro" class="screen">
+  <a class="back" href="#" onclick="go('home');return false;">← 수집 노트</a>
+  <div class="ornament"><span>ZONE D · 모네 전시관</span></div>
+  <p style="font-size:14px;line-height:1.9;">1874년, 첫 인상파 전시회.<br>
+  한 평론가는 어느 그림의 제목을 비꼬아 <b>"인상주의자들"</b>이라는 조롱 섞인 이름을 만들어냈습니다.<br><br>
+  전시관에서 <b>그 문제의 그림</b>을 찾아 인증하세요.</p>
+  <button class="btn" onclick="go('monethall-good')">📷 그림 인증</button>
+</div>
+
+<div id="monethall-good" class="screen">
+  <div class="verdict">
+    <div class="mark" style="color:var(--ok)">✓</div>
+    <h2>〈인상, 해돋이〉 — 1872</h2>
+    <img class="goldframe" src="quest_img/monet_sunrise.jpg">
+  </div>
+  <div class="quote">"인상이라니! 벽지 문양의 밑그림도 이 바다 그림보다는 완성돼 있겠다."<br>— 루이 르루아, 풍자지 《르 샤리바리》, 1874</div>
+  <p style="font-size:13.5px;color:var(--sub);line-height:1.8;">조롱으로 시작된 이름이 새로운 시대의 이름이 되었습니다.<br>새로운 시대는 언제나 한 장면에서 시작됩니다.</p>
+  <button class="btn" onclick="collect('monethall','home')">컬렉션에 저장</button>
+</div>
+
+<!-- ═══════════ 생라자르역 개찰 ═══════════ -->
+<div id="lazare-intro" class="screen">
+  <a class="back" href="#" onclick="go('home');return false;">← 수집 노트</a>
+  <div class="ornament"><span>3층 ZONE A · 생라자르역</span></div>
+  <p style="font-size:14px;line-height:1.9;text-align:center;">노르망디행 열차가 곧 출발합니다.<br><b>역무원에게 기차표를 제시하세요.</b></p>
+  <div class="ticket">
+    <div class="co">CHEMINS DE FER DE L'OUEST — 서부 철도</div>
+    <div class="route">파리 생라자르 → 노르망디 (에트르타)</div>
+    <div class="meta">2등석 · 편도 · 증기기관차</div>
+    <div class="stamp" id="stamp1"><span>VISÉ</span><b>승차 확인</b><span>ST-LAZARE</span></div>
+  </div>
+  <button class="btn" id="lazare-btn" onclick="stampLazare()">역무원 확인 (스태프 전용 탭)</button>
+  <p class="note">실제 운영: 역무원 복장의 스태프가 화면의 스탬프 버튼을 눌러 인증</p>
+</div>
+
+<!-- ═══════════ 지베르니 AR ═══════════ -->
+<div id="giverny-intro" class="screen">
+  <a class="back" href="#" onclick="go('home');return false;">← 수집 노트</a>
+  <div class="ornament"><span>3층 ZONE D · 지베르니</span></div>
+  <p style="font-size:14px;line-height:1.9;">모네가 직접 설계하고 가꾼 빛과 물의 실험실.<br>
+  이 정원 어딘가에서 <b>그림 그리는 모네</b>가 AR로 나타납니다.<br>카메라를 켜고 정원을 둘러보세요.</p>
+  <a class="btn" style="text-align:center;text-decoration:none;" href="index.html" target="_blank">AR 카메라 열기 (살아나는 그림 데모)</a>
+  <button class="btn ghost" onclick="go('giverny-good')">모네를 발견했습니다</button>
+  <p class="note">프로토타입: 현재 AR 데모는 '살아나는 그림'(파라솔을 든 여인) — 운영 시 정원 속 모네 3D/영상으로 교체</p>
+</div>
+
+<div id="giverny-good" class="screen">
+  <div class="verdict">
+    <div class="mark" style="color:var(--gold)">✦</div>
+    <h2>"자네 왔나?"</h2>
+    <p>이젤 앞의 모네가 당신을 알아봅니다.<br>"미시아의 살롱에 가 보게. 재미있는 사람들이 모여 있다네."</p>
+  </div>
+  <div class="invite">
+    <div class="fl">INVITATION</div>
+    <h3>미시아 살롱 초대장</h3>
+    <p>파리 예술·지식인 사교계의 중심.<br>모네, 르누아르, 말라르메, 드뷔시가 드나들던 곳.<br>이 초대장을 입구의 집사에게 제시하십시오.</p>
+  </div>
+  <button class="btn" onclick="collect('giverny','home')">컬렉션에 저장</button>
+</div>
+
+<!-- ═══════════ 미시아 살롱 ═══════════ -->
+<div id="misia-intro" class="screen">
+  <a class="back" href="#" onclick="go('home');return false;">← 수집 노트</a>
+  <div class="ornament"><span>3층 ZONE E · 미시아 살롱</span></div>
+  <p style="font-size:14px;line-height:1.9;text-align:center;">집사가 문 앞을 지키고 있습니다.<br><b>초대장을 제시하세요.</b></p>
+  <div class="invite" id="invite-card">
+    <div class="fl">INVITATION</div>
+    <h3>미시아 살롱 초대장</h3>
+    <p>지참인 1인 입장</p>
+    <div class="stamp" id="stamp2" style="right:10px;bottom:8px;"><span>ADMIS</span><b>입장 확인</b><span>SALON</span></div>
+  </div>
+  <button class="btn" id="misia-btn" onclick="stampMisia()">집사 확인 (스태프 전용 탭)</button>
+</div>
+
+<!-- ═══════════ 엔딩 ═══════════ -->
+<div id="ending" class="screen">
+  <div class="brand" style="margin-top:30px">COLLECTION COMPLETE · 6 / 6</div>
+  <div class="ending">
+    <p>1926년, 모네가 세상을 떠나며<br>인상주의의 시대가 저물었다.<br><br>
+    세상은 쉼 없이 변한다.<br>한 시대가 끝나는 순간,<br>다음 시대는 이미 시작되고 있다.<br><br>
+    그리고 지금, 2026년.<br>지금 이 순간에도,<br>어디선가 다음 시대는 이미 태어나고 있다.<br><br>
+    <span class="q">당신은, 그것을<br>가장 먼저 감각하고 있는가.</span></p>
+  </div>
+  <button class="btn" onclick="go('home')">나의 수집 노트 보기</button>
+</div>
+
+<script>
+const COLS = [
+  {id:'salon',    nm:'올해의 그림',        img:'quest_img/merson.jpg'},
+  {id:'citizen',  nm:'게르부아 안내문',     obj:'📜'},
+  {id:'industry', nm:'노르망디행 기차표',   obj:'🎫'},
+  {id:'paint',    nm:'튜브물감',           obj:'🎨'},
+  {id:'monethall',nm:'인상, 해돋이',       img:'quest_img/monet_sunrise.jpg'},
+  {id:'giverny',  nm:'미시아 살롱 초대장',  obj:'✉️'},
+];
+const ENTRY = {salon:'salon-intro',citizen:'citizen-intro',industry:'industry-intro',paint:'paint-intro',
+               monethall:'monethall-intro',lazare:'lazare-intro',giverny:'giverny-intro',misia:'misia-intro'};
+
+let S = JSON.parse(localStorage.getItem('monet100') || '{"col":{},"stamps":{}}');
+const save = () => localStorage.setItem('monet100', JSON.stringify(S));
+
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  window.scrollTo(0,0);
+  if (id==='home') render();
+  if (id==='lazare-intro' && S.stamps.lazare) document.getElementById('stamp1').classList.add('on');
+  if (id==='misia-intro' && S.stamps.misia) document.getElementById('stamp2').classList.add('on');
+}
+function salonPick(ok){ go(ok ? 'salon-good' : 'salon-bad'); }
+function collect(id,next){
+  S.col[id]=1; save();
+  const n = Object.keys(S.col).length;
+  if (n>=6) go('ending'); else go(next);
+}
+function stampLazare(){
+  if(!S.col.industry){ alert('아직 기차표가 없습니다. 4층 산업혁명 존에서 먼저 수집하세요.'); return; }
+  document.getElementById('stamp1').classList.add('on');
+  S.stamps.lazare=1; save();
+  document.getElementById('lazare-btn').textContent='승차 확인 완료 — 에트르타로 출발!';
+}
+function stampMisia(){
+  if(!S.col.giverny){ alert('초대장이 없습니다. 지베르니 정원에서 모네를 먼저 찾으세요.'); return; }
+  document.getElementById('stamp2').classList.add('on');
+  S.stamps.misia=1; save();
+  document.getElementById('misia-btn').textContent='입장 확인 완료 — 살롱에 오신 것을 환영합니다';
+}
+function resetAll(){
+  if(!confirm('수집품을 모두 초기화할까요?')) return;
+  S={col:{},stamps:{}}; save(); render();
+}
+function render(){
+  const n = Object.keys(S.col).length;
+  document.getElementById('cnt').textContent = n;
+  document.getElementById('pbar').style.width = (n/6*100)+'%';
+  document.getElementById('colgrid').innerHTML = COLS.map(c => S.col[c.id]
+    ? `<div class="col got">${c.img?`<img src="${c.img}">`:`<div class="obj">${c.obj}</div>`}<div class="nm">${c.nm}</div></div>`
+    : `<div class="col"><div class="q">?</div><div class="nm">미수집</div></div>`).join('');
+  document.querySelectorAll('.mission').forEach(el=>{
+    const m = el.dataset.m;
+    const done = (m==='lazare') ? S.stamps.lazare : (m==='misia') ? S.stamps.misia : S.col[m];
+    el.classList.toggle('done', !!done);
+    el.querySelector('.state').textContent = done ? '✓ 완료' : 'QR 스캔';
+    if (m==='lazare') el.classList.toggle('locked', !S.col.industry && !S.stamps.lazare);
+    if (m==='misia')  el.classList.toggle('locked', !S.col.giverny && !S.stamps.misia);
+  });
+}
+document.querySelectorAll('.mission').forEach(el=>{
+  el.addEventListener('click', ()=> go(ENTRY[el.dataset.m]));
+});
+render();
+</script>
+</body>
+</html>
