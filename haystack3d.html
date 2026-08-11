@@ -48,7 +48,7 @@
 <div id="ui">
   <div class="row" id="presets"></div>
   <div class="sliders">
-    <label>조명 방향</label><input type="range" id="sAz" min="0" max="360" value="225">
+    <label>조명 방향</label><input type="range" id="sAz" min="0" max="360" value="140">
     <label>조명 높이</label><input type="range" id="sEl" min="5" max="80" value="16">
     <label>색온도</label><input type="range" id="sTemp" min="0" max="100" value="96">
     <label>밝기</label><input type="range" id="sInt" min="10" max="100" value="72">
@@ -309,7 +309,7 @@ const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
 scene.add(dust);
 
 // ══════════ 상태 → 반영 ══════════
-const st = { az: 225, el: 16, temp: 96, int: 72 };
+const st = { az: 140, el: 16, temp: 96, int: 72 };
 const cold = new THREE.Color(0x9db4e8), warm = new THREE.Color(0xff9e4a);
 function apply(){
   const azr = st.az*Math.PI/180, elr = st.el*Math.PI/180, R = 7.5;
@@ -321,7 +321,7 @@ function apply(){
   amb.color.copy(c); amb.intensity = .015 + st.int/100 * .045;
   muralWash.color.copy(c); muralWash.intensity = .12 + st.int/100 * .55;
   coneMat.color.copy(c);
-  coneMat.opacity = .02 + st.int/100 * .075;
+  coneMat.opacity = .012 + st.int/100 * .05;
   dust.material.color.copy(c);
   // 기구·콘 배치
   rig.position.set(px, py + .22, pz);
@@ -344,10 +344,10 @@ const S = id => document.getElementById(id);
 }));
 
 const PRESETS = [
-  { nm:'새벽',    az:100, el:12, temp:20, int:34 },
+  { nm:'새벽',    az:60, el:12, temp:20, int:34 },
   { nm:'아침',    az:125, el:36, temp:60, int:82 },
   { nm:'정오',    az:180, el:74, temp:48, int:100 },
-  { nm:'저녁노을', az:225, el:16, temp:96, int:72 },
+  { nm:'저녁노을', az:140, el:16, temp:96, int:72 },
   { nm:'달밤',    az:300, el:48, temp:8,  int:20 },
 ];
 let anim = null;
