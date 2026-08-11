@@ -156,8 +156,7 @@ function addLeaf(text, opts = {}) {
   if (gold) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(r + .1, .035, 10, 60),
       new THREE.MeshBasicMaterial({ color: 0xc9a961 }));
-    ring.rotation.x = Math.PI/2;
-    ring.position.set(0, .02, 0);
+    ring.position.set(0, 0, .06);   // 잎 로컬 평면에 눕힘
     m.add(ring);
   }
   leaves.push({ m, phase: Math.random()*6.28, spin: (Math.random()-.5)*.0016, da: (Math.random()-.5)*.0004, ang, dist });
