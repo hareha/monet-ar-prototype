@@ -103,31 +103,21 @@ img.src = 'quest_img/monet_sunrise.jpg';
 
 let W, H, orig, bucket, sketchData;
 
-function rgb2hsl(r,g,b){
-  r/=255; g/=255; b/=255;
-  const mx = Math.max(r,g,b), mn = Math.min(r,g,b);
-  const l = (mx+mn)/2;
-  if (mx === mn) return [0,0,l];
-  const d = mx-mn;
-  const s = l > .5 ? d/(2-mx-mn) : d/(mx+mn);
-  let h;
-  if (mx === r) h = ((g-b)/d + (g<b?6:0));
-  else if (mx === g) h = (b-r)/d + 2;
-  else h = (r-g)/d + 4;
-  return [h*60, s, l];
-}
-
-// 픽셀 → 잉크 번호 (합집합 = 원화 전체)
-function assign(r,g,b){
-  const [h,s,l] = rgb2hsl(r,g,b);
-  if (l < .26) return 0;                       // 먹빛 (어두운 부분)
-  if (s < .13) return 1;                       // 안개 (무채색)
-  if (h >= 330 || h < 48) return 7;            // 태양의 주홍
-  if (h < 75)  return 6;                       // 금빛
-  if (h < 160) return 5;                       // 초록
-  if (h < 200) return 4;                       // 청록
-  if (h < 258) return 2;                       // 블루
-  return 3;                                     // 바이올렛
+// 팔레트 최근접 분해: 각 픽셀을 8개 잉크 색 중 가장 가까운 것에 배정
+// (합집합 = 원화 전체, 각 도장이 원화에서 실제 그 색 계열을 드러냄)
+const INK_RGB = INKS.map(k => {
+  const n = parseInt(k.c.slice(1), 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+});
+function assign(r, g, b){
+  let best = 0, bd = 1e9;
+  for (let i = 0; i < 8; i++) {
+    const dr = r - INK_RGB[i][0], dg = g - INK_RGB[i][1], db = b - INK_RGB[i][2];
+    // 밝기 차이에 가중 — 명도 구조 유지
+    const d = dr*dr*2 + dg*dg*4 + db*db*3;
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
 }
 
 img.onload = () => {
