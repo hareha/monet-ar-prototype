@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>다음 시대의 수련 연못</title>
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:#04100e;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
+  #view{position:fixed;inset:0;}
+  a.home{position:fixed;top:14px;left:14px;z-index:6;font-size:12.5px;color:#cfe0d6;text-decoration:none;text-shadow:0 1px 4px rgba(0,0,0,.8);}
+  .cap{position:fixed;top:14px;right:14px;z-index:6;font-size:10px;letter-spacing:.24em;color:rgba(220,235,225,.5);font-weight:700;}
+  #q{position:fixed;top:44px;left:0;right:0;z-index:5;text-align:center;color:#e9f2ea;font-size:15px;font-weight:700;text-shadow:0 2px 10px rgba(0,0,0,.7);letter-spacing:.02em;}
+  #q small{display:block;font-size:11px;color:#9db8a8;font-weight:400;margin-top:4px;}
+
+  #ui{position:fixed;left:12px;right:12px;bottom:14px;z-index:6;max-width:500px;margin:0 auto;
+    background:rgba(6,20,17,.82);border:1px solid rgba(160,200,175,.25);border-radius:10px;padding:12px;backdrop-filter:blur(8px);}
+  #ui .row{display:flex;gap:8px;}
+  #txt{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(160,200,175,.3);border-radius:6px;color:#e9f2ea;
+    font-size:14px;font-family:inherit;padding:12px;outline:none;}
+  #txt::placeholder{color:#7d9a8a;}
+  #send{background:#c9a961;color:#1c1a16;border:0;border-radius:6px;padding:0 20px;font-size:13.5px;font-weight:800;font-family:inherit;cursor:pointer;}
+  #send:active{transform:translateY(2px);}
+  .n{font-size:10px;color:#7d9a8a;text-align:center;margin-top:7px;}
+</style>
+</head>
+<body>
+<div id="view"></div>
+<a class="home" href="index.html">← 홈</a>
+<div class="cap">미시아 살롱 · 출구</div>
+<div id="q">당신은 지금, 어디에서 다음 시대를 감각하고 있나요?<small>당신의 한 줄이 수련잎이 되어 연못에 떠오릅니다</small></div>
+
+<div id="ui">
+  <div class="row">
+    <input id="txt" maxlength="46" placeholder="한 줄로 적어 주세요">
+    <button id="send">띄우기</button>
+  </div>
+  <p class="n" id="count"></p>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+document.getElementById('view').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04100e);
+scene.fog = new THREE.FogExp2(0x04100e, .055);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, .1, 100);
+camera.position.set(0, 5.2, 9);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.maxPolarAngle = Math.PI * .47;
+controls.minPolarAngle = Math.PI * .18;
+controls.minDistance = 5; controls.maxDistance = 14;
+controls.enablePan = false;
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = .35;
+
+// ── 조명: 등불 느낌 ──
+scene.add(new THREE.AmbientLight(0x2a4a3e, .8));
+const l1 = new THREE.PointLight(0xc9a961, 1.1, 22, 1.6); l1.position.set(-4, 4.5, -2); scene.add(l1);
+const l2 = new THREE.PointLight(0x7fc8a8, .7, 20, 1.8); l2.position.set(5, 3.5, 3); scene.add(l2);
+const moon = new THREE.DirectionalLight(0x9db4d8, .35); moon.position.set(2, 8, -4); scene.add(moon);
+
+// ── 수면: 물결치는 평면 ──
+const waterGeo = new THREE.PlaneGeometry(46, 46, 90, 90);
+const water = new THREE.Mesh(waterGeo,
+  new THREE.MeshPhongMaterial({ color: 0x0c2f28, specular: 0x88ffd8, shininess: 90, side: THREE.DoubleSide }));
+water.rotation.x = -Math.PI/2;
+scene.add(water);
+const wpos = waterGeo.attributes.position;
+const base = Float32Array.from(wpos.array);
+function waves(t){
+  for (let i = 0; i < wpos.count; i++) {
+    const x = base[i*3], y = base[i*3+1];
+    wpos.setZ(i, Math.sin(x*.7 + t*.9)*.06 + Math.cos(y*.55 + t*.7)*.06 + Math.sin((x+y)*.3 + t*.4)*.04);
+  }
+  wpos.needsUpdate = true;
+  waterGeo.computeVertexNormals();
+}
+
+// ── 수련잎: 문구를 새긴 잎 ──
+function leafTexture(text, gold) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 512;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(200, 190, 40, 256, 256, 300);
+  g.addColorStop(0, gold ? '#5d9a72' : '#3f7a5c');
+  g.addColorStop(.75, gold ? '#356b4c' : '#28563f');
+  g.addColorStop(1, gold ? '#2a5a3e' : '#1e4632');
+  x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+  // 잎맥
+  x.strokeStyle = 'rgba(255,255,255,.08)'; x.lineWidth = 3;
+  for (let a = 0; a < 12; a++) {
+    x.beginPath(); x.moveTo(256, 256);
+    x.lineTo(256 + Math.cos(a/12*6.28)*250, 256 + Math.sin(a/12*6.28)*250);
+    x.stroke();
+  }
+  // 문구
+  x.fillStyle = '#eef6ec';
+  x.font = '600 34px "Apple SD Gothic Neo", sans-serif';
+  x.textAlign = 'center';
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    if ((line + ' ' + w).trim().length > 11) { lines.push(line.trim()); line = w; }
+    else line += ' ' + w;
+  }
+  if (line.trim()) lines.push(line.trim());
+  const lh = 44, y0 = 256 - (lines.length-1)*lh/2;
+  lines.slice(0, 5).forEach((ln, i) => x.fillText(ln, 256, y0 + i*lh + 12));
+  const tex = new THREE.CanvasTexture(c);
+  tex.encoding = THREE.sRGBEncoding;
+  return tex;
+}
+
+const leaves = [];
+function addLeaf(text, opts = {}) {
+  const gold = !!opts.gold;
+  const r = 1.05 + Math.random()*.4;
+  // 잎 모양: 원에서 쐐기 하나 잘린 형태
+  const shape = new THREE.Shape();
+  const notch = .5;
+  shape.absarc(0, 0, r, notch/2, Math.PI*2 - notch/2, false);
+  shape.lineTo(0, 0);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: .05, bevelEnabled: false });
+  const mat = [
+    new THREE.MeshStandardMaterial({ map: leafTexture(text, gold), roughness: .75 }),
+    new THREE.MeshStandardMaterial({ color: 0x1e4632, roughness: .9 }),
+  ];
+  // UV: shape geometry uv는 로컬 좌표라 -r..r → 0..1 매핑
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i)/r + 1)/2, (uv.getY(i)/r + 1)/2);
+  const m = new THREE.Mesh(geo, mat);
+  m.rotation.x = -Math.PI/2;
+  const ang = opts.ang ?? Math.random()*Math.PI*2;
+  const dist = opts.dist ?? (2 + Math.random()*8);
+  m.position.set(Math.cos(ang)*dist, .07, Math.sin(ang)*dist);
+  m.rotation.z = Math.random()*Math.PI*2;
+  scene.add(m);
+  if (gold) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r + .1, .035, 10, 60),
+      new THREE.MeshBasicMaterial({ color: 0xc9a961 }));
+    ring.rotation.x = Math.PI/2;
+    ring.position.set(0, .02, 0);
+    m.add(ring);
+  }
+  leaves.push({ m, phase: Math.random()*6.28, spin: (Math.random()-.5)*.0016, da: (Math.random()-.5)*.0004, ang, dist });
+  return m;
+}
+
+// 기존 문구 로드
+const SEED = [
+  '아이의 그림일기에서',
+  '퇴근길, 모두가 이어폰 속 AI와 대화할 때',
+  '새벽 편의점을 정리하는 로봇',
+  '할머니의 유튜브 프랑스어 수업',
+  '내가 만든 게임을 세계에 파는 중학생',
+  '전기차 소리 없는 골목',
+];
+let saved = JSON.parse(localStorage.getItem('m100_pond') || 'null') || SEED;
+saved.slice(-40).forEach(t => addLeaf(t));
+
+const countEl = document.getElementById('count');
+const updateCount = () => countEl.textContent = saved.length + '번째 잎까지 떠 있습니다 · 90일간 이 연못에 남습니다';
+updateCount();
+
+let lastGold = null;
+document.getElementById('send').onclick = () => {
+  const txt = document.getElementById('txt');
+  const v = txt.value.trim();
+  if (!v) return;
+  saved.push(v);
+  localStorage.setItem('m100_pond', JSON.stringify(saved.slice(-100)));
+  if (lastGold) { // 이전 금테 해제: 링 제거
+    const ring = lastGold.children[0];
+    if (ring) lastGold.remove(ring);
+  }
+  // 카메라 앞쪽에 띄우기
+  const camAng = Math.atan2(camera.position.z, camera.position.x);
+  lastGold = addLeaf(v, { gold: true, ang: camAng, dist: 3.2 });
+  txt.value = '';
+  txt.blur();
+  updateCount();
+};
+document.getElementById('txt').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('send').click(); });
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const t = clock.getElapsedTime();
+  waves(t);
+  for (const L of leaves) {
+    L.m.position.y = .07 + Math.sin(t*.8 + L.phase)*.045;
+    L.m.rotation.z += L.spin;
+    L.ang += L.da;
+    L.m.position.x = Math.cos(L.ang)*L.dist;
+    L.m.position.z = Math.sin(L.ang)*L.dist;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

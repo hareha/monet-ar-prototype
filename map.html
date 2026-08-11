@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전시 안내 — MONET 100</title>
+<style>
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;--blue:#3f5a80;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
+  body{max-width:520px;margin:0 auto;padding:22px 16px 120px;}
+  .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;}
+  .top a{font-size:12.5px;color:var(--sub);text-decoration:none;}
+  .top .cap{font-size:10.5px;letter-spacing:.28em;color:var(--cap);font-weight:600;}
+  h1{font-size:21px;font-weight:800;margin:0 0 4px;}
+  .me{font-size:12px;color:var(--blue);font-weight:700;min-height:18px;margin-bottom:10px;}
+
+  .floors{display:flex;gap:6px;margin-bottom:12px;}
+  .floors button{flex:1;background:#fff;border:1px solid #d8d3c8;border-radius:6px;padding:11px;font-size:13px;color:var(--sub);font-family:inherit;font-weight:700;cursor:pointer;
+    box-shadow:0 1px 3px rgba(28,26,22,.07),0 2px 0 #d8d3c8;}
+  .floors button.on{background:var(--ink);color:var(--bg);border-color:var(--ink);box-shadow:0 2px 0 rgba(28,26,22,.4);}
+  .floors button:active{transform:translateY(2px);box-shadow:none;}
+
+  .mapwrap{position:relative;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;box-shadow:0 8px 26px rgba(28,26,22,.08);}
+  .mapwrap img{width:100%;display:block;}
+  .floorpane{display:none;position:relative;}
+  .floorpane.on{display:block;}
+  .spot{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;
+    background:rgba(28,26,22,.82);color:#faf9f6;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;
+    border:2px solid #faf9f6;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:pointer;}
+  .spot.sel{background:#8a2f23;}
+  .here{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--blue);border:3px solid #fff;
+    box-shadow:0 0 0 4px rgba(63,90,128,.25);display:none;}
+  .here.on{display:block;animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 3px rgba(63,90,128,.3);}70%{box-shadow:0 0 0 12px rgba(63,90,128,0);}100%{box-shadow:0 0 0 3px rgba(63,90,128,0);}}
+
+  #sheet{position:fixed;left:0;right:0;bottom:0;z-index:9;max-width:520px;margin:0 auto;background:#fff;border-top:1px solid var(--line);
+    border-radius:14px 14px 0 0;box-shadow:0 -10px 34px rgba(28,26,22,.16);padding:18px 18px 22px;transform:translateY(110%);transition:transform .28s;}
+  #sheet.up{transform:none;}
+  #sheet .z{font-size:10.5px;letter-spacing:.2em;color:var(--cap);font-weight:700;}
+  #sheet h2{font-size:18px;font-weight:800;margin:4px 0 6px;}
+  #sheet p{font-size:13px;color:var(--sub);line-height:1.75;margin:0 0 12px;}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;}
+  .acts a,.acts button{flex:1;min-width:110px;text-align:center;text-decoration:none;font-family:inherit;font-size:12.5px;font-weight:700;border-radius:6px;padding:12px 8px;cursor:pointer;
+    background:#fff;border:1px solid #d8d3c8;color:var(--sub);box-shadow:0 1px 3px rgba(28,26,22,.07),0 2px 0 #d8d3c8;}
+  .acts .main{background:var(--ink);color:var(--bg);border-color:var(--ink);box-shadow:0 2px 0 rgba(28,26,22,.4);}
+  .acts a:active,.acts button:active{transform:translateY(2px);box-shadow:none;}
+  #closeSheet{position:absolute;top:10px;right:14px;background:none;border:0;font-size:20px;color:var(--cap);cursor:pointer;}
+</style>
+</head>
+<body>
+  <div class="top"><a href="index.html">← 홈</a><span class="cap">MONET 100 · 전시 안내</span></div>
+  <h1>전시 공간 안내</h1>
+  <div class="me" id="meLabel"></div>
+
+  <div class="floors">
+    <button id="f4" class="on">4층 — 이해하는 공간</button>
+    <button id="f3">3층 — 체험하는 공간</button>
+  </div>
+
+  <div class="mapwrap">
+    <div class="floorpane on" id="pane4">
+      <img src="quest_img/map4f.jpg" alt="4층 도면">
+      <div class="here" id="here4"></div>
+    </div>
+    <div class="floorpane" id="pane3">
+      <img src="quest_img/map3f.jpg" alt="3층 도면">
+      <div class="here" id="here3"></div>
+    </div>
+  </div>
+
+  <div id="sheet">
+    <button id="closeSheet">✕</button>
+    <div class="z" id="sZone"></div>
+    <h2 id="sName"></h2>
+    <p id="sDesc"></p>
+    <div class="acts" id="sActs"></div>
+  </div>
+
+<script>
+const ZONES = [
+  // 4F
+  {f:4, id:'a4', label:'A', x:80.6, y:52.2, name:'접수 안내',
+   desc:'티켓을 확인하고 관람 동선(4층→3층)을 안내받는 곳. 체험활동용 워크북을 받고 전시의 세계로 들어갑니다.',
+   acts:[['도슨트 듣기','docent.html#a4']]},
+  {f:4, id:'b4', label:'B', x:85.5, y:26.3, name:'아카데미 살롱',
+   desc:'1873년 파리 살롱전의 재현. 벽을 가득 채운 그림들 사이에서 당신이 오늘의 심사위원이 됩니다.',
+   acts:[['심사위원 미션','scan.html?m=salon'],['도슨트 듣기','docent.html#b4']]},
+  {f:4, id:'c4', label:'C', x:59.4, y:23.3, name:'변화의 복도',
+   desc:'시민사회 · 산업혁명 · 튜브물감 · 사진기 — 인상주의를 가능하게 한 시대의 단서 4개 부스를 지나갑니다.',
+   acts:[['스탬프 찍기','stamps.html'],['도슨트 듣기','docent.html#c4']]},
+  {f:4, id:'d4', label:'D', x:33.9, y:26.3, name:'모네 전시관',
+   desc:'〈인상, 해돋이〉와 연작들. "모네는 왜 같은 풍경을 계속 그렸을까?"라는 질문을 품고 나가게 됩니다.',
+   acts:[['혹평받은 그림 찾기','scan.html?m=monethall'],['도슨트 듣기','docent.html#d4']]},
+  {f:4, id:'e4', label:'E', x:61, y:50.1, name:'미디어 전시',
+   desc:'헤리티지 건축 전체가 모네의 캔버스가 되는 약 5분의 몰입 미디어. 빈백에 누워 감상합니다.',
+   acts:[['도슨트 듣기','docent.html#e4']]},
+  {f:4, id:'f4z', label:'F', x:57.3, y:85.1, name:'굿즈 매대',
+   desc:'4층 전시를 나가며 만나는 기념품 코너입니다.', acts:[]},
+  // 3F
+  {f:3, id:'a3', label:'A', x:75, y:63.6, name:'생라자르역',
+   desc:'노르망디행 열차의 플랫폼. 4층에서 얻은 기차표를 역무원에게 제시하면 개찰 스탬프를 찍어줍니다.',
+   acts:[['기차표 꺼내기','quest.html'],['도슨트 듣기','docent.html#a3']]},
+  {f:3, id:'b3', label:'B', x:69.4, y:46.3, name:'에트르타',
+   desc:'파노라마로 재현된 노르망디 해안. 같은 절벽이 날씨와 시간에 따라 전혀 다른 그림이 되는 것을 봅니다.',
+   acts:[['모네의 눈 (화풍 변환)','moneteye.html'],['도슨트 듣기','docent.html#b3']]},
+  {f:3, id:'c3', label:'C', x:66.9, y:29, name:'건초더미',
+   desc:'실물 건초더미와 조명 콘솔. 새벽부터 저녁노을까지, 빛을 직접 조작하며 연작의 의미를 체험합니다.',
+   acts:[['조명 시뮬레이터','haystack3d.html'],['도슨트 듣기','docent.html#c3']]},
+  {f:3, id:'d3', label:'D', x:52.4, y:41.8, name:'지베르니 정원',
+   desc:'겨울과 여름이 공존하는 모네의 정원. 일본식 다리 포토존과 크리스마스 트리가 있습니다.',
+   acts:[['AR — 살아나는 그림','ar.html'],['도슨트 듣기','docent.html#d3']]},
+  {f:3, id:'e3', label:'E', x:43.7, y:34.3, name:'미시아 살롱',
+   desc:'지베르니에서 얻은 초대장으로 입장. 모네의 시대가 저물고 다음 시대가 시작되는 마지막 공간입니다.',
+   acts:[['수련 연못에 한 줄 남기기','pond3d.html'],['도슨트 듣기','docent.html#e3']]},
+  {f:3, id:'g3', label:'G', x:32.3, y:46.3, name:'굿즈샵',
+   desc:'전시의 마지막, 스탬프 완주 보상 교환과 기념품 구매.', acts:[['스탬프 확인','stamps.html']]},
+];
+
+const sheet = document.getElementById('sheet');
+let selSpot = null;
+let me = JSON.parse(localStorage.getItem('m100_loc') || 'null');
+
+function meLabel(){
+  const el = document.getElementById('meLabel');
+  if (!me) { el.textContent = '내 위치: 아직 설정 안 됨 — 존을 눌러 "여기 도착"을 선택하세요'; return; }
+  const z = ZONES.find(z => z.id === me);
+  el.textContent = z ? `내 위치: ${z.f}층 ${z.name}` : '';
+  ['4','3'].forEach(f => {
+    const dot = document.getElementById('here' + f);
+    dot.classList.remove('on');
+    if (z && String(z.f) === f) {
+      dot.style.left = z.x + '%'; dot.style.top = z.y + '%';
+      dot.classList.add('on');
+    }
+  });
+}
+
+function openSheet(z){
+  document.getElementById('sZone').textContent = z.f + 'F · ZONE ' + z.label;
+  document.getElementById('sName').textContent = z.name;
+  document.getElementById('sDesc').textContent = z.desc;
+  const acts = document.getElementById('sActs');
+  acts.innerHTML = '';
+  for (const [t, href] of z.acts) {
+    const a = document.createElement('a');
+    a.textContent = t; a.href = href;
+    acts.appendChild(a);
+  }
+  const hereBtn = document.createElement('button');
+  hereBtn.className = 'main';
+  hereBtn.textContent = '여기 도착 — 내 위치로 표시';
+  hereBtn.onclick = () => { me = z.id; localStorage.setItem('m100_loc', JSON.stringify(me)); meLabel(); sheet.classList.remove('up'); };
+  acts.appendChild(hereBtn);
+  sheet.classList.add('up');
+  if (selSpot) selSpot.classList.remove('sel');
+  selSpot = document.getElementById('spot_' + z.id);
+  if (selSpot) selSpot.classList.add('sel');
+}
+
+for (const z of ZONES) {
+  const s = document.createElement('div');
+  s.className = 'spot'; s.id = 'spot_' + z.id;
+  s.style.left = z.x + '%'; s.style.top = z.y + '%';
+  s.textContent = z.label;
+  s.onclick = () => openSheet(z);
+  document.getElementById('pane' + z.f).appendChild(s);
+}
+
+document.getElementById('closeSheet').onclick = () => { sheet.classList.remove('up'); if (selSpot) selSpot.classList.remove('sel'); };
+const f4 = document.getElementById('f4'), f3 = document.getElementById('f3');
+function floor(n){
+  f4.classList.toggle('on', n===4); f3.classList.toggle('on', n===3);
+  document.getElementById('pane4').classList.toggle('on', n===4);
+  document.getElementById('pane3').classList.toggle('on', n===3);
+  sheet.classList.remove('up');
+}
+f4.onclick = () => floor(4); f3.onclick = () => floor(3);
+meLabel();
+// 내 위치가 3층이면 3층부터
+if (me) { const z = ZONES.find(z=>z.id===me); if (z && z.f===3) floor(3); }
+</script>
+</body>
+</html>

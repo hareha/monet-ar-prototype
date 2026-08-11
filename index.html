@@ -11,13 +11,7 @@
   body{max-width:520px;margin:0 auto;padding:30px 20px 56px;}
   .cap{font-size:10.5px;letter-spacing:.34em;color:var(--cap);font-weight:600;text-align:center;}
   h1{font-size:25px;font-weight:800;text-align:center;margin:10px 0 4px;letter-spacing:-.01em;}
-  .tagline{font-size:12.5px;color:var(--sub);text-align:center;margin:0;}
-  .hero{display:block;width:46%;margin:22px auto 0;border:1px solid #d8d3c8;padding:7px;background:#fff;box-shadow:0 12px 36px rgba(28,26,22,.10);}
-
-  .sect{background:var(--ink);color:var(--bg);border-radius:6px;padding:9px 14px;margin:30px 0 12px;
-        font-size:11px;letter-spacing:.26em;font-weight:700;}
-  .sect span{opacity:.95;}
-  .sect::before,.sect::after{content:none;}
+  .tagline{font-size:12.5px;color:var(--sub);text-align:center;margin:0 0 26px;}
 
   .card{position:relative;display:flex;align-items:flex-start;gap:14px;background:#fff;border:1px solid var(--line);border-radius:8px;
         padding:16px 36px 16px 16px;margin-bottom:10px;cursor:pointer;
@@ -30,95 +24,79 @@
   .pair{font-size:11.5px;color:#a89f8d;margin-top:6px;}
   .pair a{color:#3f5a80;text-decoration:none;border-bottom:1px solid #c9d2de;}
 
-  .foot{font-size:11px;color:#a89f8d;text-align:center;margin-top:30px;line-height:1.9;}
+  details{margin-top:26px;border:1px solid var(--line);border-radius:8px;background:#fff;}
+  summary{padding:14px 16px;font-size:12.5px;font-weight:700;color:var(--sub);cursor:pointer;list-style:none;}
+  summary::before{content:'▸ ';color:var(--cap);}
+  details[open] summary::before{content:'▾ ';}
+  .sublinks{padding:0 16px 14px;font-size:12.5px;line-height:2.1;color:var(--sub);}
+  .sublinks a{color:#3f5a80;text-decoration:none;}
+  .foot{font-size:11px;color:#a89f8d;text-align:center;margin-top:26px;line-height:1.9;}
 </style>
 </head>
 <body>
   <div class="cap">MONET 100 · THE NEXT IMPRESSION</div>
-  <h1>체험 프로토타입</h1>
+  <h1>전시 앱 프로토타입</h1>
   <p class="tagline">신세계 더 헤리티지 명동 · 2026.12 – 2027.2</p>
-  <img class="hero" src="target.jpg" alt="">
 
-  <div class="sect"><span>카메라 체험</span></div>
-
-  <div class="card" onclick="location.href='ar.html'">
+  <div class="card" onclick="location.href='map.html'">
     <div class="no">01</div>
     <div>
+      <div class="tt">전시 공간 안내</div>
+      <div class="ds">층별 도면에서 존을 누르면 안내와 체험 링크 — 내 위치 표시</div>
+    </div>
+  </div>
+
+  <div class="card" onclick="location.href='docent.html'">
+    <div class="no">02</div>
+    <div>
+      <div class="tt">오디오 도슨트</div>
+      <div class="ds">공간별 해설 10트랙 — 지금은 임시 음성(TTS), 음원 오면 교체</div>
+    </div>
+  </div>
+
+  <div class="card" onclick="location.href='stamps.html'">
+    <div class="no">03</div>
+    <div>
+      <div class="tt">색의 스탬프</div>
+      <div class="ds">존을 체험하고 도장을 찍으면 흑백의 모네가 색을 되찾습니다 — 8존 완주</div>
+    </div>
+  </div>
+
+  <div class="card" onclick="location.href='haystack3d.html'">
+    <div class="no">04</div>
+    <div>
+      <div class="tt">건초더미 — 조명 시뮬레이터 (3D)</div>
+      <div class="ds">전시 공간을 3D로 재현 — 조명을 조작하고 마지막에 사진으로 남기기. 실제 현장 조명(DMX) 연출의 사전 시각화</div>
+    </div>
+  </div>
+
+  <div class="card" onclick="location.href='pond3d.html'">
+    <div class="no">05</div>
+    <div>
+      <div class="tt">다음 시대의 수련 연못 (3D)</div>
+      <div class="ds">마지막 질문에 한 줄을 남기면 수련잎이 되어 연못에 떠다닙니다</div>
+    </div>
+  </div>
+
+  <div class="card" onclick="location.href='ar.html'">
+    <div class="no">06</div>
+    <div>
       <div class="tt">살아나는 그림 — AR</div>
-      <div class="ds">그림을 비추면 영상이 재생되고 작품 라벨이 붙습니다</div>
+      <div class="ds">벽의 그림에 카메라를 비추면 그림이 움직이고 작품 라벨이 붙습니다</div>
       <div class="pair">타깃이 없다면 다른 화면에 <a href="wall.html" target="_blank" onclick="event.stopPropagation()">벽 그림 띄우기</a></div>
     </div>
   </div>
 
-  <div class="card" onclick="location.href='scan.html'">
-    <div class="no">02</div>
-    <div>
-      <div class="tt">그림 스캐너 — 도슨트 모드</div>
-      <div class="ds">그림을 인식해 해설을 띄웁니다</div>
-      <div class="pair">스캔 대상은 다른 화면에 <a href="candidates.html" target="_blank" onclick="event.stopPropagation()">살롱 벽 띄우기</a></div>
+  <details>
+    <summary>부가 데모 (제작 검토용)</summary>
+    <div class="sublinks">
+      <a href="scan.html">그림 인식 스캐너 (도슨트 모드)</a> · <a href="scan.html?m=salon">심사위원 미션</a><br>
+      <a href="moneteye.html">모네의 눈 — 화풍 변환</a> · <a href="nadar.html">나다르 사진관</a><br>
+      <a href="quest.html">퀘스트 수집 노트 (구버전)</a> · <a href="haystacks.html">건초더미 2D 콘솔</a><br>
+      <a href="compare.html">AR 모션 비교</a> · <a href="candidates.html">살롱 벽</a> · <a href="preview.html">적용 영상</a>
     </div>
-  </div>
+  </details>
 
-  <div class="card" onclick="location.href='moneteye.html'">
-    <div class="no">03</div>
-    <div>
-      <div class="tt">모네의 눈 — 화풍 변환</div>
-      <div class="ds">촬영한 장면을 모네 화풍으로 변환합니다 (스타일 전이)</div>
-    </div>
-  </div>
-
-  <div class="card" onclick="location.href='nadar.html'">
-    <div class="no">04</div>
-    <div>
-      <div class="tt">나다르 사진관 — 초상 촬영</div>
-      <div class="ds">촬영한 초상을 세피아 인화로 현상합니다</div>
-    </div>
-  </div>
-
-  <div class="sect"><span>전시 콘텐츠</span></div>
-
-  <div class="card" onclick="location.href='quest.html'">
-    <div class="no">05</div>
-    <div>
-      <div class="tt">문명탐험가 수집 노트 — 퀘스트</div>
-      <div class="ds">미션 수행 · 컬렉션 6종 수집 플로우</div>
-    </div>
-  </div>
-
-  <div class="card" onclick="location.href='scan.html?m=salon'">
-    <div class="no">06</div>
-    <div>
-      <div class="tt">미션 바로가기 — 오늘의 심사위원</div>
-      <div class="ds">살롱 1등작 찾기 — 카메라 판정</div>
-    </div>
-  </div>
-
-  <div class="card" onclick="location.href='haystacks.html'">
-    <div class="no">07</div>
-    <div>
-      <div class="tt">건초더미 — 빛의 콘솔</div>
-      <div class="ds">시간대를 조작하면 연작 5점이 전환됩니다</div>
-    </div>
-  </div>
-
-  <div class="sect"><span>제작 검토용</span></div>
-
-  <div class="card" onclick="location.href='compare.html'">
-    <div class="no">08</div>
-    <div>
-      <div class="tt">모션 프리셋 7종 비교</div>
-      <div class="ds">AR 모션 후보 비교 (현재: circle ×2)</div>
-    </div>
-  </div>
-
-  <div class="card" onclick="location.href='preview.html'">
-    <div class="no">09</div>
-    <div>
-      <div class="tt">적용 영상 단독 재생</div>
-      <div class="ds">living.mp4 확인</div>
-    </div>
-  </div>
-
-  <p class="foot">KYVIKOS · 도판 퍼블릭 도메인</p>
+  <p class="foot">KYVIKOS · 도판 퍼블릭 도메인 (Wikimedia Commons)</p>
 </body>
 </html>

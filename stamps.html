@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>색의 스탬프 — MONET 100</title>
+<style>
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;--gold:#b49a5e;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
+  body{max-width:520px;margin:0 auto;padding:22px 16px 60px;}
+  .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;}
+  .top a{font-size:12.5px;color:var(--sub);text-decoration:none;}
+  .top .cap{font-size:10.5px;letter-spacing:.28em;color:var(--cap);font-weight:600;}
+  h1{font-size:21px;font-weight:800;margin:0 0 4px;}
+  .sub{font-size:12.5px;color:var(--sub);margin:0 0 14px;}
+
+  .progress{background:#fff;border:1px solid var(--line);border-radius:8px;padding:13px 16px;margin-bottom:16px;
+    display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(28,26,22,.07);}
+  .progress b{font-size:19px;}
+  .bar{flex:1;height:6px;background:#eee7d8;border-radius:3px;overflow:hidden;}
+  .bar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#b49a5e,#8a7a52);transition:width .5s;}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .stamp{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center;cursor:pointer;position:relative;
+    box-shadow:0 1px 3px rgba(28,26,22,.07),0 3px 0 var(--line);}
+  .stamp:active{transform:translateY(3px);box-shadow:none;}
+  .ring{width:120px;height:120px;margin:4px auto 8px;border-radius:50%;overflow:hidden;position:relative;
+    border:3px dashed #d8d3c8;padding:4px;background:#fff;}
+  .stamp.got .ring{border:3px solid var(--gold);box-shadow:0 0 0 3px rgba(180,154,94,.18);}
+  .ring .imgwrap{width:100%;height:100%;border-radius:50%;overflow:hidden;}
+  .ring img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(.75) brightness(1.12);opacity:.55;transition:filter 1s ease, opacity 1s ease;}
+  .stamp.got .ring img{filter:none;opacity:1;}
+  .zone{font-size:9.5px;letter-spacing:.14em;color:var(--cap);font-weight:700;}
+  .nm{font-size:13px;font-weight:800;margin-top:2px;}
+  .st{font-size:10.5px;color:#b7ae9c;margin-top:4px;min-height:14px;}
+  .stamp.got .st{color:#8a6d1f;font-weight:700;}
+  /* 도장 쾅 */
+  .seal{position:absolute;left:50%;top:64px;transform:translate(-50%,-50%) rotate(-14deg) scale(2.6);opacity:0;pointer-events:none;
+    width:74px;height:74px;border-radius:50%;border:3px solid #8a2f23;color:#8a2f23;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:9px;font-weight:800;background:rgba(250,249,246,.25);}
+  .seal b{font-size:11px;}
+  .stamp.slam .seal{animation:slam .5s forwards;}
+  @keyframes slam{0%{opacity:0;transform:translate(-50%,-50%) rotate(-14deg) scale(2.6);}55%{opacity:1;transform:translate(-50%,-50%) rotate(-14deg) scale(.92);}100%{opacity:.9;transform:translate(-50%,-50%) rotate(-14deg) scale(1);}}
+  .stamp.got.keep .seal{opacity:.9;transform:translate(-50%,-50%) rotate(-14deg) scale(1);}
+
+  #doneBox{display:none;background:var(--ink);color:var(--bg);border-radius:10px;padding:18px;text-align:center;margin-top:16px;}
+  #doneBox.on{display:block;}
+  #doneBox .t{font-size:16px;font-weight:800;}
+  #doneBox .m{font-size:12px;opacity:.8;margin-top:6px;line-height:1.7;}
+  .reset{display:block;margin:22px auto 0;background:none;border:1px solid #d8d3c8;border-radius:6px;color:var(--sub);padding:10px 20px;font-size:12px;font-family:inherit;cursor:pointer;}
+  .note{font-size:10.5px;color:#a89f8d;text-align:center;margin-top:12px;}
+</style>
+</head>
+<body>
+  <div class="top"><a href="index.html">← 홈</a><span class="cap">MONET 100 · 색의 스탬프</span></div>
+  <h1>색의 스탬프</h1>
+  <p class="sub">존을 체험하고 도장을 찍으면, 흑백의 모네가 색을 되찾습니다</p>
+
+  <div class="progress"><b id="cnt">0<span style="font-size:12px;color:var(--cap)"> / 8</span></b><div class="bar"><i id="pbar"></i></div></div>
+
+  <div class="grid" id="grid"></div>
+
+  <div id="doneBox">
+    <div class="t">여덟 개의 색을 모두 되찾았습니다</div>
+    <div class="m">모네의 시대가 색을 완성했습니다.<br>3층 굿즈샵에서 이 화면을 제시하고 완주 기념품을 받아 가세요.</div>
+  </div>
+
+  <button class="reset" onclick="if(confirm('스탬프를 초기화할까요?')){localStorage.removeItem('m100_stamps');location.reload();}">처음부터 다시</button>
+  <p class="note">프로토타입: 도장을 누르면 인증됩니다 · 실제 운영은 존별 QR 스캔으로 인증</p>
+
+<script>
+const STAMPS = [
+  {id:'b4', zone:'4F · 아카데미 살롱',  nm:'인상, 해돋이',    img:'quest_img/monet_sunrise.jpg'},
+  {id:'c4', zone:'4F · 변화의 복도',    nm:'파라솔을 든 여인', img:'target.jpg'},
+  {id:'d4', zone:'4F · 모네 전시관',    nm:'루앙 대성당',     img:'quest_img/rouen.jpg'},
+  {id:'e4', zone:'4F · 미디어 전시',    nm:'눈 내린 건초더미', img:'quest_img/hay_snow.jpg'},
+  {id:'a3', zone:'3F · 생라자르역',     nm:'생라자르역',      img:'quest_img/gare.jpg'},
+  {id:'b3', zone:'3F · 에트르타',       nm:'마느포르트 절벽',  img:'quest_img/etretat.jpg'},
+  {id:'c3', zone:'3F · 건초더미',       nm:'가을의 건초더미',  img:'quest_img/hay_autumn.jpg'},
+  {id:'d3', zone:'3F · 지베르니',       nm:'수련 연못의 다리', img:'quest_img/bridge.jpg'},
+];
+let S = JSON.parse(localStorage.getItem('m100_stamps') || '{}');
+const grid = document.getElementById('grid');
+
+function render(){
+  const n = Object.keys(S).length;
+  document.getElementById('cnt').firstChild.textContent = n;
+  document.getElementById('pbar').style.width = (n/8*100) + '%';
+  document.getElementById('doneBox').classList.toggle('on', n === 8);
+}
+
+for (const st of STAMPS) {
+  const d = document.createElement('div');
+  d.className = 'stamp' + (S[st.id] ? ' got keep' : '');
+  d.id = 'st_' + st.id;
+  d.innerHTML = `
+    <div class="ring"><div class="imgwrap"><img src="${st.img}" alt=""></div></div>
+    <div class="zone">${st.zone}</div>
+    <div class="nm">${st.nm}</div>
+    <div class="st">${S[st.id] ? S[st.id] + ' 획득' : '미획득 — 눌러서 도장 찍기'}</div>
+    <div class="seal"><span>MONET</span><b>100</b><span>認</span></div>`;
+  d.onclick = () => {
+    if (S[st.id]) return;
+    const t = new Date();
+    S[st.id] = (t.getMonth()+1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+    localStorage.setItem('m100_stamps', JSON.stringify(S));
+    d.classList.add('got', 'slam');
+    d.querySelector('.st').textContent = S[st.id] + ' 획득';
+    if (navigator.vibrate) navigator.vibrate(60);
+    render();
+  };
+  grid.appendChild(d);
+}
+render();
+</script>
+</body>
+</html>

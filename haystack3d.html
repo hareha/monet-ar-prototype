@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>건초더미 — 조명 시뮬레이터</title>
+<style>
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:#0a0908;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
+  #view{position:fixed;inset:0;}
+  a.home{position:fixed;top:14px;left:14px;z-index:6;font-size:12.5px;color:#fff;text-decoration:none;text-shadow:0 1px 4px rgba(0,0,0,.8);}
+  .cap{position:fixed;top:14px;right:14px;z-index:6;font-size:10px;letter-spacing:.24em;color:rgba(255,255,255,.55);font-weight:700;}
+
+  #ui{position:fixed;left:10px;right:10px;bottom:12px;z-index:6;background:rgba(250,249,246,.94);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,0,0,.4);max-width:500px;margin:0 auto;}
+  .row{display:flex;gap:6px;}
+  .row button{flex:1;background:#fff;border:1px solid #d8d3c8;border-radius:6px;padding:10px 2px;font-size:11.5px;color:var(--sub);font-family:inherit;font-weight:700;cursor:pointer;
+    box-shadow:0 1px 3px rgba(28,26,22,.07),0 2px 0 #d8d3c8;}
+  .row button:active{transform:translateY(2px);box-shadow:none;}
+  .row button.on{background:var(--ink);color:var(--bg);border-color:var(--ink);box-shadow:0 2px 0 rgba(28,26,22,.4);}
+  .sliders{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-top:10px;}
+  .sliders label{font-size:10.5px;color:var(--cap);font-weight:700;white-space:nowrap;letter-spacing:.06em;}
+  .sliders input{width:100%;accent-color:var(--ink);}
+  .acts{display:flex;gap:8px;margin-top:10px;}
+  .acts button{flex:1;background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 2px 0 rgba(28,26,22,.4);}
+  .acts button:active{transform:translateY(2px);box-shadow:none;}
+  .hint{font-size:10px;color:#a89f8d;text-align:center;margin-top:8px;}
+
+  #shotView{position:fixed;inset:0;z-index:20;background:rgba(10,9,8,.9);display:none;align-items:center;justify-content:center;padding:22px;}
+  #shotView.on{display:flex;}
+  .card{background:#fff;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+  .card img{width:100%;display:block;}
+  .card .lb{padding:14px 16px;}
+  .card .t{font-size:15px;font-weight:800;color:#1c1a16;}
+  .card .m{font-size:11px;color:#6f6a5e;margin-top:3px;line-height:1.6;}
+  .card .row2{display:flex;gap:8px;padding:0 16px 16px;}
+  .card a,.card button{flex:1;text-align:center;text-decoration:none;font-family:inherit;font-size:12.5px;font-weight:700;border-radius:6px;padding:11px;cursor:pointer;
+    background:#1c1a16;color:#faf9f6;border:0;}
+  .card button.ghost{background:#fff;border:1px solid #d8d3c8;color:#6f6a5e;}
+</style>
+</head>
+<body>
+<div id="view"></div>
+<a class="home" href="index.html">← 홈</a>
+<div class="cap">ZONE C · 건초더미 — 조명 시뮬레이션</div>
+
+<div id="ui">
+  <div class="row" id="presets"></div>
+  <div class="sliders">
+    <label>조명 방향</label><input type="range" id="sAz" min="0" max="360" value="230">
+    <label>조명 높이</label><input type="range" id="sEl" min="5" max="80" value="30">
+    <label>색온도</label><input type="range" id="sTemp" min="0" max="100" value="78">
+    <label>밝기</label><input type="range" id="sInt" min="10" max="100" value="70">
+  </div>
+  <div class="acts"><button id="shoot">📷 이 빛을 사진으로 남기기</button></div>
+  <p class="hint">드래그로 둘러보기 · 실제 전시장에선 이 콘솔이 현장 조명(DMX)을 움직입니다</p>
+</div>
+
+<div id="shotView">
+  <div class="card">
+    <img id="shotImg" alt="">
+    <div class="lb"><div class="t">〈건초더미, 나의 빛〉</div><div class="m" id="shotMeta"></div></div>
+    <div class="row2"><a id="shotSave" download="my_haystack.jpg">저장</a><button class="ghost" onclick="document.getElementById('shotView').classList.remove('on')">닫기</button></div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+view.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, .1, 100);
+camera.position.set(0, 2.4, 7.5);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.1, 0);
+controls.maxPolarAngle = Math.PI * 0.52;
+controls.minDistance = 3.5; controls.maxDistance = 12;
+controls.enablePan = false;
+controls.enableDamping = true;
+
+// ── 전시 공간: 바닥 + 3면 벽 ──
+const room = new THREE.Group();
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x4a4238, roughness: .9 });
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), floorMat);
+floor.rotation.x = -Math.PI/2; floor.receiveShadow = true;
+room.add(floor);
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x6b7a5e, roughness: 1 });   // 들판 벽화 톤
+const mkWall = (w,h,x,z,ry) => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), wallMat);
+  m.position.set(x, h/2, z); m.rotation.y = ry; m.receiveShadow = true;
+  room.add(m);
+};
+mkWall(20, 6, 0, -8, 0);
+mkWall(16, 6, -10, 0, Math.PI/2);
+mkWall(16, 6, 10, 0, -Math.PI/2);
+scene.add(room);
+
+// 잔디 원형 무대
+const grass = new THREE.Mesh(new THREE.CircleGeometry(3.2, 48),
+  new THREE.MeshStandardMaterial({ color: 0x5d6b3f, roughness: 1 }));
+grass.rotation.x = -Math.PI/2; grass.position.y = .01; grass.receiveShadow = true;
+scene.add(grass);
+
+// ── 건초더미: 라스 곡선 + 노이즈 변위 ──
+function makeStack(scale, x, z) {
+  const pts = [];
+  for (let i = 0; i <= 24; i++) {
+    const t = i / 24;
+    // 밑동 넓고 위로 뾰족한 프로파일
+    const r = 1.55 * Math.pow(1 - t, .62) * (1 - .12*Math.sin(t*9));
+    pts.push(new THREE.Vector2(Math.max(r, .02), t * 2.1));
+  }
+  const geo = new THREE.LatheGeometry(pts, 64);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x0 = pos.getX(i), y0 = pos.getY(i), z0 = pos.getZ(i);
+    const n = Math.sin(x0*7 + y0*5) * .05 + Math.sin(z0*9 - y0*3) * .05;
+    const len = Math.hypot(x0, z0) || 1;
+    pos.setX(i, x0 + (x0/len)*n);
+    pos.setZ(i, z0 + (z0/len)*n);
+  }
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xa8813f, roughness: .95 });
+  const m = new THREE.Mesh(geo, mat);
+  m.scale.setScalar(scale);
+  m.position.set(x, 0, z);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+scene.add(makeStack(1, 0, 0));
+scene.add(makeStack(.55, -2.2, -1.2));
+
+// ── 조명 리그 ──
+scene.add(new THREE.HemisphereLight(0x8899aa, 0x332f28, .25));
+const amb = new THREE.AmbientLight(0xffffff, .12); scene.add(amb);
+const key = new THREE.SpotLight(0xffffff, 1.4, 0, .55, .45, 1.2);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+scene.add(key); scene.add(key.target);
+key.target.position.set(0, .9, 0);
+const fill = new THREE.DirectionalLight(0xffffff, .12);
+fill.position.set(4, 5, 6); scene.add(fill);
+// 조명 기구 표시(전시장 트러스 느낌)
+const rigGeo = new THREE.CylinderGeometry(.09, .13, .3, 12);
+const rigMat = new THREE.MeshStandardMaterial({ color: 0x181614, roughness: .5, metalness: .6 });
+const rig = new THREE.Mesh(rigGeo, rigMat); scene.add(rig);
+
+// ── 상태 → 조명 반영 ──
+const st = { az: 230, el: 30, temp: 78, int: 70 };
+const cold = new THREE.Color(0x9db4e8), warm = new THREE.Color(0xffb45e);
+function apply() {
+  const azr = st.az * Math.PI/180, elr = st.el * Math.PI/180;
+  const R = 7;
+  key.position.set(Math.cos(azr)*Math.cos(elr)*R, Math.sin(elr)*R + .6, Math.sin(azr)*Math.cos(elr)*R);
+  const c = cold.clone().lerp(warm, st.temp/100);
+  key.color.copy(c);
+  key.intensity = .25 + st.int/100 * 2.2;
+  amb.color.copy(c); amb.intensity = .06 + st.int/100 * .1;
+  // 배경·안개 무드
+  const sky = new THREE.Color(0x0b1020).lerp(new THREE.Color(0x2a1c10), st.temp/100)
+      .lerp(new THREE.Color(0x000000), 1 - st.int/100 * .9);
+  scene.background = sky;
+  rig.position.copy(key.position).add(new THREE.Vector3(0, .25, 0));
+  rig.lookAt(key.target.position);
+}
+const S = (id) => document.getElementById(id);
+['sAz','sEl','sTemp','sInt'].forEach(id => S(id).addEventListener('input', () => {
+  st.az = +S('sAz').value; st.el = +S('sEl').value; st.temp = +S('sTemp').value; st.int = +S('sInt').value;
+  document.querySelectorAll('#presets button').forEach(b => b.classList.remove('on'));
+  apply();
+}));
+
+// ── 시간대 프리셋 (부드럽게 전환) ──
+const PRESETS = [
+  { nm:'새벽',    az:100, el:12, temp:22, int:38 },
+  { nm:'아침',    az:120, el:34, temp:62, int:78 },
+  { nm:'정오',    az:180, el:72, temp:50, int:100 },
+  { nm:'저녁노을', az:255, el:14, temp:96, int:66 },
+  { nm:'달밤',    az:300, el:45, temp:12, int:26 },
+];
+let anim = null;
+function goPreset(p, btn) {
+  document.querySelectorAll('#presets button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  const from = { ...st }, t0 = performance.now();
+  cancelAnimationFrame(anim);
+  const step = (t) => {
+    const k = Math.min(1, (t - t0) / 900);
+    const e = k < .5 ? 2*k*k : 1 - Math.pow(-2*k+2, 2)/2;
+    st.az = from.az + (p.az - from.az)*e;
+    st.el = from.el + (p.el - from.el)*e;
+    st.temp = from.temp + (p.temp - from.temp)*e;
+    st.int = from.int + (p.int - from.int)*e;
+    S('sAz').value = st.az; S('sEl').value = st.el; S('sTemp').value = st.temp; S('sInt').value = st.int;
+    apply();
+    if (k < 1) anim = requestAnimationFrame(step);
+  };
+  anim = requestAnimationFrame(step);
+}
+const pr = document.getElementById('presets');
+let curPresetName = '저녁노을';
+PRESETS.forEach((p, i) => {
+  const b = document.createElement('button');
+  b.textContent = p.nm;
+  if (p.nm === '저녁노을') b.classList.add('on');
+  b.onclick = () => { curPresetName = p.nm; goPreset(p, b); };
+  pr.appendChild(b);
+});
+apply();
+goPreset(PRESETS[3], pr.children[3]);
+
+// ── 사진 찍기: 렌더 캡처 + 라벨 카드 ──
+document.getElementById('shoot').onclick = () => {
+  renderer.render(scene, camera);
+  const src = renderer.domElement.toDataURL('image/jpeg', .9);
+  const t = new Date();
+  const on = document.querySelector('#presets button.on');
+  const mood = on ? on.textContent : '나만의 빛';
+  document.getElementById('shotImg').src = src;
+  document.getElementById('shotMeta').textContent =
+    `${mood} · 방향 ${Math.round(st.az)}° · 높이 ${Math.round(st.el)}° — ` +
+    `${t.getFullYear()}. ${t.getMonth()+1}. ${t.getDate()}. ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')} · MONET 100`;
+  document.getElementById('shotSave').href = src;
+  document.getElementById('shotView').classList.add('on');
+};
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+</script>
+</body>
+</html>
