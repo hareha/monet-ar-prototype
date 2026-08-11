@@ -48,10 +48,10 @@
 <div id="ui">
   <div class="row" id="presets"></div>
   <div class="sliders">
-    <label>조명 방향</label><input type="range" id="sAz" min="0" max="360" value="255">
-    <label>조명 높이</label><input type="range" id="sEl" min="5" max="80" value="14">
+    <label>조명 방향</label><input type="range" id="sAz" min="0" max="360" value="225">
+    <label>조명 높이</label><input type="range" id="sEl" min="5" max="80" value="16">
     <label>색온도</label><input type="range" id="sTemp" min="0" max="100" value="96">
-    <label>밝기</label><input type="range" id="sInt" min="10" max="100" value="66">
+    <label>밝기</label><input type="range" id="sInt" min="10" max="100" value="72">
   </div>
   <div class="acts"><button id="shoot">📷 이 빛을 사진으로 남기기</button></div>
   <p class="hint">드래그로 둘러보기 · 실제 전시장에선 이 콘솔이 현장 조명(DMX)을 움직입니다</p>
@@ -83,13 +83,13 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.28;
 view.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x060504);
 const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, .1, 100);
-camera.position.set(.6, 2.1, 7.2);
+camera.position.set(.6, 2.3, innerWidth < innerHeight ? 10.6 : 7.4);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 1.0, 0);
@@ -113,11 +113,11 @@ const rnd = (a,b) => a + Math.random()*(b-a);
 
 // 짚: 세로 결 + 색 편차 + 삐져나온 가닥
 const strawTex = canvasTex(1024, 1024, (x,w,h) => {
-  x.fillStyle = '#8d6a2f'; x.fillRect(0,0,w,h);
+  x.fillStyle = '#a3803c'; x.fillRect(0,0,w,h);
   for (let i = 0; i < 4200; i++) {
     const px = Math.random()*w, py = Math.random()*h;
     const len = rnd(26, 90), ang = Math.PI/2 + rnd(-.28,.28);
-    const hue = rnd(33, 45), sat = rnd(38, 62), lit = rnd(26, 58);
+    const hue = rnd(35, 48), sat = rnd(42, 65), lit = rnd(34, 68);
     x.strokeStyle = `hsla(${hue},${sat}%,${lit}%,${rnd(.25,.6)})`;
     x.lineWidth = rnd(.7, 2.2);
     x.beginPath();
@@ -194,11 +194,15 @@ mkWall(20, 6.5, 12, 0, -Math.PI/2);
 // 뒷벽: 모네 들판 벽화 (기획안 — 배경은 들판을 모네의 색감으로)
 const muralTex = new THREE.TextureLoader().load('quest_img/hay_morning.jpg');
 muralTex.encoding = THREE.sRGBEncoding;
-const mural = new THREE.Mesh(new THREE.PlaneGeometry(13.2, 8.6),
+const muralW = 8.4, muralH = muralW * 595/900;
+const mural = new THREE.Mesh(new THREE.PlaneGeometry(muralW, muralH),
   new THREE.MeshStandardMaterial({ map: muralTex, roughness: .92 }));
-mural.scale.y = 13.2 * (595/900) / 8.6;   // 원본 비율 유지
-mural.position.set(0, 13.2*(595/900)/2 + .02, -8.96);
+mural.position.set(0, muralH/2 + 1.0, -8.96);
 scene.add(mural);
+const muralFrame = new THREE.Mesh(new THREE.PlaneGeometry(muralW + .35, muralH + .35),
+  new THREE.MeshStandardMaterial({ color: 0x6b5a33, roughness: .55, metalness: .3 }));
+muralFrame.position.set(0, muralH/2 + 1.0, -8.98);
+scene.add(muralFrame);
 
 const grass = new THREE.Mesh(new THREE.CircleGeometry(3.4, 56),
   new THREE.MeshStandardMaterial({ map: grassTex, roughness: 1 }));
@@ -237,14 +241,14 @@ function makeStack(scale, px, pz, seed){
   body.castShadow = true; body.receiveShadow = true;
   g.add(body);
   // 삐져나온 짚 가닥 (실루엣 거칠게)
-  const tuftMat = new THREE.MeshStandardMaterial({ color: 0x9c7a35, roughness: 1 });
-  for (let i = 0; i < 90; i++) {
+  const tuftMat = new THREE.MeshStandardMaterial({ color: 0xb08d45, roughness: 1 });
+  for (let i = 0; i < 55; i++) {
     const t = Math.random();
     const yy = t*2.3;
     let rr;
     if (t < .55) rr = 1.5; else if (t < .8) rr = 1.5-(t-.55)*2.2; else rr = Math.max(.05,.95-(t-.8)*4.4);
     const a = Math.random()*Math.PI*2;
-    const tuft = new THREE.Mesh(new THREE.ConeGeometry(.012, rnd(.1,.3), 4), tuftMat);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(.008, rnd(.07,.2), 4), tuftMat);
     tuft.position.set(Math.cos(a)*(rr+.02), yy, Math.sin(a)*(rr+.02));
     tuft.rotation.z = Math.PI/2 + rnd(-.7,.7);
     tuft.rotation.y = -a + rnd(-.4,.4);
@@ -305,7 +309,7 @@ const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
 scene.add(dust);
 
 // ══════════ 상태 → 반영 ══════════
-const st = { az: 255, el: 14, temp: 96, int: 66 };
+const st = { az: 225, el: 16, temp: 96, int: 72 };
 const cold = new THREE.Color(0x9db4e8), warm = new THREE.Color(0xff9e4a);
 function apply(){
   const azr = st.az*Math.PI/180, elr = st.el*Math.PI/180, R = 7.5;
@@ -343,7 +347,7 @@ const PRESETS = [
   { nm:'새벽',    az:100, el:12, temp:20, int:34 },
   { nm:'아침',    az:125, el:36, temp:60, int:82 },
   { nm:'정오',    az:180, el:74, temp:48, int:100 },
-  { nm:'저녁노을', az:255, el:14, temp:96, int:66 },
+  { nm:'저녁노을', az:225, el:16, temp:96, int:72 },
   { nm:'달밤',    az:300, el:48, temp:8,  int:20 },
 ];
 let anim = null;
