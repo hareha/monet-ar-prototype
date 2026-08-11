@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>전시 안내 — MONET 100</title>
 <style>
-  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;--blue:#3f5a80;}
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;--blue:#3f5a80;--gold:#b49a5e;}
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
-  body{max-width:520px;margin:0 auto;padding:22px 16px 120px;}
+  body{max-width:520px;margin:0 auto;padding:22px 16px 140px;}
   .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;}
   .top a{font-size:12.5px;color:var(--sub);text-decoration:none;}
   .top .cap{font-size:10.5px;letter-spacing:.28em;color:var(--cap);font-weight:600;}
   h1{font-size:21px;font-weight:800;margin:0 0 4px;}
-  .me{font-size:12px;color:var(--blue);font-weight:700;min-height:18px;margin-bottom:10px;}
+  .me{font-size:12px;color:var(--blue);font-weight:700;min-height:18px;margin-bottom:12px;}
 
   .floors{display:flex;gap:6px;margin-bottom:12px;}
   .floors button{flex:1;background:#fff;border:1px solid #d8d3c8;border-radius:6px;padding:11px;font-size:13px;color:var(--sub);font-family:inherit;font-weight:700;cursor:pointer;
@@ -21,25 +21,44 @@
   .floors button.on{background:var(--ink);color:var(--bg);border-color:var(--ink);box-shadow:0 2px 0 rgba(28,26,22,.4);}
   .floors button:active{transform:translateY(2px);box-shadow:none;}
 
-  .mapwrap{position:relative;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;box-shadow:0 8px 26px rgba(28,26,22,.08);}
+  .mapwrap{position:relative;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 8px 26px rgba(28,26,22,.08);}
   .mapwrap img{width:100%;display:block;}
   .floorpane{display:none;position:relative;}
   .floorpane.on{display:block;}
+  .legend{display:flex;gap:12px;padding:9px 12px;border-top:1px solid var(--line);font-size:10.5px;color:var(--sub);background:#fff;}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px;}
   .spot{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;
-    background:rgba(28,26,22,.82);color:#faf9f6;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;
-    border:2px solid #faf9f6;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:pointer;}
-  .spot.sel{background:#8a2f23;}
+    background:rgba(28,26,22,.85);color:#faf9f6;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;
+    border:2px solid #faf9f6;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:pointer;transition:transform .15s;}
+  .spot:active{transform:scale(.88);}
+  .spot.done{background:var(--gold);color:#1c1a16;}
+  .spot.sel{background:#8a2f23;color:#fff;}
   .here{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--blue);border:3px solid #fff;
-    box-shadow:0 0 0 4px rgba(63,90,128,.25);display:none;}
+    box-shadow:0 0 0 4px rgba(63,90,128,.25);display:none;z-index:2;}
   .here.on{display:block;animation:pulse 1.6s infinite;}
   @keyframes pulse{0%{box-shadow:0 0 0 3px rgba(63,90,128,.3);}70%{box-shadow:0 0 0 12px rgba(63,90,128,0);}100%{box-shadow:0 0 0 3px rgba(63,90,128,0);}}
 
+  .routeH{background:var(--ink);color:var(--bg);border-radius:6px;padding:8px 13px;font-size:11px;letter-spacing:.2em;font-weight:700;margin:20px 0 10px;}
+  .route{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:11px 13px;margin-bottom:8px;cursor:pointer;
+    box-shadow:0 1px 3px rgba(28,26,22,.07),0 3px 0 var(--line);}
+  .route:active{transform:translateY(3px);box-shadow:none;}
+  .route .num{width:24px;height:24px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;}
+  .route img{width:46px;height:46px;border-radius:6px;object-fit:cover;border:1px solid var(--line);flex:none;}
+  .route .tt{font-size:14px;font-weight:800;}
+  .route .dd{font-size:11px;color:var(--sub);margin-top:2px;line-height:1.5;}
+  .route .badge{margin-left:auto;font-size:10px;font-weight:700;white-space:nowrap;color:#b7ae9c;}
+  .route .badge.ok{color:#8a6d1f;}
+
   #sheet{position:fixed;left:0;right:0;bottom:0;z-index:9;max-width:520px;margin:0 auto;background:#fff;border-top:1px solid var(--line);
-    border-radius:14px 14px 0 0;box-shadow:0 -10px 34px rgba(28,26,22,.16);padding:18px 18px 22px;transform:translateY(110%);transition:transform .28s;}
+    border-radius:14px 14px 0 0;box-shadow:0 -10px 34px rgba(28,26,22,.2);padding:16px 18px calc(20px + env(safe-area-inset-bottom));transform:translateY(110%);transition:transform .28s;}
   #sheet.up{transform:none;}
+  .shead{display:flex;gap:14px;}
+  .shead img{width:74px;height:74px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:none;}
   #sheet .z{font-size:10.5px;letter-spacing:.2em;color:var(--cap);font-weight:700;}
-  #sheet h2{font-size:18px;font-weight:800;margin:4px 0 6px;}
-  #sheet p{font-size:13px;color:var(--sub);line-height:1.75;margin:0 0 12px;}
+  #sheet h2{font-size:18px;font-weight:800;margin:3px 0 4px;}
+  #sheet .stampline{font-size:11px;font-weight:700;color:#b7ae9c;}
+  #sheet .stampline.ok{color:#8a6d1f;}
+  #sheet p{font-size:13px;color:var(--sub);line-height:1.75;margin:12px 0;}
   .acts{display:flex;gap:8px;flex-wrap:wrap;}
   .acts a,.acts button{flex:1;min-width:110px;text-align:center;text-decoration:none;font-family:inherit;font-size:12.5px;font-weight:700;border-radius:6px;padding:12px 8px;cursor:pointer;
     background:#fff;border:1px solid #d8d3c8;color:var(--sub);box-shadow:0 1px 3px rgba(28,26,22,.07),0 2px 0 #d8d3c8;}
@@ -59,76 +78,88 @@
   </div>
 
   <div class="mapwrap">
-    <div class="floorpane on" id="pane4">
-      <img src="quest_img/map4f.jpg" alt="4층 도면">
-      <div class="here" id="here4"></div>
-    </div>
-    <div class="floorpane" id="pane3">
-      <img src="quest_img/map3f.jpg" alt="3층 도면">
-      <div class="here" id="here3"></div>
+    <div class="floorpane on" id="pane4"><img src="quest_img/map4f.jpg" alt="4층 도면"><div class="here" id="here4"></div></div>
+    <div class="floorpane" id="pane3"><img src="quest_img/map3f.jpg" alt="3층 도면"><div class="here" id="here3"></div></div>
+    <div class="legend">
+      <span><i style="background:#1c1a16"></i>미체험 존</span>
+      <span><i style="background:var(--gold)"></i>색 스탬프 획득</span>
+      <span><i style="background:var(--blue)"></i>내 위치</span>
     </div>
   </div>
 
+  <div class="routeH" id="routeH">관람 순서 — 4층</div>
+  <div id="routeList"></div>
+
   <div id="sheet">
     <button id="closeSheet">✕</button>
-    <div class="z" id="sZone"></div>
-    <h2 id="sName"></h2>
+    <div class="shead">
+      <img id="sImg" src="" alt="">
+      <div>
+        <div class="z" id="sZone"></div>
+        <h2 id="sName"></h2>
+        <div class="stampline" id="sStamp"></div>
+      </div>
+    </div>
     <p id="sDesc"></p>
     <div class="acts" id="sActs"></div>
   </div>
 
 <script>
 const ZONES = [
-  // 4F
-  {f:4, id:'a4', label:'A', x:80.6, y:52.2, name:'접수 안내',
+  {f:4, id:'a4', label:'A', x:80.6, y:52.2, name:'접수 안내', img:'target.jpg',
    desc:'티켓을 확인하고 관람 동선(4층→3층)을 안내받는 곳. 체험활동용 워크북을 받고 전시의 세계로 들어갑니다.',
-   acts:[['도슨트 듣기','docent.html#a4']]},
-  {f:4, id:'b4', label:'B', x:85.5, y:26.3, name:'아카데미 살롱',
+   line:'티켓 확인 · 워크북 수령', acts:[['도슨트 듣기','docent.html#a4']]},
+  {f:4, id:'b4', label:'B', x:85.5, y:26.3, name:'아카데미 살롱', img:'quest_img/merson.jpg', stamp:true,
    desc:'1873년 파리 살롱전의 재현. 벽을 가득 채운 그림들 사이에서 당신이 오늘의 심사위원이 됩니다.',
-   acts:[['심사위원 미션','scan.html?m=salon'],['도슨트 듣기','docent.html#b4']]},
-  {f:4, id:'c4', label:'C', x:59.4, y:23.3, name:'변화의 복도',
+   line:'심사위원 체험 · 먹빛 밑색 획득', acts:[['심사위원 미션','scan.html?m=salon'],['도슨트 듣기','docent.html#b4']]},
+  {f:4, id:'c4', label:'C', x:59.4, y:23.3, name:'변화의 복도', img:'quest_img/gare.jpg', stamp:true,
    desc:'시민사회 · 산업혁명 · 튜브물감 · 사진기 — 인상주의를 가능하게 한 시대의 단서 4개 부스를 지나갑니다.',
-   acts:[['스탬프 찍기','stamps.html'],['도슨트 듣기','docent.html#c4']]},
-  {f:4, id:'d4', label:'D', x:33.9, y:26.3, name:'모네 전시관',
+   line:'시대의 단서 4부스 · 안개의 진주 획득', acts:[['색 스탬프','stamps.html'],['도슨트 듣기','docent.html#c4']]},
+  {f:4, id:'d4', label:'D', x:33.9, y:26.3, name:'모네 전시관', img:'quest_img/monet_sunrise.jpg', stamp:true,
    desc:'〈인상, 해돋이〉와 연작들. "모네는 왜 같은 풍경을 계속 그렸을까?"라는 질문을 품고 나가게 됩니다.',
-   acts:[['혹평받은 그림 찾기','scan.html?m=monethall'],['도슨트 듣기','docent.html#d4']]},
-  {f:4, id:'e4', label:'E', x:61, y:50.1, name:'미디어 전시',
+   line:'인상, 해돋이 · 새벽의 블루 획득', acts:[['혹평받은 그림 찾기','scan.html?m=monethall'],['도슨트 듣기','docent.html#d4']]},
+  {f:4, id:'e4', label:'E', x:61, y:50.1, name:'미디어 전시', img:'quest_img/rouen.jpg', stamp:true,
    desc:'헤리티지 건축 전체가 모네의 캔버스가 되는 약 5분의 몰입 미디어. 빈백에 누워 감상합니다.',
-   acts:[['도슨트 듣기','docent.html#e4']]},
-  {f:4, id:'f4z', label:'F', x:57.3, y:85.1, name:'굿즈 매대',
-   desc:'4층 전시를 나가며 만나는 기념품 코너입니다.', acts:[]},
-  // 3F
-  {f:3, id:'a3', label:'A', x:75, y:63.6, name:'생라자르역',
+   line:'5분 몰입 미디어 · 물빛 바이올렛 획득', acts:[['도슨트 듣기','docent.html#e4']]},
+  {f:4, id:'f4z', label:'F', x:57.3, y:85.1, name:'굿즈 매대', img:null,
+   desc:'4층 전시를 나가며 만나는 기념품 코너. 계단으로 3층 체험 전시가 이어집니다.',
+   line:'기념품 · 3층으로 이동', acts:[]},
+  {f:3, id:'a3', label:'A', x:75, y:63.6, name:'생라자르역', img:'quest_img/gare.jpg', stamp:true,
    desc:'노르망디행 열차의 플랫폼. 4층에서 얻은 기차표를 역무원에게 제시하면 개찰 스탬프를 찍어줍니다.',
-   acts:[['기차표 꺼내기','quest.html'],['도슨트 듣기','docent.html#a3']]},
-  {f:3, id:'b3', label:'B', x:69.4, y:46.3, name:'에트르타',
+   line:'기차표 개찰 · 증기의 청록 획득', acts:[['기차표 꺼내기','quest.html'],['도슨트 듣기','docent.html#a3']]},
+  {f:3, id:'b3', label:'B', x:69.4, y:46.3, name:'에트르타', img:'quest_img/etretat.jpg', stamp:true,
    desc:'파노라마로 재현된 노르망디 해안. 같은 절벽이 날씨와 시간에 따라 전혀 다른 그림이 되는 것을 봅니다.',
-   acts:[['모네의 눈 (화풍 변환)','moneteye.html'],['도슨트 듣기','docent.html#b3']]},
-  {f:3, id:'c3', label:'C', x:66.9, y:29, name:'건초더미',
-   desc:'실물 건초더미와 조명 콘솔. 새벽부터 저녁노을까지, 빛을 직접 조작하며 연작의 의미를 체험합니다.',
-   acts:[['조명 시뮬레이터','haystack3d.html'],['도슨트 듣기','docent.html#c3']]},
-  {f:3, id:'d3', label:'D', x:52.4, y:41.8, name:'지베르니 정원',
+   line:'파노라마 바다 · 물결의 초록 획득', acts:[['모네의 눈 (화풍 변환)','moneteye.html'],['도슨트 듣기','docent.html#b3']]},
+  {f:3, id:'c3', label:'C', x:66.9, y:29, name:'건초더미', img:'quest_img/hay_autumn.jpg', stamp:true,
+   desc:'실물 건초더미와 조명 콘솔. 새벽부터 저녁노을까지 빛을 직접 조작하며 연작의 의미를 체험합니다.',
+   line:'조명 조작 체험 · 노을의 금빛 획득', acts:[['조명 시뮬레이터','haystack3d.html'],['도슨트 듣기','docent.html#c3']]},
+  {f:3, id:'d3', label:'D', x:52.4, y:41.8, name:'지베르니 정원', img:'quest_img/bridge.jpg', stamp:true,
    desc:'겨울과 여름이 공존하는 모네의 정원. 일본식 다리 포토존과 크리스마스 트리가 있습니다.',
-   acts:[['AR — 살아나는 그림','ar.html'],['도슨트 듣기','docent.html#d3']]},
-  {f:3, id:'e3', label:'E', x:43.7, y:34.3, name:'미시아 살롱',
+   line:'정원 산책 · 태양의 주홍 획득', acts:[['AR — 살아나는 그림','ar.html'],['도슨트 듣기','docent.html#d3']]},
+  {f:3, id:'e3', label:'E', x:43.7, y:34.3, name:'미시아 살롱', img:'target.jpg',
    desc:'지베르니에서 얻은 초대장으로 입장. 모네의 시대가 저물고 다음 시대가 시작되는 마지막 공간입니다.',
-   acts:[['수련 연못에 한 줄 남기기','pond3d.html'],['도슨트 듣기','docent.html#e3']]},
-  {f:3, id:'g3', label:'G', x:32.3, y:46.3, name:'굿즈샵',
-   desc:'전시의 마지막, 스탬프 완주 보상 교환과 기념품 구매.', acts:[['스탬프 확인','stamps.html']]},
+   line:'마지막 질문 · 수련 연못', acts:[['수련 연못에 한 줄 남기기','pond3d.html'],['도슨트 듣기','docent.html#e3']]},
+  {f:3, id:'g3', label:'G', x:32.3, y:46.3, name:'굿즈샵', img:null,
+   desc:'전시의 마지막. 색 스탬프 8종 완주 화면을 제시하면 완주 기념품으로 교환해 드립니다.',
+   line:'완주 보상 교환', acts:[['색 스탬프 확인','stamps.html']]},
 ];
 
+const INK = JSON.parse(localStorage.getItem('m100_ink') || '{}');
 const sheet = document.getElementById('sheet');
 let selSpot = null;
 let me = JSON.parse(localStorage.getItem('m100_loc') || 'null');
 
 function meLabel(){
   const el = document.getElementById('meLabel');
-  if (!me) { el.textContent = '내 위치: 아직 설정 안 됨 — 존을 눌러 "여기 도착"을 선택하세요'; return; }
-  const z = ZONES.find(z => z.id === me);
-  el.textContent = z ? `내 위치: ${z.f}층 ${z.name}` : '';
+  if (!me) { el.textContent = '내 위치: 존을 눌러 "여기 도착"을 선택하면 지도에 표시됩니다'; }
+  else {
+    const z = ZONES.find(z => z.id === me);
+    el.textContent = z ? `내 위치: ${z.f}층 ${z.name}` : '';
+  }
   ['4','3'].forEach(f => {
     const dot = document.getElementById('here' + f);
     dot.classList.remove('on');
+    const z = ZONES.find(z => z.id === me);
     if (z && String(z.f) === f) {
       dot.style.left = z.x + '%'; dot.style.top = z.y + '%';
       dot.classList.add('on');
@@ -140,6 +171,14 @@ function openSheet(z){
   document.getElementById('sZone').textContent = z.f + 'F · ZONE ' + z.label;
   document.getElementById('sName').textContent = z.name;
   document.getElementById('sDesc').textContent = z.desc;
+  const im = document.getElementById('sImg');
+  if (z.img) { im.src = z.img; im.style.display = ''; } else im.style.display = 'none';
+  const stampEl = document.getElementById('sStamp');
+  if (z.stamp) {
+    const got = !!INK[z.id];
+    stampEl.textContent = got ? '✓ 색 스탬프 획득 완료' : '○ 색 스탬프 미획득';
+    stampEl.className = 'stampline' + (got ? ' ok' : '');
+  } else stampEl.textContent = '';
   const acts = document.getElementById('sActs');
   acts.innerHTML = '';
   for (const [t, href] of z.acts) {
@@ -160,11 +199,30 @@ function openSheet(z){
 
 for (const z of ZONES) {
   const s = document.createElement('div');
-  s.className = 'spot'; s.id = 'spot_' + z.id;
+  s.className = 'spot' + (z.stamp && INK[z.id] ? ' done' : '');
+  s.id = 'spot_' + z.id;
   s.style.left = z.x + '%'; s.style.top = z.y + '%';
   s.textContent = z.label;
   s.onclick = () => openSheet(z);
   document.getElementById('pane' + z.f).appendChild(s);
+}
+
+// 관람 순서 리스트
+const routeList = document.getElementById('routeList');
+function renderRoute(floorN){
+  document.getElementById('routeH').textContent = '관람 순서 — ' + floorN + '층';
+  routeList.innerHTML = '';
+  ZONES.filter(z => z.f === floorN).forEach((z, i) => {
+    const d = document.createElement('div');
+    d.className = 'route';
+    const got = z.stamp && INK[z.id];
+    d.innerHTML = `<div class="num">${i+1}</div>` +
+      (z.img ? `<img src="${z.img}">` : '') +
+      `<div><div class="tt">${z.name}</div><div class="dd">${z.line}</div></div>` +
+      (z.stamp ? `<div class="badge${got ? ' ok' : ''}">${got ? '✓ 색 획득' : '스탬프'}</div>` : '');
+    d.onclick = () => openSheet(z);
+    routeList.appendChild(d);
+  });
 }
 
 document.getElementById('closeSheet').onclick = () => { sheet.classList.remove('up'); if (selSpot) selSpot.classList.remove('sel'); };
@@ -173,11 +231,12 @@ function floor(n){
   f4.classList.toggle('on', n===4); f3.classList.toggle('on', n===3);
   document.getElementById('pane4').classList.toggle('on', n===4);
   document.getElementById('pane3').classList.toggle('on', n===3);
+  renderRoute(n);
   sheet.classList.remove('up');
 }
 f4.onclick = () => floor(4); f3.onclick = () => floor(3);
 meLabel();
-// 내 위치가 3층이면 3층부터
+renderRoute(4);
 if (me) { const z = ZONES.find(z=>z.id===me); if (z && z.f===3) floor(3); }
 </script>
 </body>

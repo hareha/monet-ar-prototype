@@ -13,106 +13,243 @@
   .top a{font-size:12.5px;color:var(--sub);text-decoration:none;}
   .top .cap{font-size:10.5px;letter-spacing:.28em;color:var(--cap);font-weight:600;}
   h1{font-size:21px;font-weight:800;margin:0 0 4px;}
-  .sub{font-size:12.5px;color:var(--sub);margin:0 0 14px;}
+  .sub{font-size:12.5px;color:var(--sub);margin:0 0 16px;line-height:1.7;}
 
-  .progress{background:#fff;border:1px solid var(--line);border-radius:8px;padding:13px 16px;margin-bottom:16px;
-    display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(28,26,22,.07);}
-  .progress b{font-size:19px;}
+  .frame{background:#fff;border:1px solid var(--line);padding:12px;box-shadow:0 10px 34px rgba(28,26,22,.10);position:relative;}
+  #cv{width:100%;display:block;}
+  .plate{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;display:flex;justify-content:space-between;align-items:baseline;}
+  .plate .t{font-size:13.5px;font-weight:800;}
+  .plate .m{font-size:11px;color:var(--sub);}
+  /* 도장 쾅 오버레이 */
+  #seal{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%) rotate(-12deg) scale(2.4);opacity:0;pointer-events:none;
+    width:110px;height:110px;border-radius:50%;border:4px solid var(--sealc,#8a2f23);color:var(--sealc,#8a2f23);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;background:rgba(250,249,246,.14);}
+  #seal .a{font-size:12px;letter-spacing:.1em;}
+  #seal .b{font-size:17px;}
+  #seal.slam{animation:slam .55s forwards;}
+  @keyframes slam{0%{opacity:0;transform:translate(-50%,-50%) rotate(-12deg) scale(2.4);}55%{opacity:1;transform:translate(-50%,-50%) rotate(-12deg) scale(.94);}80%{transform:translate(-50%,-50%) rotate(-12deg) scale(1.02);}100%{opacity:0;transform:translate(-50%,-50%) rotate(-12deg) scale(1);}}
+
+  .progress{display:flex;align-items:center;gap:12px;margin:16px 0 10px;}
+  .progress b{font-size:18px;}
   .bar{flex:1;height:6px;background:#eee7d8;border-radius:3px;overflow:hidden;}
   .bar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#b49a5e,#8a7a52);transition:width .5s;}
 
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  .stamp{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center;cursor:pointer;position:relative;
+  .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;}
+  .chip{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 6px 9px;text-align:center;cursor:pointer;
     box-shadow:0 1px 3px rgba(28,26,22,.07),0 3px 0 var(--line);}
-  .stamp:active{transform:translateY(3px);box-shadow:none;}
-  .ring{width:120px;height:120px;margin:4px auto 8px;border-radius:50%;overflow:hidden;position:relative;
-    border:3px dashed #d8d3c8;padding:4px;background:#fff;}
-  .stamp.got .ring{border:3px solid var(--gold);box-shadow:0 0 0 3px rgba(180,154,94,.18);}
-  .ring .imgwrap{width:100%;height:100%;border-radius:50%;overflow:hidden;}
-  .ring img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(.75) brightness(1.12);opacity:.55;transition:filter 1s ease, opacity 1s ease;}
-  .stamp.got .ring img{filter:none;opacity:1;}
-  .zone{font-size:9.5px;letter-spacing:.14em;color:var(--cap);font-weight:700;}
-  .nm{font-size:13px;font-weight:800;margin-top:2px;}
-  .st{font-size:10.5px;color:#b7ae9c;margin-top:4px;min-height:14px;}
-  .stamp.got .st{color:#8a6d1f;font-weight:700;}
-  /* 도장 쾅 */
-  .seal{position:absolute;left:50%;top:64px;transform:translate(-50%,-50%) rotate(-14deg) scale(2.6);opacity:0;pointer-events:none;
-    width:74px;height:74px;border-radius:50%;border:3px solid #8a2f23;color:#8a2f23;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    font-size:9px;font-weight:800;background:rgba(250,249,246,.25);}
-  .seal b{font-size:11px;}
-  .stamp.slam .seal{animation:slam .5s forwards;}
-  @keyframes slam{0%{opacity:0;transform:translate(-50%,-50%) rotate(-14deg) scale(2.6);}55%{opacity:1;transform:translate(-50%,-50%) rotate(-14deg) scale(.92);}100%{opacity:.9;transform:translate(-50%,-50%) rotate(-14deg) scale(1);}}
-  .stamp.got.keep .seal{opacity:.9;transform:translate(-50%,-50%) rotate(-14deg) scale(1);}
+  .chip:active{transform:translateY(3px);box-shadow:none;}
+  .chip .sw{width:44px;height:44px;border-radius:50%;margin:0 auto 7px;border:3px dashed #d8d3c8;position:relative;}
+  .chip .sw i{position:absolute;inset:4px;border-radius:50%;background:var(--c);opacity:.25;filter:saturate(.35);}
+  .chip.got .sw{border:3px solid var(--c);}
+  .chip.got .sw i{opacity:1;filter:none;}
+  .chip.got .sw::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;text-shadow:0 1px 3px rgba(0,0,0,.5);}
+  .chip .zn{font-size:9px;color:var(--cap);letter-spacing:.06em;font-weight:700;}
+  .chip .nm{font-size:11px;font-weight:800;margin-top:1px;line-height:1.3;}
+  .chip .tm{font-size:9px;color:#b7ae9c;margin-top:2px;min-height:12px;}
+  .chip.got .tm{color:#8a6d1f;font-weight:700;}
 
   #doneBox{display:none;background:var(--ink);color:var(--bg);border-radius:10px;padding:18px;text-align:center;margin-top:16px;}
   #doneBox.on{display:block;}
   #doneBox .t{font-size:16px;font-weight:800;}
-  #doneBox .m{font-size:12px;opacity:.8;margin-top:6px;line-height:1.7;}
-  .reset{display:block;margin:22px auto 0;background:none;border:1px solid #d8d3c8;border-radius:6px;color:var(--sub);padding:10px 20px;font-size:12px;font-family:inherit;cursor:pointer;}
-  .note{font-size:10.5px;color:#a89f8d;text-align:center;margin-top:12px;}
+  #doneBox .m{font-size:12px;opacity:.85;margin-top:6px;line-height:1.7;}
+  #doneBox a{display:inline-block;margin-top:12px;background:#faf9f6;color:#1c1a16;border-radius:6px;padding:11px 26px;font-size:13px;font-weight:800;text-decoration:none;}
+
+  .reset{display:block;margin:20px auto 0;background:none;border:1px solid #d8d3c8;border-radius:6px;color:var(--sub);padding:10px 20px;font-size:12px;font-family:inherit;cursor:pointer;}
+  .note{font-size:10.5px;color:#a89f8d;text-align:center;margin-top:10px;line-height:1.7;}
 </style>
 </head>
 <body>
   <div class="top"><a href="index.html">← 홈</a><span class="cap">MONET 100 · 색의 스탬프</span></div>
-  <h1>색의 스탬프</h1>
-  <p class="sub">존을 체험하고 도장을 찍으면, 흑백의 모네가 색을 되찾습니다</p>
+  <h1>여덟 가지 색, 하나의 해돋이</h1>
+  <p class="sub">존마다 하나의 색을 얻습니다. 여덟 색이 겹쳐 찍히면<br>〈인상, 해돋이〉가 완성됩니다 — 판화처럼.</p>
+
+  <div class="frame">
+    <canvas id="cv"></canvas>
+    <div id="seal"><span class="a">MONET</span><span class="b">100</span></div>
+    <div class="plate"><span class="t">인상, 해돋이</span><span class="m" id="plateM">아직 밑그림입니다</span></div>
+  </div>
 
   <div class="progress"><b id="cnt">0<span style="font-size:12px;color:var(--cap)"> / 8</span></b><div class="bar"><i id="pbar"></i></div></div>
 
-  <div class="grid" id="grid"></div>
+  <div class="chips" id="chips"></div>
 
   <div id="doneBox">
-    <div class="t">여덟 개의 색을 모두 되찾았습니다</div>
-    <div class="m">모네의 시대가 색을 완성했습니다.<br>3층 굿즈샵에서 이 화면을 제시하고 완주 기념품을 받아 가세요.</div>
+    <div class="t">해돋이가 완성되었습니다</div>
+    <div class="m" id="doneM"></div>
+    <a id="saveBtn" download="my_sunrise.jpg">내 해돋이 저장하기</a>
   </div>
 
-  <button class="reset" onclick="if(confirm('스탬프를 초기화할까요?')){localStorage.removeItem('m100_stamps');location.reload();}">처음부터 다시</button>
-  <p class="note">프로토타입: 도장을 누르면 인증됩니다 · 실제 운영은 존별 QR 스캔으로 인증</p>
+  <button class="reset" onclick="if(confirm('색을 모두 지우고 처음부터 할까요?')){localStorage.removeItem('m100_ink');location.reload();}">처음부터 다시</button>
+  <p class="note">프로토타입: 색 도장을 누르면 인증됩니다 · 실제 운영은 존별 QR 스캔<br>겹침 도장(重ね捺し) 스탬프랠리의 디지털 구현</p>
 
 <script>
-const STAMPS = [
-  {id:'b4', zone:'4F · 아카데미 살롱',  nm:'인상, 해돋이',    img:'quest_img/monet_sunrise.jpg'},
-  {id:'c4', zone:'4F · 변화의 복도',    nm:'파라솔을 든 여인', img:'target.jpg'},
-  {id:'d4', zone:'4F · 모네 전시관',    nm:'루앙 대성당',     img:'quest_img/rouen.jpg'},
-  {id:'e4', zone:'4F · 미디어 전시',    nm:'눈 내린 건초더미', img:'quest_img/hay_snow.jpg'},
-  {id:'a3', zone:'3F · 생라자르역',     nm:'생라자르역',      img:'quest_img/gare.jpg'},
-  {id:'b3', zone:'3F · 에트르타',       nm:'마느포르트 절벽',  img:'quest_img/etretat.jpg'},
-  {id:'c3', zone:'3F · 건초더미',       nm:'가을의 건초더미',  img:'quest_img/hay_autumn.jpg'},
-  {id:'d3', zone:'3F · 지베르니',       nm:'수련 연못의 다리', img:'quest_img/bridge.jpg'},
+// 존 순서 = 관람 동선. 각 색은 원화의 실제 색 분해(색상·명도 기준)
+const INKS = [
+  {id:'b4', zn:'4F 살롱',      nm:'먹빛 밑색',   c:'#3a3f4a'},
+  {id:'c4', zn:'4F 복도',      nm:'안개의 진주', c:'#b9bcc4'},
+  {id:'d4', zn:'4F 전시관',    nm:'새벽의 블루', c:'#5a7ba6'},
+  {id:'e4', zn:'4F 미디어',    nm:'물빛 바이올렛',c:'#8a7fae'},
+  {id:'a3', zn:'3F 생라자르',  nm:'증기의 청록', c:'#4f8a8a'},
+  {id:'b3', zn:'3F 에트르타',  nm:'물결의 초록', c:'#5f7d54'},
+  {id:'c3', zn:'3F 건초더미',  nm:'노을의 금빛', c:'#c99a4a'},
+  {id:'d3', zn:'3F 지베르니',  nm:'태양의 주홍', c:'#d4562e'},
 ];
-let S = JSON.parse(localStorage.getItem('m100_stamps') || '{}');
-const grid = document.getElementById('grid');
+let S = JSON.parse(localStorage.getItem('m100_ink') || '{}');
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const img = new Image();
+img.src = 'quest_img/monet_sunrise.jpg';
+
+let W, H, orig, bucket, sketchData;
+
+function rgb2hsl(r,g,b){
+  r/=255; g/=255; b/=255;
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b);
+  const l = (mx+mn)/2;
+  if (mx === mn) return [0,0,l];
+  const d = mx-mn;
+  const s = l > .5 ? d/(2-mx-mn) : d/(mx+mn);
+  let h;
+  if (mx === r) h = ((g-b)/d + (g<b?6:0));
+  else if (mx === g) h = (b-r)/d + 2;
+  else h = (r-g)/d + 4;
+  return [h*60, s, l];
+}
+
+// 픽셀 → 잉크 번호 (합집합 = 원화 전체)
+function assign(r,g,b){
+  const [h,s,l] = rgb2hsl(r,g,b);
+  if (l < .26) return 0;                       // 먹빛 (어두운 부분)
+  if (s < .13) return 1;                       // 안개 (무채색)
+  if (h >= 330 || h < 48) return 7;            // 태양의 주홍
+  if (h < 75)  return 6;                       // 금빛
+  if (h < 160) return 5;                       // 초록
+  if (h < 200) return 4;                       // 청록
+  if (h < 258) return 2;                       // 블루
+  return 3;                                     // 바이올렛
+}
+
+img.onload = () => {
+  W = img.naturalWidth; H = img.naturalHeight;
+  cv.width = W; cv.height = H;
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  const octx = off.getContext('2d');
+  octx.drawImage(img, 0, 0);
+  orig = octx.getImageData(0, 0, W, H);
+  bucket = new Uint8Array(W*H);
+  const d = orig.data;
+  for (let i = 0, p = 0; i < d.length; i += 4, p++) bucket[p] = assign(d[i], d[i+1], d[i+2]);
+  // 밑그림: 아주 옅은 회백 스케치
+  const sk = ctx.createImageData(W, H);
+  for (let i = 0; i < d.length; i += 4) {
+    const g = .299*d[i] + .587*d[i+1] + .114*d[i+2];
+    const v = 246 - (255 - g) * .16;
+    sk.data[i] = sk.data[i+1] = sk.data[i+2] = v;
+    sk.data[i+3] = 255;
+  }
+  sketchData = sk;
+  redraw();
+  render();
+};
+
+function composite(activeSet){
+  const out = ctx.createImageData(W, H);
+  out.data.set(sketchData.data);
+  const d = orig.data, o = out.data;
+  for (let p = 0, i = 0; p < bucket.length; p++, i += 4) {
+    if (activeSet.has(bucket[p])) { o[i]=d[i]; o[i+1]=d[i+1]; o[i+2]=d[i+2]; }
+  }
+  return out;
+}
+
+function activeIndexes(){
+  const set = new Set();
+  INKS.forEach((k, i) => { if (S[k.id]) set.add(i); });
+  return set;
+}
+
+function redraw(){ ctx.putImageData(composite(activeIndexes()), 0, 0); }
+
+// 색이 번지며 나타나는 연출: 해당 잉크만 있는 레이어를 알파 페이드
+function reveal(i, done){
+  const before = composite(activeIndexes());
+  const only = ctx.createImageData(W, H);
+  const d = orig.data, o = only.data;
+  for (let p = 0, q = 0; p < bucket.length; p++, q += 4) {
+    if (bucket[p] === i) { o[q]=d[q]; o[q+1]=d[q+1]; o[q+2]=d[q+2]; o[q+3]=255; }
+  }
+  const layer = document.createElement('canvas');
+  layer.width = W; layer.height = H;
+  layer.getContext('2d').putImageData(only, 0, 0);
+  const base = document.createElement('canvas');
+  base.width = W; base.height = H;
+  base.getContext('2d').putImageData(before, 0, 0);
+  const t0 = performance.now();
+  const step = (t) => {
+    const k = Math.min(1, (t - t0) / 850);
+    ctx.putImageData(before, 0, 0);
+    ctx.globalAlpha = k;
+    ctx.drawImage(layer, 0, 0);
+    ctx.globalAlpha = 1;
+    if (k < 1) requestAnimationFrame(step);
+    else { redraw(); done && done(); }
+  };
+  requestAnimationFrame(step);
+}
+
+// ── 칩 UI ──
+const chips = document.getElementById('chips');
+INKS.forEach((k, i) => {
+  const c = document.createElement('div');
+  c.className = 'chip' + (S[k.id] ? ' got' : '');
+  c.style.setProperty('--c', k.c);
+  c.id = 'ch' + i;
+  c.innerHTML = `<div class="sw"><i></i></div><div class="zn">${k.zn}</div><div class="nm">${k.nm}</div><div class="tm">${S[k.id] || ''}</div>`;
+  c.onclick = () => {
+    if (S[k.id]) return;
+    const t = new Date();
+    S[k.id] = `${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+    localStorage.setItem('m100_ink', JSON.stringify(S));
+    // 도장 쾅 (그 색으로)
+    const seal = document.getElementById('seal');
+    seal.style.setProperty('--sealc', k.c);
+    seal.classList.remove('slam'); void seal.offsetWidth; seal.classList.add('slam');
+    if (navigator.vibrate) navigator.vibrate(60);
+    c.classList.add('got');
+    c.querySelector('.tm').textContent = S[k.id];
+    reveal(i, render);
+  };
+  chips.appendChild(c);
+});
 
 function render(){
   const n = Object.keys(S).length;
   document.getElementById('cnt').firstChild.textContent = n;
   document.getElementById('pbar').style.width = (n/8*100) + '%';
-  document.getElementById('doneBox').classList.toggle('on', n === 8);
-}
-
-for (const st of STAMPS) {
-  const d = document.createElement('div');
-  d.className = 'stamp' + (S[st.id] ? ' got keep' : '');
-  d.id = 'st_' + st.id;
-  d.innerHTML = `
-    <div class="ring"><div class="imgwrap"><img src="${st.img}" alt=""></div></div>
-    <div class="zone">${st.zone}</div>
-    <div class="nm">${st.nm}</div>
-    <div class="st">${S[st.id] ? S[st.id] + ' 획득' : '미획득 — 눌러서 도장 찍기'}</div>
-    <div class="seal"><span>MONET</span><b>100</b><span>認</span></div>`;
-  d.onclick = () => {
-    if (S[st.id]) return;
+  document.getElementById('plateM').textContent =
+    n === 0 ? '아직 밑그림입니다' : n < 8 ? `${n}색이 스며들었습니다` : '클로드 모네, 1872 — 그리고 당신';
+  const doneBox = document.getElementById('doneBox');
+  doneBox.classList.toggle('on', n === 8);
+  if (n === 8) {
+    const first = Object.values(S)[0];
+    document.getElementById('doneM').textContent =
+      `여덟 개의 존을 지나며 여덟 가지 색을 모았습니다.\n3층 굿즈샵에서 이 화면을 제시하세요.`;
+    // 저장 이미지: 그림 + 라벨 합성
+    const out = document.createElement('canvas');
+    out.width = W; out.height = H + 84;
+    const x = out.getContext('2d');
+    x.fillStyle = '#faf9f6'; x.fillRect(0, 0, out.width, out.height);
+    x.drawImage(cv, 0, 0);
+    x.fillStyle = '#1c1a16'; x.font = `800 ${Math.round(W*.045)}px "Apple SD Gothic Neo"`;
+    x.fillText('인상, 해돋이 — 여덟 색의 완성', 18, H + 36);
     const t = new Date();
-    S[st.id] = (t.getMonth()+1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
-    localStorage.setItem('m100_stamps', JSON.stringify(S));
-    d.classList.add('got', 'slam');
-    d.querySelector('.st').textContent = S[st.id] + ' 획득';
-    if (navigator.vibrate) navigator.vibrate(60);
-    render();
-  };
-  grid.appendChild(d);
+    x.fillStyle = '#6f6a5e'; x.font = `500 ${Math.round(W*.03)}px "Apple SD Gothic Neo"`;
+    x.fillText(`MONET 100 · ${t.getFullYear()}. ${t.getMonth()+1}. ${t.getDate()} 완성`, 18, H + 64);
+    document.getElementById('saveBtn').href = out.toDataURL('image/jpeg', .92);
+  }
 }
-render();
 </script>
 </body>
 </html>

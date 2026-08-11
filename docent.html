@@ -5,36 +5,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>오디오 도슨트 — MONET 100</title>
 <style>
-  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;}
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;--gold:#b49a5e;}
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
-  body{max-width:520px;margin:0 auto;padding:22px 16px 60px;}
+  body{max-width:520px;margin:0 auto;padding:22px 16px 210px;}
   .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;}
   .top a{font-size:12.5px;color:var(--sub);text-decoration:none;}
   .top .cap{font-size:10.5px;letter-spacing:.28em;color:var(--cap);font-weight:600;}
   h1{font-size:21px;font-weight:800;margin:0 0 14px;}
 
   .floor{background:var(--ink);color:var(--bg);border-radius:6px;padding:8px 13px;font-size:11px;letter-spacing:.2em;font-weight:700;margin:18px 0 10px;}
-  .item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:13px 14px;margin-bottom:8px;cursor:pointer;
+  .item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:8px;cursor:pointer;
     box-shadow:0 1px 3px rgba(28,26,22,.07),0 3px 0 var(--line);}
   .item:active{transform:translateY(3px);box-shadow:none;}
-  .item.playing{border-color:var(--ink);}
-  .item .no{width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;}
-  .item .tt{font-size:14.5px;font-weight:800;}
-  .item .dur{margin-left:auto;font-size:11px;color:var(--cap);white-space:nowrap;}
-  .item.playing .dur{color:#2e6e4e;font-weight:700;}
+  .item.cur{border-color:var(--ink);}
+  .item .art{width:44px;height:44px;border-radius:6px;object-fit:cover;flex:none;border:1px solid var(--line);}
+  .item .tt{font-size:14px;font-weight:800;line-height:1.4;}
+  .item .zz{font-size:10.5px;color:var(--cap);letter-spacing:.06em;margin-top:2px;}
+  .item .dur{margin-left:auto;font-size:11px;color:var(--cap);white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .item.cur .dur{color:#2e6e4e;font-weight:700;}
+  .eq{display:none;gap:2px;align-items:flex-end;height:14px;margin-left:6px;}
+  .item.cur.playing .eq{display:flex;}
+  .eq i{width:3px;background:#2e6e4e;animation:eq 0.9s infinite ease-in-out;}
+  .eq i:nth-child(1){height:60%;animation-delay:0s;}
+  .eq i:nth-child(2){height:100%;animation-delay:.2s;}
+  .eq i:nth-child(3){height:40%;animation-delay:.4s;}
+  @keyframes eq{0%,100%{transform:scaleY(.4);}50%{transform:scaleY(1);}}
 
+  /* ── 플레이어 ── */
   #player{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:#fff;border-top:1px solid var(--line);
-    box-shadow:0 -10px 30px rgba(28,26,22,.14);padding:14px 16px;transform:translateY(110%);transition:transform .25s;z-index:9;}
+    box-shadow:0 -12px 34px rgba(28,26,22,.16);padding:14px 18px calc(16px + env(safe-area-inset-bottom));z-index:9;
+    transform:translateY(110%);transition:transform .28s;}
   #player.up{transform:none;}
-  #pTitle{font-size:14px;font-weight:800;}
-  #pText{font-size:12.5px;color:var(--sub);line-height:1.8;margin:8px 0 12px;max-height:130px;overflow-y:auto;}
-  .controls{display:flex;gap:8px;}
-  .controls button{flex:1;background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;
-    box-shadow:0 2px 0 rgba(28,26,22,.4);}
-  .controls button.ghost{background:#fff;border:1px solid #d8d3c8;color:var(--sub);box-shadow:0 2px 0 #d8d3c8;}
-  .controls button:active{transform:translateY(2px);box-shadow:none;}
-  .tts{font-size:10.5px;color:#a89f8d;text-align:center;margin-top:8px;}
+  .phead{display:flex;gap:12px;align-items:center;}
+  .phead img{width:52px;height:52px;border-radius:8px;object-fit:cover;border:1px solid var(--line);}
+  .phead .t{font-size:14.5px;font-weight:800;line-height:1.35;}
+  .phead .z{font-size:11px;color:var(--cap);margin-top:2px;}
+
+  .seekrow{display:flex;align-items:center;gap:10px;margin-top:12px;}
+  .seekrow span{font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums;min-width:34px;}
+  .seekrow span:last-child{text-align:right;}
+  #seek{flex:1;-webkit-appearance:none;appearance:none;height:5px;border-radius:3px;background:#eee7d8;outline:none;}
+  #seek::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--ink);cursor:pointer;}
+  #seek::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--ink);border:0;cursor:pointer;}
+
+  .ctrl{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px;}
+  .ctrl button{background:none;border:0;font-size:20px;color:var(--ink);cursor:pointer;padding:8px;font-family:inherit;}
+  .ctrl button:active{transform:scale(.9);}
+  #btnPlay{width:58px;height:58px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:22px;
+    box-shadow:0 4px 12px rgba(28,26,22,.25),0 2px 0 rgba(28,26,22,.5);display:flex;align-items:center;justify-content:center;}
+  #btnPlay:active{transform:translateY(2px) scale(.98);}
+  .skip{font-size:11px !important;font-weight:800;color:var(--sub) !important;line-height:1.1;}
+
+  .rates{display:flex;justify-content:center;gap:6px;margin-top:8px;}
+  .rates button{background:#fff;border:1px solid #d8d3c8;border-radius:999px;padding:5px 12px;font-size:11px;font-weight:700;color:var(--sub);font-family:inherit;cursor:pointer;}
+  .rates button.on{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+  .bgnote{font-size:10px;color:#a89f8d;text-align:center;margin:8px 0 0;}
 </style>
 </head>
 <body>
@@ -43,116 +69,156 @@
   <div id="list"></div>
 
   <div id="player">
-    <div id="pTitle"></div>
-    <div id="pText"></div>
-    <div class="controls">
-      <button id="pPlay">▶ 재생</button>
-      <button id="pStop" class="ghost">■ 정지</button>
-      <button id="pClose" class="ghost">닫기</button>
+    <div class="phead">
+      <img id="pArt" src="quest_img/monet_sunrise.jpg" alt="">
+      <div><div class="t" id="pTitle">—</div><div class="z" id="pZone"></div></div>
     </div>
-    <p class="tts">임시 음성(기기 TTS)으로 재생 중 — 실제 성우 음원으로 교체 예정</p>
+    <div class="seekrow">
+      <span id="tCur">0:00</span>
+      <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+      <span id="tDur">0:00</span>
+    </div>
+    <div class="ctrl">
+      <button id="btnPrev" title="이전">⏮</button>
+      <button id="btnB10" class="skip">−10초</button>
+      <button id="btnPlay">▶</button>
+      <button id="btnF10" class="skip">+10초</button>
+      <button id="btnNext" title="다음">⏭</button>
+    </div>
+    <div class="rates" id="rates"></div>
+    <p class="bgnote">화면을 꺼도 이어서 재생됩니다 · 잠금화면에서 제어 가능 · 현재 임시 음성(성우 녹음으로 교체 예정)</p>
   </div>
 
+<audio id="au" preload="metadata"></audio>
+
 <script>
-// audio: null 이면 TTS로 낭독. 실제 음원이 오면 audio: 'audio/b4.mp3' 로 교체
 const TRACKS = [
- {f:'4층 — 이해하는 공간', items:[
-  {id:'a4', no:'1', name:'접수 안내 — 전시를 시작하며', audio:null,
-   text:'모네 서거 100주년 기념 전시, MONET 100에 오신 것을 환영합니다. 이 전시는 그림을 벽에 걸어두고 감상하는 전시가 아닙니다. 여러분은 지금부터 19세기의 살롱으로, 변화의 복도로, 그리고 모네가 바라본 세계 속으로 직접 걸어 들어가게 됩니다. 관람은 4층에서 시작해 3층으로 이어지며, 약 60분이 걸립니다.'},
-  {id:'b4', no:'2', name:'아카데미 살롱 — 권위가 아름다움을 심사하다', audio:null,
-   text:'1873년, 파리 아카데미 공식 살롱전이 열리는 날입니다. 천장까지 빽빽하게 걸린 그림들을 보십시오. 위대한 주제, 정확한 인체, 붓질이 보이지 않는 매끄러운 표면. 당시에는 정해진 기준에 맞아야만 그림으로 인정받았습니다. 이곳에서 여러분은 오늘의 심사위원이 됩니다. 올해 가장 잘 그린 그림을 골라보세요. 당신의 선택은 기록되어, 전시의 마지막에 다시 돌아옵니다.'},
-  {id:'c4', no:'3', name:'변화의 복도 — 시대는 이미 변하고 있었다', audio:null,
-   text:'살롱을 나서면 전혀 다른 세상이 펼쳐집니다. 카페에서는 시민들이 예술을 토론하고, 사업가의 책상에는 철도 시간표와 전신이 놓여 있습니다. 1841년 발명된 튜브물감은 화가를 화실 밖 자연으로 이끌었고, 사진기는 똑같이 그리는 일의 의미를 지웠습니다. 인상주의는 갑자기 등장한 기이한 미술이 아니라, 변화하는 시대가 만들어낸 새로운 시선이었습니다.'},
-  {id:'d4', no:'4', name:'모네 전시관 — 새로운 시대가 시작되다', audio:null,
-   text:'1874년, 첫 인상파 전시회. 한 평론가는 모네의 그림 제목을 비꼬아 인상주의자들이라는 조롱 섞인 이름을 만들었습니다. 인상, 해돋이. 이 한 점의 그림으로 새로운 시대의 이름이 태어났습니다. 벽을 따라 걸으며 모네의 연작들을 만나보세요. 그리고 질문 하나를 품고 나가시게 될 겁니다. 모네는 왜, 같은 풍경을 계속 그렸을까.'},
-  {id:'e4', no:'5', name:'미디어 전시 — 헤리티지, 모네의 캔버스가 되다', audio:null,
-   text:'이 공간은 100년의 시간을 간직한 헤리티지 건축 그 자체가 하나의 캔버스가 됩니다. 천장의 사각 패널과 아치, 섬세한 몰딩 위로 모네가 바라본 빛과 색이 흐릅니다. 약 5분간, 편하게 누워 감상하세요. 같은 공간이 빛에 따라 끊임없이 달라지는 모습이, 모네가 평생 연구한 질문의 답입니다.'},
- ]},
- {f:'3층 — 체험하는 공간', items:[
-  {id:'a3', no:'6', name:'생라자르역 — 산업혁명의 빛', audio:null,
-   text:'파리 생라자르역 플랫폼입니다. 모네는 1877년 이 역을 소재로 열두 점의 연작을 완성했습니다. 유리와 철골 지붕 아래로 자연광과 증기가 뒤섞이며 매 순간 다른 빛을 만들어내는, 산업이 만든 빛의 실험실이었죠. 기차표를 역무원에게 제시하고, 노르망디행 열차에 올라타세요.'},
-  {id:'b3', no:'7', name:'에트르타 — 빛이 부서지는 절벽', audio:null,
-   text:'노르망디 해안, 에트르타입니다. 모네는 이곳에 여러 차례 머물며 약 90점의 캔버스를 남겼습니다. 같은 절벽도 아침과 저녁, 맑은 날과 흐린 날에 전혀 다른 색과 형태로 보인다는 것. 그 변화를 포착하는 것 자체가 회화의 주제가 될 수 있다는 것을 이곳에서 증명했습니다. 눈앞의 바다가 그림으로 변하는 순간을 기다려 보세요.'},
-  {id:'c3', no:'8', name:'건초더미 — 빛으로 완성된 그림', audio:null,
-   text:'모네는 1890년부터 이듬해까지 집 앞 들판의 건초더미를 스물다섯 점 그렸습니다. 대상은 하나였지만, 빛과 계절에 따라 매번 전혀 다른 그림이 완성되었습니다. 이곳의 조명 스위치는 여러분의 것입니다. 새벽부터 저녁노을까지, 빛을 직접 바꿔보세요. 스물여섯 번째 연작은 당신의 것입니다.'},
-  {id:'d3', no:'9', name:'지베르니 — 빛과 물의 실험실', audio:null,
-   text:'1883년 지베르니에 정착한 모네는 개울물을 끌어들여 연못을 만들고, 일본 판화에서 본 다리를 놓고, 수련을 심었습니다. 이 정원은 그저 아름다운 풍경이 아니라, 그리고 싶은 세계를 자신의 손으로 지은 하나의 실험실이었습니다. 꽃향기를 맡고, 새소리를 들으며, 원하는 만큼 머무세요.'},
-  {id:'e3', no:'10', name:'미시아 살롱 — 한 시대가 저물고', audio:null,
-   text:'1926년, 모네가 세상을 떠났습니다. 같은 해, 코코 샤넬의 리틀 블랙 드레스가 등장했습니다. 한 시대가 끝나는 순간, 다음 시대는 이미 시작되고 있었던 것이죠. 이 살롱은 두 시대를 모두 살아낸 미시아의 공간입니다. 전시를 나서기 전에, 마지막 질문에 당신의 대답을 남겨 주세요. 당신은 지금, 어디에서 다음 시대를 감각하고 있습니까.'},
- ]},
+ {id:'a4', f:'4층', name:'접수 안내 — 전시를 시작하며', zone:'ZONE A', art:'quest_img/monet_sunrise.jpg'},
+ {id:'b4', f:'4층', name:'아카데미 살롱 — 권위가 아름다움을 심사하다', zone:'ZONE B', art:'quest_img/merson.jpg'},
+ {id:'c4', f:'4층', name:'변화의 복도 — 시대는 이미 변하고 있었다', zone:'ZONE C', art:'quest_img/gare.jpg'},
+ {id:'d4', f:'4층', name:'모네 전시관 — 새로운 시대가 시작되다', zone:'ZONE D', art:'quest_img/monet_sunrise.jpg'},
+ {id:'e4', f:'4층', name:'미디어 전시 — 헤리티지, 모네의 캔버스가 되다', zone:'ZONE E', art:'quest_img/rouen.jpg'},
+ {id:'a3', f:'3층', name:'생라자르역 — 산업혁명의 빛', zone:'ZONE A', art:'quest_img/gare.jpg'},
+ {id:'b3', f:'3층', name:'에트르타 — 빛이 부서지는 절벽', zone:'ZONE B', art:'quest_img/etretat.jpg'},
+ {id:'c3', f:'3층', name:'건초더미 — 빛으로 완성된 그림', zone:'ZONE C', art:'quest_img/hay_autumn.jpg'},
+ {id:'d3', f:'3층', name:'지베르니 — 빛과 물의 실험실', zone:'ZONE D', art:'quest_img/bridge.jpg'},
+ {id:'e3', f:'3층', name:'미시아 살롱 — 한 시대가 저물고', zone:'ZONE E', art:'target.jpg'},
 ];
-
+const au = document.getElementById('au');
 const list = document.getElementById('list');
+let idx = -1;
+
+const fmt = s => isFinite(s) ? Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0') : '0:00';
+
+// ── 리스트 ──
+let lastFloor = '';
+TRACKS.forEach((t, i) => {
+  if (t.f !== lastFloor) {
+    lastFloor = t.f;
+    const h = document.createElement('div'); h.className = 'floor';
+    h.textContent = t.f + (t.f === '4층' ? ' — 이해하는 공간' : ' — 체험하는 공간');
+    list.appendChild(h);
+  }
+  const d = document.createElement('div'); d.className = 'item'; d.id = 'it' + i;
+  d.innerHTML = `<img class="art" src="${t.art}"><div><div class="tt">${t.name}</div><div class="zz">${t.f} · ${t.zone}</div></div>
+    <div class="eq"><i></i><i></i><i></i></div><div class="dur" id="du${i}">—</div>`;
+  d.onclick = () => load(i, true);
+  list.appendChild(d);
+  // 트랙 길이 미리 읽기
+  const probe = new Audio();
+  probe.preload = 'metadata';
+  probe.src = 'audio/' + t.id + '.m4a';
+  probe.onloadedmetadata = () => { document.getElementById('du' + i).textContent = fmt(probe.duration); };
+});
+
+// ── 플레이어 ──
 const player = document.getElementById('player');
-let cur = null, curEl = null, speaking = false;
-let audioEl = null;
+const seek = document.getElementById('seek');
+let seeking = false;
+let rate = 1.0;
 
-for (const g of TRACKS) {
-  const h = document.createElement('div'); h.className = 'floor'; h.textContent = g.f;
-  list.appendChild(h);
-  for (const t of g.items) {
-    const d = document.createElement('div'); d.className = 'item'; d.id = 'i_' + t.id;
-    d.innerHTML = `<div class="no">${t.no}</div><div class="tt">${t.name}</div><div class="dur">${t.audio ? '음원' : '≈' + Math.round(t.text.length/9) + '초'}</div>`;
-    d.onclick = () => open(t, d);
-    list.appendChild(d);
-  }
+function markList(){
+  document.querySelectorAll('.item').forEach((el, i) => {
+    el.classList.toggle('cur', i === idx);
+    el.classList.toggle('playing', i === idx && !au.paused);
+  });
+  document.getElementById('btnPlay').textContent = au.paused ? '▶' : '⏸';
 }
 
-function stopAll(){
-  speechSynthesis.cancel(); speaking = false;
-  if (audioEl) { audioEl.pause(); audioEl = null; }
-  document.querySelectorAll('.item').forEach(i => i.classList.remove('playing'));
-  document.getElementById('pPlay').textContent = '▶ 재생';
-}
-
-function open(t, el){
-  stopAll();
-  cur = t; curEl = el;
-  document.getElementById('pTitle').textContent = t.no + '. ' + t.name;
-  document.getElementById('pText').textContent = t.text;
+function load(i, autoplay){
+  idx = (i + TRACKS.length) % TRACKS.length;
+  const t = TRACKS[idx];
+  au.src = 'audio/' + t.id + '.m4a';
+  au.playbackRate = rate;
+  document.getElementById('pTitle').textContent = t.name;
+  document.getElementById('pZone').textContent = t.f + ' · ' + t.zone;
+  document.getElementById('pArt').src = t.art;
   player.classList.add('up');
-  play();
+  if (autoplay) au.play();
+  mediaSession(t);
+  markList();
 }
 
-function play(){
-  if (!cur) return;
-  if (cur.audio) {
-    audioEl = new Audio(cur.audio);
-    audioEl.play();
-    audioEl.onended = stopAll;
-  } else {
-    const u = new SpeechSynthesisUtterance(cur.text);
-    u.lang = 'ko-KR'; u.rate = 1.02;
-    u.onend = () => { speaking = false; stopAll(); };
-    speechSynthesis.speak(u);
-    speaking = true;
-  }
-  curEl.classList.add('playing');
-  document.getElementById('pPlay').textContent = '⏸ 일시정지';
+function mediaSession(t){
+  if (!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: t.name,
+    artist: 'MONET 100 오디오 도슨트',
+    album: t.f + ' ' + t.zone,
+    artwork: [{ src: new URL(t.art, location.href).href, sizes: '512x512', type: 'image/jpeg' }],
+  });
+  navigator.mediaSession.setActionHandler('play', () => au.play());
+  navigator.mediaSession.setActionHandler('pause', () => au.pause());
+  navigator.mediaSession.setActionHandler('previoustrack', () => load(idx - 1, true));
+  navigator.mediaSession.setActionHandler('nexttrack', () => load(idx + 1, true));
+  navigator.mediaSession.setActionHandler('seekbackward', () => { au.currentTime = Math.max(0, au.currentTime - 10); });
+  navigator.mediaSession.setActionHandler('seekforward', () => { au.currentTime = Math.min(au.duration || 0, au.currentTime + 10); });
+  try {
+    navigator.mediaSession.setActionHandler('seekto', e => { if (e.seekTime != null) au.currentTime = e.seekTime; });
+  } catch (err) {}
 }
 
-document.getElementById('pPlay').onclick = () => {
-  if (cur && cur.audio && audioEl) {
-    if (audioEl.paused) { audioEl.play(); document.getElementById('pPlay').textContent = '⏸ 일시정지'; }
-    else { audioEl.pause(); document.getElementById('pPlay').textContent = '▶ 재생'; }
-    return;
+au.addEventListener('loadedmetadata', () => { document.getElementById('tDur').textContent = fmt(au.duration); seek.max = au.duration; });
+au.addEventListener('timeupdate', () => {
+  if (!seeking) { seek.value = au.currentTime; document.getElementById('tCur').textContent = fmt(au.currentTime); }
+  if ('mediaSession' in navigator && au.duration) {
+    try { navigator.mediaSession.setPositionState({ duration: au.duration, playbackRate: au.playbackRate, position: au.currentTime }); } catch (e) {}
   }
-  if (speaking) {
-    if (speechSynthesis.paused) { speechSynthesis.resume(); document.getElementById('pPlay').textContent = '⏸ 일시정지'; }
-    else { speechSynthesis.pause(); document.getElementById('pPlay').textContent = '▶ 재생'; }
-  } else { play(); }
-};
-document.getElementById('pStop').onclick = stopAll;
-document.getElementById('pClose').onclick = () => { stopAll(); player.classList.remove('up'); };
+});
+au.addEventListener('play', markList);
+au.addEventListener('pause', markList);
+au.addEventListener('ended', () => load(idx + 1, true));   // 다음 트랙 이어서
 
-// #b4 식 딥링크 — 지도에서 진입
+seek.addEventListener('input', () => { seeking = true; document.getElementById('tCur').textContent = fmt(+seek.value); });
+seek.addEventListener('change', () => { au.currentTime = +seek.value; seeking = false; });
+
+document.getElementById('btnPlay').onclick = () => { if (idx < 0) load(0, true); else au.paused ? au.play() : au.pause(); };
+document.getElementById('btnPrev').onclick = () => load(idx <= 0 ? 0 : (au.currentTime > 3 ? idx : idx - 1), true);
+document.getElementById('btnNext').onclick = () => load(idx + 1, true);
+document.getElementById('btnB10').onclick = () => au.currentTime = Math.max(0, au.currentTime - 10);
+document.getElementById('btnF10').onclick = () => au.currentTime = Math.min(au.duration || 0, au.currentTime + 10);
+
+// 배속
+const RATES = [0.8, 1.0, 1.25, 1.5];
+const ratesEl = document.getElementById('rates');
+RATES.forEach(r => {
+  const b = document.createElement('button');
+  b.textContent = r.toFixed(2).replace(/\.?0+$/,'') + '×';
+  if (r === 1) b.classList.add('on');
+  b.onclick = () => {
+    rate = r; au.playbackRate = r;
+    ratesEl.querySelectorAll('button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+  };
+  ratesEl.appendChild(b);
+});
+
+// 딥링크 (#b4)
 const hash = location.hash.slice(1);
 if (hash) {
-  const t = TRACKS.flatMap(g => g.items).find(t => t.id === hash);
-  const el = document.getElementById('i_' + hash);
-  if (t && el) setTimeout(() => { el.scrollIntoView({block:'center'}); open(t, el); }, 300);
+  const i = TRACKS.findIndex(t => t.id === hash);
+  if (i >= 0) setTimeout(() => { document.getElementById('it' + i).scrollIntoView({block:'center'}); load(i, true); }, 300);
 }
-window.addEventListener('pagehide', stopAll);
 </script>
 </body>
 </html>
