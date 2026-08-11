@@ -97,11 +97,11 @@ controls.enableDamping = true;
 
 // ── 전시 공간: 바닥 + 3면 벽 ──
 const room = new THREE.Group();
-const floorMat = new THREE.MeshStandardMaterial({ color: 0x4a4238, roughness: .9 });
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e2a24, roughness: .9 });
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), floorMat);
 floor.rotation.x = -Math.PI/2; floor.receiveShadow = true;
 room.add(floor);
-const wallMat = new THREE.MeshStandardMaterial({ color: 0x6b7a5e, roughness: 1 });   // 들판 벽화 톤
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x3a4436, roughness: 1 });   // 들판 벽화 톤
 const mkWall = (w,h,x,z,ry) => {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), wallMat);
   m.position.set(x, h/2, z); m.rotation.y = ry; m.receiveShadow = true;
@@ -148,14 +148,15 @@ scene.add(makeStack(1, 0, 0));
 scene.add(makeStack(.55, -2.2, -1.2));
 
 // ── 조명 리그 ──
-scene.add(new THREE.HemisphereLight(0x8899aa, 0x332f28, .25));
-const amb = new THREE.AmbientLight(0xffffff, .12); scene.add(amb);
-const key = new THREE.SpotLight(0xffffff, 1.4, 0, .55, .45, 1.2);
+scene.add(new THREE.HemisphereLight(0x8899aa, 0x1c1915, .07));
+const amb = new THREE.AmbientLight(0xffffff, .05); scene.add(amb);
+const key = new THREE.SpotLight(0xffffff, 2.2, 0, .42, .5, 1.4);
 key.castShadow = true;
 key.shadow.mapSize.set(1024, 1024);
+key.shadow.bias = -0.0005;
 scene.add(key); scene.add(key.target);
 key.target.position.set(0, .9, 0);
-const fill = new THREE.DirectionalLight(0xffffff, .12);
+const fill = new THREE.DirectionalLight(0xffffff, .05);
 fill.position.set(4, 5, 6); scene.add(fill);
 // 조명 기구 표시(전시장 트러스 느낌)
 const rigGeo = new THREE.CylinderGeometry(.09, .13, .3, 12);
@@ -171,8 +172,8 @@ function apply() {
   key.position.set(Math.cos(azr)*Math.cos(elr)*R, Math.sin(elr)*R + .6, Math.sin(azr)*Math.cos(elr)*R);
   const c = cold.clone().lerp(warm, st.temp/100);
   key.color.copy(c);
-  key.intensity = .25 + st.int/100 * 2.2;
-  amb.color.copy(c); amb.intensity = .06 + st.int/100 * .1;
+  key.intensity = .3 + st.int/100 * 3.4;
+  amb.color.copy(c); amb.intensity = .02 + st.int/100 * .05;
   // 배경·안개 무드
   const sky = new THREE.Color(0x0b1020).lerp(new THREE.Color(0x2a1c10), st.temp/100)
       .lerp(new THREE.Color(0x000000), 1 - st.int/100 * .9);
