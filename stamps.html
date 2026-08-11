@@ -209,6 +209,7 @@ INKS.forEach((k, i) => {
     if (navigator.vibrate) navigator.vibrate(60);
     c.classList.add('got');
     c.querySelector('.tm').textContent = S[k.id];
+    render();
     reveal(i, render);
   };
   chips.appendChild(c);
