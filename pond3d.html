@@ -83,7 +83,8 @@ controls.autoRotate = true;
 controls.autoRotateSpeed = .22;
 
 // ── 조명: 등불 + 달 ──
-scene.add(new THREE.AmbientLight(0x3a5c4a, .9));
+scene.add(new THREE.AmbientLight(0x3a5c4a, .62));
+const l3 = new THREE.PointLight(0xd8c890, .5, 16, 1.7); l3.position.set(0, 4.6, -10.5); scene.add(l3);
 const l1 = new THREE.PointLight(0xd8b978, .9, 26, 1.6); l1.position.set(-6, 6.5, -4); scene.add(l1);
 const l2 = new THREE.PointLight(0x8fd0b0, .55, 24, 1.8); l2.position.set(7, 5.5, 5); scene.add(l2);
 const moon = new THREE.DirectionalLight(0xa8bede, .5); moon.position.set(2, 9, -5); scene.add(moon);
@@ -191,8 +192,8 @@ const wistTex = wisteriaTexture();
 
 function bridge(){
   const g = new THREE.Group();
-  const paint  = new THREE.MeshStandardMaterial({ color: 0x3a7a55, roughness: .72 });
-  const paintD = new THREE.MeshStandardMaterial({ color: 0x2a5c41, roughness: .82 });
+  const paint  = new THREE.MeshStandardMaterial({ color: 0x2f6b49, roughness: .72 });
+  const paintD = new THREE.MeshStandardMaterial({ color: 0x224d36, roughness: .82 });
   const SPAN = 14, RISE = 1.5, W = 1.9;
   const deckY = t => .55 + Math.sin(Math.PI*t)*RISE;
 
@@ -266,13 +267,13 @@ function bridge(){
     g.add(slat);
   }
   // 시렁 위 등나무 잎덩이
-  const folMats = [new THREE.MeshStandardMaterial({ color: 0x2c5a3c, roughness: 1 }),
-                   new THREE.MeshStandardMaterial({ color: 0x3c6a48, roughness: 1 })];
-  for (let i = 0; i < 46; i++) {
+  const folMats = [new THREE.MeshStandardMaterial({ color: 0x234b31, roughness: 1 }),
+                   new THREE.MeshStandardMaterial({ color: 0x2d5a3b, roughness: 1 })];
+  for (let i = 0; i < 90; i++) {
     const t = Math.random();
-    const f = new THREE.Mesh(new THREE.SphereGeometry(rnd(.22, .42), 7, 6), folMats[i % 2]);
-    f.position.set(-SPAN/2 + SPAN*t + rnd(-.2,.2), deckY(t) + 2.6 + rnd(0,.3), rnd(-1.15, 1.15));
-    f.scale.y = .7;
+    const f = new THREE.Mesh(new THREE.SphereGeometry(rnd(.24, .46), 7, 6), folMats[i % 2]);
+    f.position.set(-SPAN/2 + SPAN*t + rnd(-.25,.25), deckY(t) + 2.58 + rnd(0,.34), rnd(-1.2, 1.2));
+    f.scale.set(rnd(1,1.5), .6, 1);
     g.add(f);
   }
   // 늘어진 등꽃 송이
@@ -322,7 +323,7 @@ function willow(x, z, h){
   g.add(trunk);
   for (let i = 0; i < 3; i++) {
     const curtain = new THREE.Mesh(new THREE.PlaneGeometry(h*.9, h*.92),
-      new THREE.MeshBasicMaterial({ map: willowTex, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      new THREE.MeshBasicMaterial({ map: willowTex, color: 0xaabfa8, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     curtain.position.y = h*.56;
     curtain.rotation.y = i * Math.PI/3 + rnd(-.2, .2);
     g.add(curtain);
@@ -335,11 +336,11 @@ scene.add(willow(12, -11, 6.5));
 scene.add(willow(14.5, 4, 7));
 
 // 다리 양끝 기슭 둔덕 + 붓꽃 무리
-const bankMat = new THREE.MeshStandardMaterial({ color: 0x24462f, roughness: 1 });
+const bankMat = new THREE.MeshStandardMaterial({ color: 0x1c3a26, roughness: 1 });
 for (const bx of [-8.9, 8.9]) {
   const mound = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), bankMat);
   mound.scale.set(3.2, 1.0, 2.6);
-  mound.position.set(bx, -.25, -13.5);
+  mound.position.set(bx, -.38, -13.5);
   scene.add(mound);
   for (let i = 0; i < 7; i++) {
     const iris = new THREE.Mesh(new THREE.ConeGeometry(.05, rnd(.5,.9), 5),
