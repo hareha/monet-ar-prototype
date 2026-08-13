@@ -6,22 +6,22 @@
 <title>다음 시대의 수련 연못</title>
 <style>
   *{box-sizing:border-box;}
-  html,body{margin:0;height:100%;background:#04100e;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
+  html,body{margin:0;height:100%;background:#0a1d18;font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;overflow:hidden;}
   #view{position:fixed;inset:0;}
-  a.home{position:fixed;top:14px;left:14px;z-index:6;font-size:12.5px;color:#cfe0d6;text-decoration:none;text-shadow:0 1px 4px rgba(0,0,0,.8);}
-  .cap{position:fixed;top:14px;right:14px;z-index:6;font-size:10px;letter-spacing:.24em;color:rgba(220,235,225,.5);font-weight:700;}
-  #q{position:fixed;top:44px;left:0;right:0;z-index:5;text-align:center;color:#e9f2ea;font-size:15px;font-weight:700;text-shadow:0 2px 10px rgba(0,0,0,.7);letter-spacing:.02em;}
-  #q small{display:block;font-size:11px;color:#9db8a8;font-weight:400;margin-top:4px;}
+  a.home{position:fixed;top:14px;left:14px;z-index:6;font-size:12.5px;color:#dcebe0;text-decoration:none;text-shadow:0 1px 4px rgba(0,0,0,.8);}
+  .cap{position:fixed;top:14px;right:14px;z-index:6;font-size:10px;letter-spacing:.24em;color:rgba(230,240,230,.55);font-weight:700;}
+  #q{position:fixed;top:44px;left:0;right:0;z-index:5;text-align:center;color:#f2f6ee;font-size:15px;font-weight:700;text-shadow:0 2px 10px rgba(0,0,0,.7);letter-spacing:.02em;}
+  #q small{display:block;font-size:11px;color:#b9cbb4;font-weight:400;margin-top:4px;}
 
   #ui{position:fixed;left:12px;right:12px;bottom:14px;z-index:6;max-width:500px;margin:0 auto;
-    background:rgba(6,20,17,.85);border:1px solid rgba(160,200,175,.25);border-radius:10px;padding:12px;backdrop-filter:blur(8px);}
+    background:rgba(10,26,21,.82);border:1px solid rgba(190,215,185,.25);border-radius:10px;padding:12px;backdrop-filter:blur(8px);}
   #ui .row{display:flex;gap:8px;}
-  #txt{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(160,200,175,.3);border-radius:6px;color:#e9f2ea;
+  #txt{flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(190,215,185,.3);border-radius:6px;color:#f2f6ee;
     font-size:14px;font-family:inherit;padding:12px;outline:none;}
-  #txt::placeholder{color:#7d9a8a;}
-  #send{background:#c9a961;color:#1c1a16;border:0;border-radius:6px;padding:0 20px;font-size:13.5px;font-weight:800;font-family:inherit;cursor:pointer;}
+  #txt::placeholder{color:#8aa792;}
+  #send{background:#d8b978;color:#231d10;border:0;border-radius:6px;padding:0 20px;font-size:13.5px;font-weight:800;font-family:inherit;cursor:pointer;}
   #send:active{transform:translateY(2px);}
-  .n{font-size:10px;color:#7d9a8a;text-align:center;margin-top:7px;}
+  .n{font-size:10px;color:#8aa792;text-align:center;margin-top:7px;}
 </style>
 </head>
 <body>
@@ -47,19 +47,30 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
 document.getElementById('view').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x04100e);
-scene.fog = new THREE.FogExp2(0x04100e, .034);
+scene.background = new THREE.Color(0x0a1d18);
+scene.fog = new THREE.FogExp2(0x0d241d, .028);
 
 const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, .1, 100);
-camera.position.set(0, innerWidth < innerHeight ? 8.2 : 5.6, innerWidth < innerHeight ? 13.5 : 10);
+camera.position.set(0, innerWidth < innerHeight ? 8.0 : 5.8, innerWidth < innerHeight ? 13.5 : 10.5);
+
+// 블룸 (등불·수면 하이라이트 번짐)
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .38, .7, .72);
+composer.addPass(bloom);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, .6, 0);
@@ -69,18 +80,65 @@ controls.minDistance = 6; controls.maxDistance = 17;
 controls.enablePan = false;
 controls.enableDamping = true;
 controls.autoRotate = true;
-controls.autoRotateSpeed = .25;
+controls.autoRotateSpeed = .22;
 
-// ── 조명 ──
-scene.add(new THREE.AmbientLight(0x2a4a3e, .8));
-const l1 = new THREE.PointLight(0xc9a961, 1.0, 24, 1.7); l1.position.set(-5, 5, -3); scene.add(l1);
-const l2 = new THREE.PointLight(0x7fc8a8, .6, 22, 1.9); l2.position.set(6, 4, 4); scene.add(l2);
-const moon = new THREE.DirectionalLight(0x9db4d8, .35); moon.position.set(2, 8, -4); scene.add(moon);
+// ── 조명: 등불 + 달 ──
+scene.add(new THREE.AmbientLight(0x3a5c4a, .9));
+const l1 = new THREE.PointLight(0xd8b978, 1.2, 26, 1.6); l1.position.set(-5, 4.6, -3); scene.add(l1);
+const l2 = new THREE.PointLight(0x8fd0b0, .7, 24, 1.8); l2.position.set(6, 3.8, 4); scene.add(l2);
+const moon = new THREE.DirectionalLight(0xa8bede, .5); moon.position.set(2, 9, -5); scene.add(moon);
 
-// ── 수면 ──
-const waterGeo = new THREE.PlaneGeometry(50, 50, 90, 90);
+const rnd = (a,b) => a + Math.random()*(b-a);
+
+// ══════════ 수면: 모네 팔레트의 붓질 텍스처 ══════════
+function paintWater(){
+  const c = document.createElement('canvas'); c.width = 2048; c.height = 2048;
+  const x = c.getContext('2d');
+  x.fillStyle = '#16382e'; x.fillRect(0, 0, 2048, 2048);
+  // 하늘 반영 — 큰 파스텔 무리
+  const patches = [
+    ['#d9c3cf', .16], ['#c6d3e4', .15], ['#e9e2c8', .12], ['#9fb9d8', .13], ['#a58fb8', .10],
+  ];
+  for (let i = 0; i < 26; i++) {
+    const [col, al] = patches[i % patches.length];
+    const px = Math.random()*2048, py = Math.random()*2048, rr = rnd(140, 420);
+    const g = x.createRadialGradient(px, py, rr*.15, px, py, rr);
+    g.addColorStop(0, col + Math.round(al*255).toString(16).padStart(2,'0'));
+    g.addColorStop(1, col + '00');
+    x.fillStyle = g;
+    x.fillRect(px-rr, py-rr, rr*2, rr*2);
+  }
+  // 수면 붓질 — 수평 단필 (모네의 물결 터치)
+  const dabs = ['#2e6b58','#3f7d4f','#1d4a3a','#57906b','#d9aebc','#e8e0c4','#9db8d8','#7f95c8','#8a7fae','#c78e9e'];
+  for (let i = 0; i < 5200; i++) {
+    const col = dabs[(Math.random()*dabs.length)|0];
+    x.strokeStyle = col + Math.round(rnd(28, 110)).toString(16).padStart(2,'0');
+    x.lineWidth = rnd(5, 14);
+    x.lineCap = 'round';
+    const px = Math.random()*2048, py = Math.random()*2048, len = rnd(24, 90);
+    x.beginPath(); x.moveTo(px, py);
+    x.quadraticCurveTo(px + len*.5, py + rnd(-4,4), px + len, py + rnd(-3,3));
+    x.stroke();
+  }
+  // 버드나무 반영 — 세로 긴 획
+  for (let i = 0; i < 260; i++) {
+    x.strokeStyle = `rgba(${18+((Math.random()*20)|0)}, ${52+((Math.random()*26)|0)}, ${34+((Math.random()*18)|0)}, ${rnd(.12,.3)})`;
+    x.lineWidth = rnd(4, 10);
+    const px = Math.random()*2048, py = Math.random()*2048, len = rnd(120, 380);
+    x.beginPath(); x.moveTo(px, py);
+    x.quadraticCurveTo(px + rnd(-14,14), py + len*.5, px + rnd(-10,10), py + len);
+    x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  return t;
+}
+const waterTex = paintWater();
+const waterGeo = new THREE.PlaneGeometry(54, 54, 96, 96);
 const water = new THREE.Mesh(waterGeo,
-  new THREE.MeshPhongMaterial({ color: 0x0c2f28, specular: 0x88ffd8, shininess: 90, side: THREE.DoubleSide }));
+  new THREE.MeshPhongMaterial({ map: waterTex, color: 0xbfd0c2, specular: 0x9fd8c0, shininess: 60 }));
 water.rotation.x = -Math.PI/2;
 scene.add(water);
 const wpos = waterGeo.attributes.position;
@@ -88,38 +146,120 @@ const wbase = Float32Array.from(wpos.array);
 function waves(t){
   for (let i = 0; i < wpos.count; i++) {
     const x = wbase[i*3], y = wbase[i*3+1];
-    wpos.setZ(i, Math.sin(x*.7 + t*.9)*.05 + Math.cos(y*.55 + t*.7)*.05 + Math.sin((x+y)*.3 + t*.4)*.035);
+    wpos.setZ(i, Math.sin(x*.65 + t*.8)*.05 + Math.cos(y*.5 + t*.65)*.05 + Math.sin((x+y)*.28 + t*.4)*.035);
   }
   wpos.needsUpdate = true;
   waterGeo.computeVertexNormals();
 }
 
-// ── 수련잎 (민잎 — 글자는 빌보드 카드로 분리) ──
-function leafTexture(gold){
+// ══════════ 일본 다리 (지베르니의 초록 아치) ══════════
+function bridge(){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x2f6b4e, roughness: .75 });
+  const arc = (h, r) => {
+    const pts = [];
+    for (let i = 0; i <= 24; i++) {
+      const t = i/24;
+      pts.push(new THREE.Vector3(-7 + 14*t, h + Math.sin(Math.PI*t)*1.5, 0));
+    }
+    return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, r, 8), mat);
+  };
+  g.add(arc(1.9, .06));        // 상단 난간
+  g.add(arc(1.15, .05));       // 하단 난간
+  g.add(arc(.55, .07));        // 다리 상판 라인
+  for (let i = 0; i <= 16; i++) {   // 난간 살
+    const t = i/16;
+    const xx = -7 + 14*t;
+    const y0 = .55 + Math.sin(Math.PI*t)*1.5, y1 = 1.9 + Math.sin(Math.PI*t)*1.5;
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, y1-y0, 6), mat);
+    b.position.set(xx, (y0+y1)/2, 0);
+    g.add(b);
+  }
+  g.position.set(0, 0, -13.5);
+  return g;
+}
+scene.add(bridge());
+
+// ══════════ 수련잎 (붓질 패드) + 꽃 ══════════
+function padTexture(gold){
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d');
-  const g = x.createRadialGradient(100, 95, 20, 128, 128, 150);
-  g.addColorStop(0, gold ? '#5d9a72' : '#3f7a5c');
-  g.addColorStop(.75, gold ? '#356b4c' : '#28563f');
-  g.addColorStop(1, gold ? '#2a5a3e' : '#1e4632');
+  const g = x.createRadialGradient(105, 100, 22, 128, 128, 150);
+  g.addColorStop(0, gold ? '#6da97e' : '#4e8a60');
+  g.addColorStop(.7, gold ? '#3f7554' : '#2f6244');
+  g.addColorStop(1, gold ? '#2e5c42' : '#1f4a33');
   x.fillStyle = g; x.fillRect(0, 0, 256, 256);
-  x.strokeStyle = 'rgba(255,255,255,.09)'; x.lineWidth = 2;
-  for (let a = 0; a < 14; a++) {
-    x.beginPath(); x.moveTo(128, 128);
-    x.lineTo(128 + Math.cos(a/14*6.28)*130, 128 + Math.sin(a/14*6.28)*130);
-    x.stroke();
+  // 잎 위 붓질
+  for (let i = 0; i < 130; i++) {
+    x.strokeStyle = `hsla(${rnd(95,150)},${rnd(25,45)}%,${rnd(30,62)}%,${rnd(.15,.4)})`;
+    x.lineWidth = rnd(3, 7);
+    x.lineCap = 'round';
+    const px = rnd(30, 226), py = rnd(30, 226), len = rnd(14, 44);
+    x.beginPath(); x.moveTo(px, py); x.lineTo(px + len, py + rnd(-4,4)); x.stroke();
   }
+  // 가장자리 적갈색 림 (모네 패드 특유의 붉은 테)
+  x.strokeStyle = 'rgba(150,84,66,.55)';
+  x.lineWidth = 10;
+  x.beginPath(); x.arc(128, 128, 120, 0, Math.PI*2); x.stroke();
   const t = new THREE.CanvasTexture(c);
   t.encoding = THREE.sRGBEncoding;
   return t;
 }
+function flowerTexture(){
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const x = c.getContext('2d');
+  x.clearRect(0,0,256,256);
+  for (let ring = 0; ring < 3; ring++) {
+    const n = 8 + ring*3, rr = 96 - ring*26;
+    for (let i = 0; i < n; i++) {
+      const a = i/n*Math.PI*2 + ring*.35;
+      const px = 128 + Math.cos(a)*rr*.44, py = 128 + Math.sin(a)*rr*.44;
+      x.fillStyle = ring === 0 ? 'rgba(233,180,198,.92)' : ring === 1 ? 'rgba(244,214,224,.95)' : 'rgba(250,240,242,.95)';
+      x.save();
+      x.translate(px, py);
+      x.rotate(a);
+      x.beginPath();
+      x.ellipse(0, 0, rr*.42, rr*.17, 0, 0, Math.PI*2);
+      x.fill();
+      x.restore();
+    }
+  }
+  x.fillStyle = '#e8c25a';
+  x.beginPath(); x.arc(128, 128, 16, 0, Math.PI*2); x.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+const flowerTex = flowerTexture();
 
-// 문구 카드 (스프라이트 = 항상 정면)
+function makePad(r, gold){
+  const shape = new THREE.Shape();
+  const notch = .5;
+  shape.absarc(0, 0, r, notch/2, Math.PI*2 - notch/2, false);
+  shape.lineTo(0, 0);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: .04, bevelEnabled: false });
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i)/r + 1)/2, (uv.getY(i)/r + 1)/2);
+  const m = new THREE.Mesh(geo, [
+    new THREE.MeshStandardMaterial({ map: padTexture(gold), roughness: .7 }),
+    new THREE.MeshStandardMaterial({ color: 0x1f4a33, roughness: .9 }),
+  ]);
+  m.rotation.x = -Math.PI/2;
+  m.rotation.z = Math.random()*Math.PI*2;
+  return m;
+}
+function makeFlower(s){
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(s, s),
+    new THREE.MeshBasicMaterial({ map: flowerTex, transparent: true, depthWrite: false }));
+  f.rotation.x = -Math.PI/2;
+  f.rotation.z = Math.random()*Math.PI*2;
+  return f;
+}
+
+// 문구 카드 (스프라이트)
 function textSprite(text, gold){
   const c = document.createElement('canvas'); c.width = 640; c.height = 300;
   const x = c.getContext('2d');
-  const r = 34, W = 620, H = 0;
-  // 줄바꿈
   x.font = '600 44px "Apple SD Gothic Neo", sans-serif';
   const words = text.split(' ');
   const lines = []; let line = '';
@@ -131,15 +271,13 @@ function textSprite(text, gold){
   const shown = lines.slice(0, 3);
   const cardH = 60 + shown.length * 58;
   const y0 = (300 - cardH) / 2;
-  // 카드
-  x.fillStyle = 'rgba(8,26,22,.86)';
-  x.strokeStyle = gold ? '#c9a961' : 'rgba(160,200,175,.4)';
+  x.fillStyle = 'rgba(10,28,22,.84)';
+  x.strokeStyle = gold ? '#d8b978' : 'rgba(190,215,185,.45)';
   x.lineWidth = gold ? 6 : 3;
   x.beginPath();
-  x.roundRect(10, y0, W, cardH, r);
+  x.roundRect(10, y0, 620, cardH, 34);
   x.fill(); x.stroke();
-  // 텍스트
-  x.fillStyle = '#eef6ec';
+  x.fillStyle = '#f2f6ee';
   x.textAlign = 'center';
   shown.forEach((ln, i) => x.fillText(ln, 320, y0 + 58 + i*58));
   const t = new THREE.CanvasTexture(c);
@@ -149,7 +287,7 @@ function textSprite(text, gold){
   return sp;
 }
 
-// ── 겹침 없는 배치 ──
+// ── 배치 (겹침 방지) ──
 const placed = [];
 function findSpot(prefAng, prefDist){
   const MIN = 2.7;
@@ -177,34 +315,56 @@ function findSpot(prefAng, prefDist){
 const leaves = [];
 function addLeaf(text, opts = {}){
   const gold = !!opts.gold;
-  const r = 1.0 + Math.random()*.3;
-  const shape = new THREE.Shape();
-  const notch = .5;
-  shape.absarc(0, 0, r, notch/2, Math.PI*2 - notch/2, false);
-  shape.lineTo(0, 0);
-  const geo = new THREE.ExtrudeGeometry(shape, { depth: .05, bevelEnabled: false });
-  const uv = geo.attributes.uv;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i)/r + 1)/2, (uv.getY(i)/r + 1)/2);
-  const m = new THREE.Mesh(geo, [
-    new THREE.MeshStandardMaterial({ map: leafTexture(gold), roughness: .75 }),
-    new THREE.MeshStandardMaterial({ color: 0x1e4632, roughness: .9 }),
-  ]);
-  m.rotation.x = -Math.PI/2;
-  m.rotation.z = Math.random()*Math.PI*2;
   const { px, pz } = findSpot(opts.ang, opts.dist);
-  m.position.set(px, .07, pz);
-  scene.add(m);
-  if (gold) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(r + .1, .035, 10, 60),
-      new THREE.MeshBasicMaterial({ color: 0xc9a961 }));
-    ring.position.set(0, 0, .06);
-    m.add(ring);
+  const grp = new THREE.Group();
+  // 주 패드 + 곁 패드 1~2 + 꽃 (군락)
+  const r = 1.0 + Math.random()*.28;
+  const main = makePad(r, gold);
+  grp.add(main);
+  const nSide = 1 + (Math.random()*2|0);
+  for (let i = 0; i < nSide; i++) {
+    const sr = r * rnd(.38, .58);
+    const side = makePad(sr, false);
+    const a = Math.random()*Math.PI*2, d = r + sr*rnd(.7, 1.05);
+    side.position.set(Math.cos(a)*d, -.005, Math.sin(a)*d);
+    grp.add(side);
   }
+  if (gold || Math.random() < .5) {
+    const fl = makeFlower(rnd(.5, .75));
+    const a = Math.random()*Math.PI*2, d = r*rnd(.4, .75);
+    fl.position.set(Math.cos(a)*d, .06, Math.sin(a)*d);
+    grp.add(fl);
+  }
+  if (gold) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r + .12, .035, 10, 60),
+      new THREE.MeshBasicMaterial({ color: 0xd8b978 }));
+    ring.rotation.x = Math.PI/2;
+    ring.position.y = .05;
+    grp.add(ring);
+  }
+  grp.position.set(px, .07, pz);
+  scene.add(grp);
   const sp = textSprite(text, gold);
   sp.position.set(px, 1.15, pz);
   scene.add(sp);
-  leaves.push({ m, sp, phase: Math.random()*6.28, spin: (Math.random()-.5)*.001 });
-  return { m, sp };
+  leaves.push({ m: grp, sp, phase: Math.random()*6.28, spin: (Math.random()-.5)*.0008 });
+  return { m: grp, sp };
+}
+
+// 장식용 무문구 군락 (연못을 채우는 배경 수련)
+for (let i = 0; i < 10; i++) {
+  const ang = Math.random()*Math.PI*2, dist = 9.5 + Math.random()*8;
+  const grp = new THREE.Group();
+  const r = rnd(.7, 1.2);
+  grp.add(makePad(r, false));
+  if (Math.random() < .6) {
+    const fl = makeFlower(rnd(.4, .6));
+    fl.position.set(rnd(-.4,.4), .05, rnd(-.4,.4));
+    grp.add(fl);
+  }
+  grp.position.set(Math.cos(ang)*dist, .07, Math.sin(ang)*dist);
+  scene.add(grp);
+  leaves.push({ m: grp, sp: null, phase: Math.random()*6.28, spin: (Math.random()-.5)*.0008 });
 }
 
 // ── 데이터 ──
@@ -231,13 +391,11 @@ document.getElementById('send').onclick = () => {
   saved.push(v);
   localStorage.setItem('m100_pond', JSON.stringify(saved.slice(-100)));
   if (lastGold) {
-    const ring = lastGold.m.children[0];
+    const ring = lastGold.m.children.find(ch => ch.geometry && ch.geometry.type === 'TorusGeometry');
     if (ring) lastGold.m.remove(ring);
-    lastGold.sp.material.map = textSprite(lastGold.text, false).material.map;
   }
   const camAng = Math.atan2(camera.position.z, camera.position.x);
   lastGold = addLeaf(v, { gold: true, ang: camAng, dist: 4.2 });
-  lastGold.text = v;
   txt.value = '';
   txt.blur();
   updateCount();
@@ -248,25 +406,29 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
 });
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const t = clock.getElapsedTime();
   waves(t);
+  waterTex.offset.x = Math.sin(t*.05)*.004;
+  waterTex.offset.y = Math.cos(t*.04)*.004;
   for (const L of leaves) {
     const y = .07 + Math.sin(t*.8 + L.phase)*.04;
     L.m.position.y = y;
-    L.m.rotation.z += L.spin;
-    L.sp.position.y = y + 1.05 + Math.sin(t*.8 + L.phase)*.02;
-    // 멀수록 카드 살짝 축소·페이드
-    const d = camera.position.distanceTo(L.sp.position);
-    const s = THREE.MathUtils.clamp(3.4 - d*.09, 1.6, 3.0);
-    L.sp.scale.set(s, s*300/640, 1);
-    L.sp.material.opacity = THREE.MathUtils.clamp(1.35 - d*.055, .25, 1);
+    L.m.rotation.y += L.spin;
+    if (L.sp) {
+      L.sp.position.y = y + 1.05 + Math.sin(t*.8 + L.phase)*.02;
+      const d = camera.position.distanceTo(L.sp.position);
+      const s = THREE.MathUtils.clamp(3.4 - d*.09, 1.6, 3.0);
+      L.sp.scale.set(s, s*300/640, 1);
+      L.sp.material.opacity = THREE.MathUtils.clamp(1.35 - d*.055, .25, 1);
+    }
   }
   controls.update();
-  renderer.render(scene, camera);
+  composer.render();
 });
 </script>
 </body>
