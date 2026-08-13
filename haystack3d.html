@@ -385,11 +385,11 @@ function apply(){
   washR.intensity = cur.washI * (.3 + k*.6);
   // ── 콘·먼지·기구 ──
   coneMat.color.copy(c);
-  coneMat.opacity = .01 + k * .045;
+  coneMat.opacity = .006 + k * .022;
   dust.material.color.copy(c);
   const from = sun.position.clone(), to = TGT.position.clone();
   const dir = to.clone().sub(from), len = dir.length();
-  cone.scale.set(len*.4, len, len*.4);
+  cone.scale.set(len*.22, len, len*.22);
   cone.position.copy(from.clone().add(dir.clone().multiplyScalar(.5)));
   cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0), dir.clone().normalize());
   placeFixture(fxSun, sun, TGT.position);
