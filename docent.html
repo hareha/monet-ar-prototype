@@ -8,11 +8,12 @@
   :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;--gold:#b49a5e;}
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
-  body{max-width:520px;margin:0 auto;padding:22px 16px 210px;}
+  body{max-width:520px;margin:0 auto;padding:22px 16px 250px;}
   .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;}
   .top a{font-size:12.5px;color:var(--sub);text-decoration:none;}
   .top .cap{font-size:10.5px;letter-spacing:.28em;color:var(--cap);font-weight:600;}
-  h1{font-size:21px;font-weight:800;margin:0 0 14px;}
+  h1{font-size:21px;font-weight:800;margin:0 0 2px;}
+  .meta{font-size:11.5px;color:var(--sub);margin:0 0 14px;}
 
   .floor{background:var(--ink);color:var(--bg);border-radius:6px;padding:8px 13px;font-size:11px;letter-spacing:.2em;font-weight:700;margin:18px 0 10px;}
   .item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:8px;cursor:pointer;
@@ -20,27 +21,30 @@
   .item:active{transform:translateY(3px);box-shadow:none;}
   .item.cur{border-color:var(--ink);}
   .item .art{width:44px;height:44px;border-radius:6px;object-fit:cover;flex:none;border:1px solid var(--line);}
-  .item .tt{font-size:14px;font-weight:800;line-height:1.4;}
+  .item .tt{font-size:13.5px;font-weight:800;line-height:1.4;}
   .item .zz{font-size:10.5px;color:var(--cap);letter-spacing:.06em;margin-top:2px;}
   .item .dur{margin-left:auto;font-size:11px;color:var(--cap);white-space:nowrap;font-variant-numeric:tabular-nums;}
   .item.cur .dur{color:#2e6e4e;font-weight:700;}
   .eq{display:none;gap:2px;align-items:flex-end;height:14px;margin-left:6px;}
   .item.cur.playing .eq{display:flex;}
-  .eq i{width:3px;background:#2e6e4e;animation:eq 0.9s infinite ease-in-out;}
+  .eq i{width:3px;background:#2e6e4e;animation:eq .9s infinite ease-in-out;}
   .eq i:nth-child(1){height:60%;animation-delay:0s;}
   .eq i:nth-child(2){height:100%;animation-delay:.2s;}
   .eq i:nth-child(3){height:40%;animation-delay:.4s;}
   @keyframes eq{0%,100%{transform:scaleY(.4);}50%{transform:scaleY(1);}}
 
-  /* ── 플레이어 ── */
   #player{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:#fff;border-top:1px solid var(--line);
     box-shadow:0 -12px 34px rgba(28,26,22,.16);padding:14px 18px calc(16px + env(safe-area-inset-bottom));z-index:9;
     transform:translateY(110%);transition:transform .28s;}
   #player.up{transform:none;}
   .phead{display:flex;gap:12px;align-items:center;}
   .phead img{width:52px;height:52px;border-radius:8px;object-fit:cover;border:1px solid var(--line);}
-  .phead .t{font-size:14.5px;font-weight:800;line-height:1.35;}
+  .phead .t{font-size:14px;font-weight:800;line-height:1.35;}
   .phead .z{font-size:11px;color:var(--cap);margin-top:2px;}
+  #scriptBtn{margin-left:auto;flex:none;background:#fff;border:1px solid #d8d3c8;border-radius:999px;padding:7px 14px;font-size:11px;font-weight:700;color:var(--sub);font-family:inherit;cursor:pointer;}
+  #scriptBtn.on{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+  #pScript{display:none;font-size:12.5px;color:var(--sub);line-height:1.85;margin:12px 0 0;max-height:34vh;overflow-y:auto;border-top:1px solid var(--line);padding-top:10px;white-space:pre-line;}
+  #pScript.on{display:block;}
 
   .seekrow{display:flex;align-items:center;gap:10px;margin-top:12px;}
   .seekrow span{font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums;min-width:34px;}
@@ -66,13 +70,16 @@
 <body>
   <div class="top"><a href="index.html">← 홈</a><span class="cap">MONET 100 · 오디오 도슨트</span></div>
   <h1>오디오 도슨트</h1>
+  <p class="meta">10개 존 · 14트랙 · 약 14분 30초 — 음성 도슨트 v0.3</p>
   <div id="list"></div>
 
   <div id="player">
     <div class="phead">
       <img id="pArt" src="quest_img/monet_sunrise.jpg" alt="">
       <div><div class="t" id="pTitle">—</div><div class="z" id="pZone"></div></div>
+      <button id="scriptBtn">대본</button>
     </div>
+    <div id="pScript"></div>
     <div class="seekrow">
       <span id="tCur">0:00</span>
       <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
@@ -86,31 +93,149 @@
       <button id="btnNext" title="다음">⏭</button>
     </div>
     <div class="rates" id="rates"></div>
-    <p class="bgnote">화면을 꺼도 이어서 재생됩니다 · 잠금화면에서 제어 가능 · 현재 임시 음성(성우 녹음으로 교체 예정)</p>
+    <p class="bgnote">화면을 꺼도 이어서 재생 · 잠금화면에서 제어 가능 · 트랙이 끝나면 자동으로 다음 트랙</p>
   </div>
 
 <audio id="au" preload="metadata"></audio>
 
 <script>
 const TRACKS = [
- {id:'a4', f:'4층', name:'접수 안내 — 전시를 시작하며', zone:'ZONE A', art:'quest_img/monet_sunrise.jpg'},
- {id:'b4', f:'4층', name:'아카데미 살롱 — 권위가 아름다움을 심사하다', zone:'ZONE B', art:'quest_img/merson.jpg'},
- {id:'c4', f:'4층', name:'변화의 복도 — 시대는 이미 변하고 있었다', zone:'ZONE C', art:'quest_img/gare.jpg'},
- {id:'d4', f:'4층', name:'모네 전시관 — 새로운 시대가 시작되다', zone:'ZONE D', art:'quest_img/monet_sunrise.jpg'},
- {id:'e4', f:'4층', name:'미디어 전시 — 헤리티지, 모네의 캔버스가 되다', zone:'ZONE E', art:'quest_img/rouen.jpg'},
- {id:'a3', f:'3층', name:'생라자르역 — 산업혁명의 빛', zone:'ZONE A', art:'quest_img/gare.jpg'},
- {id:'b3', f:'3층', name:'에트르타 — 빛이 부서지는 절벽', zone:'ZONE B', art:'quest_img/etretat.jpg'},
- {id:'c3', f:'3층', name:'건초더미 — 빛으로 완성된 그림', zone:'ZONE C', art:'quest_img/hay_autumn.jpg'},
- {id:'d3', f:'3층', name:'지베르니 — 빛과 물의 실험실', zone:'ZONE D', art:'quest_img/bridge.jpg'},
- {id:'e3', f:'3층', name:'미시아 살롱 — 한 시대가 저물고', zone:'ZONE E', art:'target.jpg'},
+ {id:'a4', file:'audio/a4.mp3', f:'4층', zone:'ZONE A', art:'quest_img/monet_sunrise.jpg',
+  name:'접수 및 안내 — 전시를 시작하며',
+  script:`지금부터 여러분은 클로드 모네의 그림만을 감상하는 것이 아니라, 모네가 살았던 변화의 시대를 따라가게 됩니다.
+
+19세기 후반의 유럽에서는 산업혁명과 철도, 사진, 새로운 미술 재료, 시민사회의 성장처럼 사람들의 삶과 시선을 바꾸는 변화가 동시에 일어나고 있었습니다. 이번 전시는 그 변화 속에서 왜 인상주의가 등장했고, 모네가 무엇을 새롭게 보았는지를 공간으로 풀어냅니다.
+
+4층에서는 먼저 당시 사람들이 무엇을 '좋은 미술'이라고 생각했는지 살펴보고, 그 기준을 흔든 사회와 기술의 변화를 이해합니다. 그리고 3층에서는 생라자르역, 에트르타, 건초더미, 지베르니처럼 모네가 바라본 세계를 직접 체험하게 됩니다.
+
+첫 번째 공간은 19세기 프랑스 미술의 권위가 집중되어 있던 아카데미 살롱입니다. 모네가 왜 새로웠는지를 이해하려면, 먼저 그가 무엇에 도전했는지부터 알아야 합니다.`},
+ {id:'b4_1', file:'audio/b4_1.mp3', f:'4층', zone:'ZONE B', art:'quest_img/merson.jpg',
+  name:'아카데미 살롱 — 권위가 아름다움을 심사하다 ①',
+  script:`19세기 프랑스에서 화가가 성공하기 위해 가장 중요했던 무대 가운데 하나는 '살롱'이었습니다. 살롱은 단순한 전시회가 아니라, 아카데미의 심사를 통과한 작품이 공개되고 평가받는 권위의 장이었습니다.
+
+당시에는 좋은 그림에도 비교적 분명한 기준이 있었습니다. 역사와 신화, 종교처럼 품격 있다고 여겨지는 주제를 다루고, 인체와 형태를 정교하고 정확하게 묘사하며, 붓자국이 거의 보이지 않을 정도로 표면을 매끄럽게 완성하는 방식입니다.
+
+주변의 전시 방식을 보면 작품이 눈높이를 넘어 천장 가까이까지 빽빽하게 배치되어 있습니다. 살롱은 감상의 장소인 동시에 심사와 판매의 장소였기 때문에 수많은 작품이 한 공간에 밀도 높게 걸렸습니다.
+
+그런데 모네와 젊은 화가들이 관심을 가진 것은 전혀 달랐습니다. 기차역, 강변, 카페, 바닷가처럼 자신들이 실제로 살아가는 일상을 그렸고, 순간의 빛과 분위기를 빠른 붓질과 흐릿한 윤곽으로 표현했습니다. 지금 우리에게 익숙한 인상주의가 당시에는 '덜 끝난 그림'이나 스케치처럼 보일 수 있었던 이유입니다.`},
+ {id:'b4_2', file:'audio/b4_2.mp3', f:'4층', zone:'ZONE B', art:'quest_img/merson.jpg',
+  name:'아카데미 살롱 — 권위가 아름다움을 심사하다 ②',
+  script:`여기서 기억할 것은 하나입니다. 모네가 바꾸려 했던 것은 그림의 모양만이 아니라, 무엇을 예술로 보고 무엇을 중요하게 그릴 것인가에 대한 기준이었습니다.
+
+그렇다면 이렇게 강력한 기준은 왜 흔들리기 시작했을까요?`},
+ {id:'c4_1', file:'audio/c4_1.mp3', f:'4층', zone:'ZONE C', art:'quest_img/gare.jpg',
+  name:'변화의 복도 — 시대는 이미 변하고 있었다 ①',
+  script:`살롱의 문을 나서는 순간, 시대는 이미 다른 방향으로 움직이고 있었습니다. 이 복도에서는 인상주의를 가능하게 한 여러 변화의 단서를 차례로 만나게 됩니다.
+
+첫 번째는 시민사회의 성장입니다. 카페에서는 화가와 작가, 비평가들이 새로운 예술을 토론했고, 신문과 비평, 만국박람회가 대중화되면서 무엇이 훌륭한지를 판단하는 목소리도 점차 아카데미 한 곳에서 시민과 대중으로 넓어졌습니다. 카페 게르부아 같은 장소에서는 마네를 중심으로 모네, 르누아르, 드가, 바지유 등이 모여 기존 살롱 문화와 새로운 예술에 대해 논의했습니다.
+
+두 번째는 산업혁명입니다. 철도와 증기선, 전신과 국제무역은 사람과 물건, 정보가 이동하는 속도를 크게 바꾸었습니다. 더 넓어진 교류 속에서 사람들은 이전에는 접하기 어려웠던 문화와 사물을 만나게 되었고, 이런 변화는 예술가의 시선에도 영향을 주었습니다.
+
+세 번째는 화가의 도구입니다. 기존 물감은 보관과 이동이 불편했지만, 1841년 금속 튜브가 개발되고 휴대용 이젤이 결합하면서 화가는 화실 밖에서 직접 그림을 그릴 수 있게 되었습니다. 빛이 변하는 바로 그 순간을 현장에서 관찰하는 일이 훨씬 쉬워진 것입니다.`},
+ {id:'c4_2', file:'audio/c4_2.mp3', f:'4층', zone:'ZONE C', art:'quest_img/gare.jpg',
+  name:'변화의 복도 — 시대는 이미 변하고 있었다 ②',
+  script:`마지막은 사진입니다. 사진이 현실을 정확하게 기록하는 새로운 수단으로 등장하면서, 초상화처럼 '똑같이 재현하는 일'만으로는 회화의 존재 이유를 설명하기 어려워졌습니다. 화가들은 사진과 다른 방식으로 세계를 보여줄 필요가 생겼습니다.
+
+이 변화들은 하나의 결론으로 이어집니다. 인상주의는 어느 날 갑자기 등장한 이상한 화풍이 아니라, 이미 달라진 시대가 요구한 새로운 보는 방식이었습니다.`},
+ {id:'d4', file:'audio/d4.mp3', f:'4층', zone:'ZONE D', art:'quest_img/monet_sunrise.jpg',
+  name:'모네 전시관 — 새로운 시대가 시작되다',
+  script:`가장 먼저 한 점의 그림이 여러분을 맞이합니다. 클로드 모네의 〈인상, 해돋이〉입니다.
+
+이 작품은 1874년 '인상주의'라는 이름이 탄생하는 데 결정적인 계기가 된 작품입니다. 중요한 것은 이 그림이 무엇을 그렸는가보다, 어떻게 보이는 순간을 붙잡으려 했는가입니다.
+
+이전의 공식 회화가 대상의 형태와 완성된 표면을 중요하게 여겼다면, 모네는 빛과 공기, 색의 떨림처럼 계속 변하는 감각을 그림의 중심으로 가져왔습니다. 세계를 있는 그대로 복사하기보다, 한 사람이 특정한 순간에 세계를 어떻게 보았는지를 보여주려 한 것입니다.
+
+안쪽으로 이동하면 비슷한 풍경을 반복해서 그린 연작들이 이어집니다. 건초더미, 건물, 자연 풍경처럼 대상은 같아 보여도 작품마다 색과 분위기가 달라집니다. 그 차이를 만든 것은 대상 자체가 아니라 시간과 날씨, 빛의 변화입니다.
+
+그래서 모네의 연작을 볼 때는 "왜 똑같은 것을 여러 번 그렸을까?"보다 "같은 것이 왜 매번 다르게 보일까?"라는 질문이 더 중요합니다.
+
+이 질문은 곧 다음 미디어 공간과 3층의 건초더미 체험에서 직접 확인하게 됩니다.`},
+ {id:'e4', file:'audio/e4.mp3', f:'4층', zone:'ZONE E', art:'quest_img/rouen.jpg',
+  name:'미디어 전시 — 헤리티지, 모네의 캔버스가 되다',
+  script:`이곳에서는 그림이 액자 안에 머물지 않습니다. 100년의 시간을 간직한 헤리티지 건축의 천장과 아치, 몰딩과 벽면 전체가 하나의 캔버스가 됩니다.
+
+건축의 형태는 그대로인데 빛의 방향과 색이 달라질 때마다 공간의 인상이 바뀝니다. 바로 앞에서 보았던 모네의 연작 개념을, 이번에는 그림이 아니라 실제 공간의 변화로 경험하는 것입니다.
+
+영상 속에는 아카데미 살롱의 이미지와 모네의 작품, 생라자르역의 증기, 에트르타의 바다, 지베르니의 수련이 이어집니다. 4층에서 이해한 시대와 회화의 변화가 3층에서 실제 장면으로 이어질 것이라는 예고이기도 합니다.
+
+같은 건축이 빛에 따라 얼마나 다른 공간으로 느껴지는지 바라봐 주세요. 모네가 연작을 통해 반복해서 확인했던 것도 바로 이런 변화였습니다.
+
+이제 3층에서는 모네가 보았던 근대의 빛과 자연의 빛 속으로 직접 들어갑니다.`},
+ {id:'a3', file:'audio/a3.mp3', f:'3층', zone:'ZONE A', art:'quest_img/gare.jpg',
+  name:'생라자르역 — 산업혁명의 빛이 쏟아지다',
+  script:`3층에 들어오면 여러분은 전시 관람객이 아니라, 파리에서 노르망디로 떠나는 한 명의 승객이 됩니다.
+
+1877년 모네는 생라자르역을 소재로 열두 점의 연작을 완성했습니다. 하나의 주제에 집중해 그린 그의 첫 연작이었습니다.
+
+당시 기차역은 새로운 시대를 상징하는 공간이었습니다. 철과 유리로 만든 거대한 지붕 아래로 자연광이 들어오고, 증기기관차의 하얀 연기가 공중에 퍼졌습니다. 같은 플랫폼도 기차의 움직임과 증기, 시간대에 따라 끊임없이 다른 모습으로 보였습니다.
+
+모네가 흥미롭게 바라본 것은 기차라는 기계만이 아니었습니다. 자연광과 산업이 만든 증기가 섞여 만들어내는 '근대의 빛'이었습니다. 다시 말해 인상주의는 자연 풍경만을 그린 미술이 아니라, 자신들이 살아가는 새로운 도시와 기술의 장면도 적극적으로 회화의 주제로 삼았습니다.
+
+모네에게 생라자르역은 도시 한가운데 만들어진 빛의 실험실이었습니다.
+
+열차는 노르망디 해안으로 향합니다. 다음은 산업의 빛과 정반대인 자연의 빛, 에트르타입니다.`},
+ {id:'b3', file:'audio/b3.mp3', f:'3층', zone:'ZONE B', art:'quest_img/etretat.jpg',
+  name:'에트르타 — 빛이 부서지는 절벽',
+  script:`기차역의 소음이 멀어지고 파도와 갈매기 소리가 들리기 시작합니다. 노르망디 해안의 에트르타입니다.
+
+모네는 1864년 이곳을 처음 그렸고, 특히 1883년부터 1885년 사이 여러 차례 머물며 약 90점의 캔버스를 남겼습니다. 한 장소를 이렇게 반복해서 그린 이유는 절벽의 형태를 정확히 기록하기 위해서만은 아니었습니다.
+
+같은 절벽도 아침과 저녁, 맑은 날과 흐린 날, 폭풍우와 노을 속에서 전혀 다른 색과 분위기로 보였습니다. 모네에게 변화하는 날씨와 빛 자체가 회화의 주제가 된 것입니다.
+
+앞선 생라자르역이 철도와 증기가 만든 인공적인 빛의 풍경이었다면, 에트르타는 자연이 만들어내는 빛의 변화를 보여주는 공간입니다.
+
+눈앞의 파노라마에서 날씨와 시간이 바뀔 때 절벽과 하늘, 바다의 색이 어떻게 달라지는지 살펴보세요. 실사 풍경이 모네의 회화로 전환될 때, 화가가 현실을 그대로 복사하기보다 자신이 경험한 순간의 인상을 어떻게 색으로 바꾸었는지도 비교해 볼 수 있습니다.`},
+ {id:'c3', file:'audio/c3.mp3', f:'3층', zone:'ZONE C', art:'quest_img/hay_autumn.jpg',
+  name:'건초더미 — 빛으로 완성된 그림',
+  script:`눈앞에는 하나의 건초더미가 있습니다. 대상은 단순하지만, 이 공간은 모네의 연작을 가장 직접적으로 이해할 수 있는 곳입니다.
+
+모네는 1890년부터 1891년까지 지베르니의 들판에 있던 건초더미를 스물다섯 점의 연작으로 그렸습니다. 새벽, 정오, 일몰, 흐린 날, 눈 내린 날처럼 조건이 달라질 때마다 같은 대상은 전혀 다른 색과 분위기를 보여주었습니다.
+
+1891년 뒤랑뤼엘 화랑에서 이 연작 가운데 열다섯 점이 공개되었고, 성공적인 반응은 이후 모네가 루앙 대성당과 수련에서도 같은 대상을 반복해 탐구하는 중요한 계기가 되었습니다.
+
+이제 직접 시간대를 선택해 보세요. 건초더미 자체는 움직이지 않습니다. 달라지는 것은 조명의 방향과 색, 그림자뿐입니다. 그런데 우리의 눈에는 마치 다른 풍경처럼 보입니다.
+
+4층에서 던졌던 "왜 같은 풍경을 계속 그렸을까?"라는 질문의 답이 여기에 있습니다. 모네는 같은 것을 반복해서 그린 것이 아니라, 같은 대상 위를 지나가는 서로 다른 시간과 빛을 비교하고 있었습니다.
+
+연작은 반복이 아니라 관찰의 방식이었습니다.`},
+ {id:'d3_1', file:'audio/d3_1.mp3', f:'3층', zone:'ZONE D', art:'quest_img/bridge.jpg',
+  name:'지베르니 — 빛과 물의 실험실 ①',
+  script:`모네의 연작 여정에는 늘 현실적인 방해가 있었습니다. 건초더미는 사라질 수 있었고, 포플러는 벌목될 수 있었으며, 작업 장소도 언제든 바뀔 수 있었습니다. 결국 모네는 자신이 원하는 그림을 방해받지 않고 그릴 수 있는 방법을 찾게 됩니다.
+
+1883년 지베르니에 정착한 모네는 1890년 집을 사들였고, 1893년에는 옆의 습지를 매입해 물을 끌어들여 연못을 만들었습니다. 일본 판화에서 본 다리를 떠올리게 하는 초록빛 목조 다리를 놓고 수련을 심었습니다.
+
+중요한 점은 이 정원이 단순한 취미 공간이 아니었다는 것입니다. 모네는 자신이 그리고 싶은 풍경을 스스로 설계하고 가꾸었습니다. 좋은 대상을 찾아 떠도는 대신, 대상 자체를 자신의 손으로 만들어낸 셈입니다.
+
+그는 이후 약 30년 동안 이 연못을 반복해서 그렸고, 그 결과는 250여 점의 수련 연작으로 남았습니다. 수면에는 하늘과 구름, 나무와 꽃이 동시에 반사됩니다. 형태가 고정된 땅보다 빛과 색이 끊임없이 바뀌는 물은 모네에게 가장 완벽한 연구 대상이었습니다.`},
+ {id:'d3_2', file:'audio/d3_2.mp3', f:'3층', zone:'ZONE D', art:'quest_img/bridge.jpg',
+  name:'지베르니 — 빛과 물의 실험실 ②',
+  script:`제1차 세계대전이 끝나갈 무렵 모네는 대형 수련 연작을 프랑스 정부에 기증하기로 했습니다. 이 작품이 전쟁으로 지친 사람들에게 명상의 안식처가 되기를 바랐고, 그 뜻은 오늘날 오랑주리의 수련 전시실로 이어졌습니다.
+
+이곳에서는 꽃향기와 새소리, 흔들리는 물빛을 느끼며 잠시 머물러 보세요. 모네가 평생 연구한 빛은 마지막에 위안의 공간으로 확장됩니다.`},
+ {id:'e3_1', file:'audio/e3_1.mp3', f:'3층', zone:'ZONE E', art:'target.jpg',
+  name:'미시아 살롱 — 한 시대가 저물고 ①',
+  script:`고요했던 지베르니를 나서면 다시 사람들의 대화와 웃음이 가득한 살롱이 펼쳐집니다. 이곳의 중심에는 미시아가 있습니다.
+
+미시아의 집은 파리 예술가와 지식인 사교계의 중심지였고, 모네와 르누아르, 말라르메, 드뷔시 같은 인물들이 이곳을 드나들었습니다. 그녀는 예술가들의 뮤즈이자 살롱의 안주인이었고, 이후 1917년부터는 코코 샤넬과도 가까운 사이가 됩니다.
+
+이 때문에 미시아는 전시에서 두 시대를 연결하는 인물로 기능합니다. 모네가 활동하던 19세기 후반과 벨 에포크의 문화, 그리고 전쟁 이후 새로운 생활방식과 패션이 등장하는 20세기 초를 모두 이어주는 존재입니다.
+
+공간을 따라 걸으면 미디어 속 인물과 분위기도 함께 바뀝니다. 화려한 벨 에포크의 살롱은 점차 단순하고 현대적인 모습으로 변하고, 모네의 시대 인물들은 다음 세대의 인물들로 교체됩니다. 관람객이 걷는 방향 자체가 시간의 흐름이 되는 연출입니다.`},
+ {id:'e3_2', file:'audio/e3_2.mp3', f:'3층', zone:'ZONE E', art:'target.jpg',
+  name:'미시아 살롱 — 새로운 시대가 태어나다 ②',
+  script:`1926년, 모네가 세상을 떠났습니다. 같은 해 샤넬의 리틀 블랙 드레스가 등장했습니다. 전시는 이 두 사건을 나란히 놓으며, 한 시대가 끝나는 순간 다음 시대가 이미 시작되고 있었다는 메시지를 전달합니다.
+
+그리고 마지막 질문은 다시 2026년의 우리에게 돌아옵니다. 인공지능과 로봇, 우주 개발처럼 삶의 방식과 인간의 감각을 바꾸는 변화가 시작된 지금, 다음 시대의 인상은 어디에서 만들어지고 있을까요?
+
+모네가 자기 시대의 변화를 누구보다 예민하게 바라보았듯, 지금 우리 역시 아직 이름 붙지 않은 변화를 보고 있는지도 모릅니다.`},
 ];
+
 const au = document.getElementById('au');
 const list = document.getElementById('list');
 let idx = -1;
 
 const fmt = s => isFinite(s) ? Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0') : '0:00';
 
-// ── 리스트 ──
 let lastFloor = '';
 TRACKS.forEach((t, i) => {
   if (t.f !== lastFloor) {
@@ -124,14 +249,12 @@ TRACKS.forEach((t, i) => {
     <div class="eq"><i></i><i></i><i></i></div><div class="dur" id="du${i}">—</div>`;
   d.onclick = () => load(i, true);
   list.appendChild(d);
-  // 트랙 길이 미리 읽기
   const probe = new Audio();
   probe.preload = 'metadata';
-  probe.src = 'audio/' + t.id + '.m4a';
+  probe.src = t.file;
   probe.onloadedmetadata = () => { document.getElementById('du' + i).textContent = fmt(probe.duration); };
 });
 
-// ── 플레이어 ──
 const player = document.getElementById('player');
 const seek = document.getElementById('seek');
 let seeking = false;
@@ -148,11 +271,12 @@ function markList(){
 function load(i, autoplay){
   idx = (i + TRACKS.length) % TRACKS.length;
   const t = TRACKS[idx];
-  au.src = 'audio/' + t.id + '.m4a';
+  au.src = t.file;
   au.playbackRate = rate;
   document.getElementById('pTitle').textContent = t.name;
   document.getElementById('pZone').textContent = t.f + ' · ' + t.zone;
   document.getElementById('pArt').src = t.art;
+  document.getElementById('pScript').textContent = t.script;
   player.classList.add('up');
   if (autoplay) au.play();
   mediaSession(t);
@@ -187,7 +311,7 @@ au.addEventListener('timeupdate', () => {
 });
 au.addEventListener('play', markList);
 au.addEventListener('pause', markList);
-au.addEventListener('ended', () => load(idx + 1, true));   // 다음 트랙 이어서
+au.addEventListener('ended', () => { if (idx < TRACKS.length - 1) load(idx + 1, true); else markList(); });
 
 seek.addEventListener('input', () => { seeking = true; document.getElementById('tCur').textContent = fmt(+seek.value); });
 seek.addEventListener('change', () => { au.currentTime = +seek.value; seeking = false; });
@@ -198,7 +322,11 @@ document.getElementById('btnNext').onclick = () => load(idx + 1, true);
 document.getElementById('btnB10').onclick = () => au.currentTime = Math.max(0, au.currentTime - 10);
 document.getElementById('btnF10').onclick = () => au.currentTime = Math.min(au.duration || 0, au.currentTime + 10);
 
-// 배속
+document.getElementById('scriptBtn').onclick = () => {
+  document.getElementById('scriptBtn').classList.toggle('on');
+  document.getElementById('pScript').classList.toggle('on');
+};
+
 const RATES = [0.8, 1.0, 1.25, 1.5];
 const ratesEl = document.getElementById('rates');
 RATES.forEach(r => {
@@ -213,10 +341,10 @@ RATES.forEach(r => {
   ratesEl.appendChild(b);
 });
 
-// 딥링크 (#b4)
+// 딥링크: #b4 → 해당 존 첫 트랙
 const hash = location.hash.slice(1);
 if (hash) {
-  const i = TRACKS.findIndex(t => t.id === hash);
+  const i = TRACKS.findIndex(t => t.id === hash || t.id === hash + '_1');
   if (i >= 0) setTimeout(() => { document.getElementById('it' + i).scrollIntoView({block:'center'}); load(i, true); }, 300);
 }
 </script>
