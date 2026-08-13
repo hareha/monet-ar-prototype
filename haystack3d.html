@@ -414,17 +414,21 @@ scene.add(makeStack(1, 0, 0, 1.7));
 // 겨울: 눈 모자 + 발치 눈
 const snowMat = new THREE.MeshStandardMaterial({ color: 0xe9eef6, roughness: .95 });
 const snowGrp = new THREE.Group();
-const cap = new THREE.Mesh(new THREE.ConeGeometry(.72, .72, 48), snowMat);
-cap.position.y = 3.28;
+// 꼭대기 얇은 눈 모자 (원뿔 상단에 밀착)
+const capPts = [];
+for (let i = 0; i <= 12; i++) {
+  const t = i/12;
+  const rr = .78 * (1 - t) * (1 + .12*Math.sin(t*7));
+  capPts.push(new THREE.Vector2(Math.max(rr, .01), t * .62));
+}
+const cap = new THREE.Mesh(new THREE.LatheGeometry(capPts, 48), snowMat);
+cap.position.y = 2.92;
 snowGrp.add(cap);
-const shoulder = new THREE.Mesh(new THREE.TorusGeometry(1.15, .22, 12, 48), snowMat);
-shoulder.rotation.x = Math.PI/2; shoulder.scale.y = 1; shoulder.scale.z = 1;
-shoulder.position.y = 2.6;
-snowGrp.add(shoulder);
-const base = new THREE.Mesh(new THREE.TorusGeometry(2.0, .22, 12, 56), snowMat);
+// 발치에 쌓인 눈 (납작한 불규칙 링)
+const base = new THREE.Mesh(new THREE.TorusGeometry(2.02, .16, 10, 56), snowMat);
 base.rotation.x = Math.PI/2;
-base.position.y = .1;
-base.scale.set(1, 1, .5);
+base.position.y = .05;
+base.scale.set(1, 1, .38);
 snowGrp.add(base);
 snowGrp.visible = false;
 scene.add(snowGrp);
