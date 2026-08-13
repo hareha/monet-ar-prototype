@@ -129,6 +129,25 @@ function paintWater(){
     x.quadraticCurveTo(px + rnd(-14,14), py + len*.5, px + rnd(-10,10), py + len);
     x.stroke();
   }
+  // 다리 반영 — 초록 아치의 잔영 (다리 z=-13.5 → v .75 → 캔버스 y 512)
+  for (let i = 0; i < 300; i++) {
+    const px = 1024 + rnd(-285, 285);
+    const near = 1 - Math.abs(px - 1024)/300;
+    const len = rnd(40, 180 + 260*near);
+    x.strokeStyle = `rgba(${(34+rnd(0,26))|0}, ${(86+rnd(0,34))|0}, ${(58+rnd(0,26))|0}, ${rnd(.10,.32)})`;
+    x.lineWidth = rnd(5, 13);
+    x.lineCap = 'round';
+    const py = 500 + rnd(-16, 34);
+    x.beginPath(); x.moveTo(px, py);
+    x.quadraticCurveTo(px + rnd(-12,12), py + len*.5, px + rnd(-16,16), py + len);
+    x.stroke();
+  }
+  // 등꽃 반영 — 연보라 점
+  for (let i = 0; i < 120; i++) {
+    x.fillStyle = `rgba(${(168+rnd(0,40))|0}, ${(150+rnd(0,30))|0}, ${(200+rnd(0,40))|0}, ${rnd(.06,.18)})`;
+    const px = 1024 + rnd(-270, 270), py = 505 + rnd(0, 130);
+    x.beginPath(); x.ellipse(px, py, rnd(4,10), rnd(2,5), 0, 0, Math.PI*2); x.fill();
+  }
   const t = new THREE.CanvasTexture(c);
   t.encoding = THREE.sRGBEncoding;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -152,33 +171,183 @@ function waves(t){
   waterGeo.computeVertexNormals();
 }
 
-// ══════════ 일본 다리 (지베르니의 초록 아치) ══════════
+// ══════════ 일본 다리 (지베르니의 초록 아치 · 등나무 시렁) ══════════
+function wisteriaTexture(){
+  const c = document.createElement('canvas'); c.width = 128; c.height = 256;
+  const x = c.getContext('2d');
+  const cols = ['rgba(203,183,232,', 'rgba(165,143,200,', 'rgba(232,222,244,', 'rgba(140,120,180,'];
+  for (let i = 0; i < 120; i++) {
+    const t = Math.random();               // 0=위(넓음) 1=아래(뾰족)
+    const w = 46 * (1 - t*.85);
+    const px = 64 + rnd(-w, w), py = 14 + t*228;
+    x.fillStyle = cols[(Math.random()*cols.length)|0] + rnd(.35,.85).toFixed(2) + ')';
+    x.beginPath(); x.ellipse(px, py, rnd(4,9), rnd(3,6), rnd(0,3), 0, Math.PI*2); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+const wistTex = wisteriaTexture();
+
 function bridge(){
   const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: 0x2f6b4e, roughness: .75 });
-  const arc = (h, r) => {
+  const paint  = new THREE.MeshStandardMaterial({ color: 0x3a7a55, roughness: .72 });
+  const paintD = new THREE.MeshStandardMaterial({ color: 0x2a5c41, roughness: .82 });
+  const SPAN = 14, RISE = 1.5, W = 1.9;
+  const deckY = t => .55 + Math.sin(Math.PI*t)*RISE;
+
+  const arcTube = (dy, r, zs, mat) => {
     const pts = [];
-    for (let i = 0; i <= 24; i++) {
-      const t = i/24;
-      pts.push(new THREE.Vector3(-7 + 14*t, h + Math.sin(Math.PI*t)*1.5, 0));
+    for (let i = 0; i <= 30; i++) {
+      const t = i/30;
+      pts.push(new THREE.Vector3(-SPAN/2 + SPAN*t, deckY(t) + dy, zs));
     }
-    return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, r, 8), mat);
+    return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 44, r, 8), mat || paint);
   };
-  g.add(arc(1.9, .06));        // 상단 난간
-  g.add(arc(1.15, .05));       // 하단 난간
-  g.add(arc(.55, .07));        // 다리 상판 라인
-  for (let i = 0; i <= 16; i++) {   // 난간 살
-    const t = i/16;
-    const xx = -7 + 14*t;
-    const y0 = .55 + Math.sin(Math.PI*t)*1.5, y1 = 1.9 + Math.sin(Math.PI*t)*1.5;
-    const b = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, y1-y0, 6), mat);
-    b.position.set(xx, (y0+y1)/2, 0);
-    g.add(b);
+
+  // 상판 — 아치를 따라 걸친 가로 널빤지
+  for (let i = 0; i < 46; i++) {
+    const t = (i + .5)/46;
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(.295, .05, W), paintD);
+    plank.position.set(-SPAN/2 + SPAN*t, deckY(t), 0);
+    plank.rotation.z = Math.atan(RISE*Math.PI/SPAN*Math.cos(Math.PI*t));
+    g.add(plank);
   }
+  // 상판 밑 세로 보 2줄
+  g.add(arcTube(-.09, .07, -.72, paintD));
+  g.add(arcTube(-.09, .07,  .72, paintD));
+
+  // 난간 — 양쪽, 손잡이 + 중간 가로대 + 살
+  for (const zs of [-W/2, W/2]) {
+    g.add(arcTube(1.02, .05, zs));
+    g.add(arcTube(.60, .038, zs));
+    for (let i = 0; i <= 20; i++) {
+      const t = i/20;
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(.026, .026, 1.0, 6), paint);
+      b.position.set(-SPAN/2 + SPAN*t, deckY(t) + .52, zs);
+      g.add(b);
+    }
+    // 끝기둥 (조금 굵고 동그란 머리)
+    for (const te of [0, 1]) {
+      const xx = -SPAN/2 + SPAN*te;
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(.06, .07, 1.28, 8), paint);
+      p.position.set(xx, deckY(te) + .6, zs);
+      g.add(p);
+      const knob = new THREE.Mesh(new THREE.SphereGeometry(.085, 10, 8), paint);
+      knob.position.set(xx, deckY(te) + 1.3, zs);
+      g.add(knob);
+    }
+  }
+
+  // 물속 교각
+  for (const px of [-5.4, -1.85, 1.85, 5.4]) {
+    const t = (px + SPAN/2)/SPAN;
+    for (const zs of [-.72, .72]) {
+      const top = deckY(t) - .12, bot = -.45, h = top - bot;
+      const pile = new THREE.Mesh(new THREE.CylinderGeometry(.085, .1, h, 8), paintD);
+      pile.position.set(px, (top + bot)/2, zs);
+      g.add(pile);
+    }
+  }
+
+  // 등나무 시렁 — 난간 위 높은 아치 틀
+  for (const zs of [-W/2 - .06, W/2 + .06]) {
+    g.add(arcTube(2.5, .04, zs));
+    for (const tu of [.06, .28, .5, .72, .94]) {
+      const up = new THREE.Mesh(new THREE.CylinderGeometry(.032, .032, 1.48, 6), paint);
+      up.position.set(-SPAN/2 + SPAN*tu, deckY(tu) + 1.76, zs);
+      g.add(up);
+    }
+  }
+  for (let i = 0; i <= 13; i++) {         // 가로 살
+    const t = i/13;
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(.05, .045, W + .5), paint);
+    slat.position.set(-SPAN/2 + SPAN*t, deckY(t) + 2.52, 0);
+    g.add(slat);
+  }
+  // 시렁 위 등나무 잎덩이
+  const folMats = [new THREE.MeshStandardMaterial({ color: 0x2c5a3c, roughness: 1 }),
+                   new THREE.MeshStandardMaterial({ color: 0x3c6a48, roughness: 1 })];
+  for (let i = 0; i < 46; i++) {
+    const t = Math.random();
+    const f = new THREE.Mesh(new THREE.SphereGeometry(rnd(.22, .42), 7, 6), folMats[i % 2]);
+    f.position.set(-SPAN/2 + SPAN*t + rnd(-.2,.2), deckY(t) + 2.6 + rnd(0,.3), rnd(-1.15, 1.15));
+    f.scale.y = .7;
+    g.add(f);
+  }
+  // 늘어진 등꽃 송이
+  for (let i = 0; i < 30; i++) {
+    const t = rnd(.04, .96);
+    const len = rnd(.7, 1.25);
+    const cl = new THREE.Mesh(new THREE.PlaneGeometry(.42, len),
+      new THREE.MeshBasicMaterial({ map: wistTex, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    cl.position.set(-SPAN/2 + SPAN*t, deckY(t) + 2.44 - len/2, rnd(-1.05, 1.05));
+    cl.rotation.y = rnd(0, Math.PI);
+    g.add(cl);
+  }
+
   g.position.set(0, 0, -13.5);
   return g;
 }
 scene.add(bridge());
+
+// ══════════ 못가 — 기슭 둔덕 · 버드나무 ══════════
+function willowTexture(){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 512;
+  const x = c.getContext('2d');
+  for (let i = 0; i < 110; i++) {
+    const px = rnd(30, 482), sway = rnd(-46, 46), len = rnd(300, 500);
+    x.strokeStyle = `hsla(${rnd(95,140)}, ${rnd(24,42)}%, ${rnd(22,46)}%, ${rnd(.4,.85)})`;
+    x.lineWidth = rnd(2.5, 5.5);
+    x.lineCap = 'round';
+    x.beginPath(); x.moveTo(px, rnd(0, 50));
+    x.quadraticCurveTo(px + sway*.6, len*.45, px + sway, Math.min(len, 505));
+    x.stroke();
+  }
+  // 잎 점묘
+  for (let i = 0; i < 380; i++) {
+    x.fillStyle = `hsla(${rnd(90,150)}, ${rnd(26,46)}%, ${rnd(30,58)}%, ${rnd(.3,.7)})`;
+    x.beginPath(); x.ellipse(rnd(10,502), rnd(20,500), rnd(2,5), rnd(4,9), rnd(0,3), 0, Math.PI*2); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+const willowTex = willowTexture();
+function willow(x, z, h){
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.22, .4, h*.5, 8),
+    new THREE.MeshStandardMaterial({ color: 0x3c3428, roughness: 1 }));
+  trunk.position.y = h*.25;
+  g.add(trunk);
+  for (let i = 0; i < 3; i++) {
+    const curtain = new THREE.Mesh(new THREE.PlaneGeometry(h*.9, h*.92),
+      new THREE.MeshBasicMaterial({ map: willowTex, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    curtain.position.y = h*.56;
+    curtain.rotation.y = i * Math.PI/3 + rnd(-.2, .2);
+    g.add(curtain);
+  }
+  g.position.set(x, 0, z);
+  return g;
+}
+scene.add(willow(-12.5, -9.5, 7.5));
+scene.add(willow(12, -11, 6.5));
+scene.add(willow(14.5, 4, 7));
+
+// 다리 양끝 기슭 둔덕 + 붓꽃 무리
+const bankMat = new THREE.MeshStandardMaterial({ color: 0x24462f, roughness: 1 });
+for (const bx of [-8.9, 8.9]) {
+  const mound = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), bankMat);
+  mound.scale.set(3.2, 1.0, 2.6);
+  mound.position.set(bx, -.25, -13.5);
+  scene.add(mound);
+  for (let i = 0; i < 7; i++) {
+    const iris = new THREE.Mesh(new THREE.ConeGeometry(.05, rnd(.5,.9), 5),
+      new THREE.MeshStandardMaterial({ color: [0x7f6fae, 0x9d8cc4, 0x4f7d54][i % 3], roughness: .9 }));
+    iris.position.set(bx + rnd(-1.6,1.6), .5, -13.5 + rnd(-1.2,1.2));
+    scene.add(iris);
+  }
+}
 
 // ══════════ 수련잎 (붓질 패드) + 꽃 ══════════
 function padTexture(gold){
