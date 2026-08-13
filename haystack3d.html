@@ -418,11 +418,11 @@ const snowGrp = new THREE.Group();
 const capPts = [];
 for (let i = 0; i <= 12; i++) {
   const t = i/12;
-  const rr = .78 * (1 - t) * (1 + .12*Math.sin(t*7));
-  capPts.push(new THREE.Vector2(Math.max(rr, .01), t * .62));
+  const rr = .58 * (1 - t) * (1 + .1*Math.sin(t*7));
+  capPts.push(new THREE.Vector2(Math.max(rr, .01), t * .58));
 }
 const cap = new THREE.Mesh(new THREE.LatheGeometry(capPts, 48), snowMat);
-cap.position.y = 2.92;
+cap.position.y = 2.94;
 snowGrp.add(cap);
 // 발치에 쌓인 눈 (납작한 불규칙 링)
 const base = new THREE.Mesh(new THREE.TorusGeometry(2.02, .16, 10, 56), snowMat);
