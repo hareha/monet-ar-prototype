@@ -215,7 +215,7 @@ scene.add(backdrop);
 function makeStack(scale, px, pz, seed){
   const g = new THREE.Group();
   const pts = [];
-  const BODY = .32;   // 몸통 비율 (짧게)
+  const BODY = .5;    // 몸통 절반, 지붕 절반
   for (let i = 0; i <= 34; i++) {
     const t = i/34;
     let r;
