@@ -96,22 +96,33 @@ function paintWater(){
   const c = document.createElement('canvas'); c.width = 2048; c.height = 2048;
   const x = c.getContext('2d');
   x.fillStyle = '#16382e'; x.fillRect(0, 0, 2048, 2048);
-  // 하늘 반영 — 큰 파스텔 무리
+  // 하늘 반영 — 큰 파스텔 무리 (장밋빛·연보라·크림·물빛)
   const patches = [
-    ['#d9c3cf', .16], ['#c6d3e4', .15], ['#e9e2c8', .12], ['#9fb9d8', .13], ['#a58fb8', .10],
+    ['#e3b7c9', .22], ['#c6d3e4', .18], ['#efe6c9', .16], ['#9fb9d8', .16],
+    ['#b39ac6', .14], ['#f2d9c9', .13], ['#8fb3a8', .13],
   ];
-  for (let i = 0; i < 26; i++) {
+  const patchPts = [];
+  for (let i = 0; i < 42; i++) {
     const [col, al] = patches[i % patches.length];
-    const px = Math.random()*2048, py = Math.random()*2048, rr = rnd(140, 420);
-    const g = x.createRadialGradient(px, py, rr*.15, px, py, rr);
+    const px = Math.random()*2048, py = Math.random()*2048, rr = rnd(130, 460);
+    const g = x.createRadialGradient(px, py, rr*.12, px, py, rr);
     g.addColorStop(0, col + Math.round(al*255).toString(16).padStart(2,'0'));
     g.addColorStop(1, col + '00');
     x.fillStyle = g;
     x.fillRect(px-rr, py-rr, rr*2, rr*2);
+    patchPts.push([px, py, rr]);
+  }
+  // 깊은 물 — 어두운 침전 획 (수심의 무게)
+  for (let i = 0; i < 900; i++) {
+    x.strokeStyle = `rgba(${(10+rnd(0,14))|0}, ${(38+rnd(0,20))|0}, ${(28+rnd(0,14))|0}, ${rnd(.15,.4)})`;
+    x.lineWidth = rnd(6, 16);
+    x.lineCap = 'round';
+    const px = Math.random()*2048, py = Math.random()*2048, len = rnd(30, 110);
+    x.beginPath(); x.moveTo(px, py); x.lineTo(px + len, py + rnd(-4, 4)); x.stroke();
   }
   // 수면 붓질 — 수평 단필 (모네의 물결 터치)
-  const dabs = ['#2e6b58','#3f7d4f','#1d4a3a','#57906b','#d9aebc','#e8e0c4','#9db8d8','#7f95c8','#8a7fae','#c78e9e'];
-  for (let i = 0; i < 5200; i++) {
+  const dabs = ['#2e6b58','#3f7d4f','#1d4a3a','#57906b','#d9aebc','#e8e0c4','#9db8d8','#7f95c8','#8a7fae','#c78e9e','#e3c9d6','#6f9a82'];
+  for (let i = 0; i < 6800; i++) {
     const col = dabs[(Math.random()*dabs.length)|0];
     x.strokeStyle = col + Math.round(rnd(28, 110)).toString(16).padStart(2,'0');
     x.lineWidth = rnd(5, 14);
@@ -121,8 +132,21 @@ function paintWater(){
     x.quadraticCurveTo(px + len*.5, py + rnd(-4,4), px + len, py + rnd(-3,3));
     x.stroke();
   }
+  // 하늘 조각 위 반짝임 — 밝은 크림 단필
+  for (const [cx0, cy0, rr] of patchPts) {
+    const n = (rr/24)|0;
+    for (let i = 0; i < n; i++) {
+      x.strokeStyle = `rgba(246,240,216,${rnd(.16,.45).toFixed(2)})`;
+      x.lineWidth = rnd(3, 8);
+      x.lineCap = 'round';
+      const px = cx0 + rnd(-rr, rr)*.7, py = cy0 + rnd(-rr, rr)*.7, len = rnd(18, 64);
+      x.beginPath(); x.moveTo(px, py);
+      x.quadraticCurveTo(px + len*.5, py + rnd(-3,3), px + len, py + rnd(-2,2));
+      x.stroke();
+    }
+  }
   // 버드나무 반영 — 세로 긴 획
-  for (let i = 0; i < 260; i++) {
+  for (let i = 0; i < 380; i++) {
     x.strokeStyle = `rgba(${18+((Math.random()*20)|0)}, ${52+((Math.random()*26)|0)}, ${34+((Math.random()*18)|0)}, ${rnd(.12,.3)})`;
     x.lineWidth = rnd(4, 10);
     const px = Math.random()*2048, py = Math.random()*2048, len = rnd(120, 380);
@@ -170,6 +194,11 @@ function waves(t){
   }
   wpos.needsUpdate = true;
   waterGeo.computeVertexNormals();
+}
+// 월드 (X,Z)에서의 수면 높이 — waves()와 동일 파형 (평면 로컬 y = -Z)
+function waveH(X, Z, t){
+  const lx = X, ly = -Z;
+  return Math.sin(lx*.65 + t*.8)*.05 + Math.cos(ly*.5 + t*.65)*.05 + Math.sin((lx+ly)*.28 + t*.4)*.035;
 }
 
 // ══════════ 일본 다리 (지베르니의 초록 아치 · 등나무 시렁) ══════════
@@ -334,6 +363,89 @@ function willow(x, z, h){
 scene.add(willow(-12.5, -9.5, 7.5));
 scene.add(willow(12, -11, 6.5));
 scene.add(willow(14.5, 4, 7));
+scene.add(willow(-15, 3, 7));
+scene.add(willow(-5.5, 16, 6.8));
+scene.add(willow(8.5, 14.5, 7.2));
+
+// ══════════ 못 둘레 — 풀밭 기슭 · 갈대 · 붓꽃 · 배경 숲 ══════════
+function grassTexture(){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 512;
+  const x = c.getContext('2d');
+  x.fillStyle = '#1b3524'; x.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 1500; i++) {
+    x.strokeStyle = `hsla(${rnd(88,142)}, ${rnd(24,44)}%, ${rnd(16,40)}%, ${rnd(.3,.7)})`;
+    x.lineWidth = rnd(1.5, 3.5);
+    x.lineCap = 'round';
+    const px = Math.random()*512, py = Math.random()*512, len = rnd(8, 26);
+    x.beginPath(); x.moveTo(px, py);
+    x.quadraticCurveTo(px + rnd(-4,4), py - len*.6, px + rnd(-7,7), py - len);
+    x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(7, 7);
+  return t;
+}
+const bankRing = new THREE.Mesh(new THREE.RingGeometry(15.2, 27, 72, 1),
+  new THREE.MeshStandardMaterial({ map: grassTexture(), roughness: 1 }));
+bankRing.rotation.x = -Math.PI/2;
+bankRing.position.y = .15;
+scene.add(bankRing);
+
+// 풀 포기
+const tuftMats = [0x2a5236, 0x35603c, 0x24462c].map(cc => new THREE.MeshStandardMaterial({ color: cc, roughness: 1 }));
+for (let i = 0; i < 80; i++) {
+  const a = Math.random()*Math.PI*2, d = rnd(15.5, 19.5);
+  const h = rnd(.45, 1.05);
+  const tuft = new THREE.Mesh(new THREE.ConeGeometry(rnd(.13, .3), h, 5), tuftMats[i % 3]);
+  tuft.position.set(Math.cos(a)*d, .14 + h/2, Math.sin(a)*d);
+  tuft.rotation.z = rnd(-.18, .18);
+  scene.add(tuft);
+}
+// 붓꽃·아가판서스 무리
+const stemMat = new THREE.MeshStandardMaterial({ color: 0x33502e, roughness: 1 });
+const bloomMats = [0x8a7ab8, 0xa693cc, 0xd9c3e0, 0xe6e0ee].map(cc => new THREE.MeshStandardMaterial({ color: cc, roughness: .85 }));
+for (let i = 0; i < 16; i++) {
+  const a = Math.random()*Math.PI*2, d = rnd(15.6, 18);
+  const cx = Math.cos(a)*d, cz = Math.sin(a)*d;
+  const nS = 4 + (Math.random()*4|0);
+  for (let k = 0; k < nS; k++) {
+    const h = rnd(.6, 1.15);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(.015, .02, h, 5), stemMat);
+    const sx = cx + rnd(-.5, .5), sz = cz + rnd(-.5, .5);
+    stem.position.set(sx, .14 + h/2, sz);
+    stem.rotation.z = rnd(-.12, .12);
+    scene.add(stem);
+    const bloom = new THREE.Mesh(new THREE.SphereGeometry(rnd(.06, .11), 7, 6), bloomMats[(Math.random()*bloomMats.length)|0]);
+    bloom.position.set(sx + stem.rotation.z*-h*.5, .14 + h + .04, sz);
+    bloom.scale.y = 1.35;
+    scene.add(bloom);
+  }
+}
+// 갈대 — 물가 안쪽
+const reedMat = new THREE.MeshStandardMaterial({ color: 0x4a5c34, roughness: 1 });
+for (let i = 0; i < 14; i++) {
+  const a = Math.random()*Math.PI*2, d = rnd(13.6, 15.1);
+  const cx = Math.cos(a)*d, cz = Math.sin(a)*d;
+  for (let k = 0; k < 3 + (Math.random()*4|0); k++) {
+    const h = rnd(.9, 1.9);
+    const reed = new THREE.Mesh(new THREE.CylinderGeometry(.012, .022, h, 4), reedMat);
+    reed.position.set(cx + rnd(-.4, .4), h/2 - .1, cz + rnd(-.4, .4));
+    reed.rotation.z = rnd(-.22, .22);
+    reed.rotation.x = rnd(-.15, .15);
+    scene.add(reed);
+  }
+}
+// 배경 숲 실루엣 — 안개 속 어두운 수관
+const woodMats = [0x14291b, 0x1a3322, 0x203c28].map(cc => new THREE.MeshStandardMaterial({ color: cc, roughness: 1 }));
+for (let i = 0; i < 18; i++) {
+  const a = i/18*Math.PI*2 + rnd(-.14, .14), d = rnd(20, 24.5);
+  const blob = new THREE.Mesh(new THREE.SphereGeometry(rnd(1.7, 3.1), 8, 6), woodMats[i % 3]);
+  blob.scale.y = rnd(1.2, 1.9);
+  blob.position.set(Math.cos(a)*d, rnd(1.6, 3.2), Math.sin(a)*d);
+  scene.add(blob);
+}
 
 // 다리 양끝 기슭 둔덕 + 붓꽃 무리
 const bankMat = new THREE.MeshStandardMaterial({ color: 0x1c3a26, roughness: 1 });
@@ -350,59 +462,89 @@ for (const bx of [-8.9, 8.9]) {
   }
 }
 
-// ══════════ 수련잎 (붓질 패드) + 꽃 ══════════
-function padTexture(gold){
+// ══════════ 수련 — 색 변주 패드 군락 + 별 모양 꽃 (모네식) ══════════
+const PAD_VARS = {
+  green: ['#4e8a60', '#2f6244', '#1f4a33', [95, 150]],
+  olive: ['#7c8a4a', '#5a6b38', '#3d4d28', [62, 95]],
+  wine:  ['#8a5a44', '#6b4232', '#4a2e24', [10, 40]],
+  rose:  ['#7a6a72', '#5d4a56', '#3d3040', [300, 340]],
+  gold:  ['#6da97e', '#3f7554', '#2e5c42', [95, 150]],
+};
+function padTexture(v){
+  const P = PAD_VARS[v] || PAD_VARS.green;
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d');
   const g = x.createRadialGradient(105, 100, 22, 128, 128, 150);
-  g.addColorStop(0, gold ? '#6da97e' : '#4e8a60');
-  g.addColorStop(.7, gold ? '#3f7554' : '#2f6244');
-  g.addColorStop(1, gold ? '#2e5c42' : '#1f4a33');
+  g.addColorStop(0, P[0]); g.addColorStop(.7, P[1]); g.addColorStop(1, P[2]);
   x.fillStyle = g; x.fillRect(0, 0, 256, 256);
   // 잎 위 붓질
-  for (let i = 0; i < 130; i++) {
-    x.strokeStyle = `hsla(${rnd(95,150)},${rnd(25,45)}%,${rnd(30,62)}%,${rnd(.15,.4)})`;
+  for (let i = 0; i < 150; i++) {
+    x.strokeStyle = `hsla(${rnd(P[3][0], P[3][1])},${rnd(22,45)}%,${rnd(26,60)}%,${rnd(.15,.4)})`;
     x.lineWidth = rnd(3, 7);
     x.lineCap = 'round';
     const px = rnd(30, 226), py = rnd(30, 226), len = rnd(14, 44);
     x.beginPath(); x.moveTo(px, py); x.lineTo(px + len, py + rnd(-4,4)); x.stroke();
   }
-  // 가장자리 적갈색 림 (모네 패드 특유의 붉은 테)
-  x.strokeStyle = 'rgba(150,84,66,.55)';
-  x.lineWidth = 10;
-  x.beginPath(); x.arc(128, 128, 120, 0, Math.PI*2); x.stroke();
+  // 잎맥 — 중심에서 퍼지는 옅은 선
+  for (let i = 0; i < 14; i++) {
+    const a = i/14*Math.PI*2 + .2;
+    x.strokeStyle = 'rgba(18,46,34,.16)';
+    x.lineWidth = 2.5;
+    x.beginPath(); x.moveTo(128, 128);
+    x.quadraticCurveTo(128 + Math.cos(a+.15)*70, 128 + Math.sin(a+.15)*70, 128 + Math.cos(a)*118, 128 + Math.sin(a)*118);
+    x.stroke();
+  }
+  // 가장자리 — 붉은기 도는 테
+  x.strokeStyle = 'rgba(172,104,92,.5)';
+  x.lineWidth = 9;
+  x.beginPath(); x.arc(128, 128, 121, 0, Math.PI*2); x.stroke();
   const t = new THREE.CanvasTexture(c);
   t.encoding = THREE.sRGBEncoding;
   return t;
 }
-function flowerTexture(){
+const padTexCache = {};
+function getPadTex(v){
+  if (!padTexCache[v]) padTexCache[v] = [padTexture(v), padTexture(v)];
+  return padTexCache[v][(Math.random()*2)|0];
+}
+
+function petal(x, ang, len, wid, col){
+  x.save(); x.translate(128, 128); x.rotate(ang);
+  x.fillStyle = col;
+  x.beginPath();
+  x.moveTo(14, 0);
+  x.quadraticCurveTo(len*.45, -wid, len, 0);
+  x.quadraticCurveTo(len*.45, wid, 14, 0);
+  x.fill(); x.restore();
+}
+function flowerTexture(kind){
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d');
-  x.clearRect(0,0,256,256);
-  for (let ring = 0; ring < 3; ring++) {
-    const n = 8 + ring*3, rr = 96 - ring*26;
-    for (let i = 0; i < n; i++) {
-      const a = i/n*Math.PI*2 + ring*.35;
-      const px = 128 + Math.cos(a)*rr*.44, py = 128 + Math.sin(a)*rr*.44;
-      x.fillStyle = ring === 0 ? 'rgba(233,180,198,.92)' : ring === 1 ? 'rgba(244,214,224,.95)' : 'rgba(250,240,242,.95)';
-      x.save();
-      x.translate(px, py);
-      x.rotate(a);
-      x.beginPath();
-      x.ellipse(0, 0, rr*.42, rr*.17, 0, 0, Math.PI*2);
-      x.fill();
-      x.restore();
-    }
+  x.clearRect(0, 0, 256, 256);
+  const PALS = {
+    white:   ['rgba(238,238,230,.94)', 'rgba(248,246,240,.96)', 'rgba(252,250,244,.97)'],
+    rose:    ['rgba(216,150,172,.94)', 'rgba(236,192,206,.95)', 'rgba(248,228,234,.96)'],
+    crimson: ['rgba(178,72,104,.94)', 'rgba(210,116,146,.95)', 'rgba(236,172,192,.96)'],
+  };
+  const P = PALS[kind];
+  const rings = [[14, 118, 17, P[0]], [11, 92, 16, P[1]], [8, 62, 14, P[2]]];
+  rings.forEach(([n, len, wid, col], ri) => {
+    for (let i = 0; i < n; i++) petal(x, i/n*Math.PI*2 + ri*.4 + rnd(-.06,.06), len*rnd(.9,1.04), wid, col);
+  });
+  // 노란 수술
+  for (let i = 0; i < 12; i++) {
+    x.fillStyle = i % 2 ? '#e8c25a' : '#c99a4a';
+    const a = rnd(0, Math.PI*2), d = rnd(0, 13);
+    x.beginPath(); x.arc(128 + Math.cos(a)*d, 128 + Math.sin(a)*d, rnd(3.5, 6), 0, Math.PI*2); x.fill();
   }
-  x.fillStyle = '#e8c25a';
-  x.beginPath(); x.arc(128, 128, 16, 0, Math.PI*2); x.fill();
   const t = new THREE.CanvasTexture(c);
   t.encoding = THREE.sRGBEncoding;
   return t;
 }
-const flowerTex = flowerTexture();
+const flowerTexs = { white: flowerTexture('white'), rose: flowerTexture('rose'), crimson: flowerTexture('crimson') };
+const FLOWER_KINDS = ['white', 'rose', 'rose', 'crimson'];
 
-function makePad(r, gold){
+function makePad(r, v){
   const shape = new THREE.Shape();
   const notch = .5;
   shape.absarc(0, 0, r, notch/2, Math.PI*2 - notch/2, false);
@@ -411,16 +553,17 @@ function makePad(r, gold){
   const uv = geo.attributes.uv;
   for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i)/r + 1)/2, (uv.getY(i)/r + 1)/2);
   const m = new THREE.Mesh(geo, [
-    new THREE.MeshStandardMaterial({ map: padTexture(gold), roughness: .7 }),
+    new THREE.MeshStandardMaterial({ map: getPadTex(v), roughness: .7 }),
     new THREE.MeshStandardMaterial({ color: 0x1f4a33, roughness: .9 }),
   ]);
   m.rotation.x = -Math.PI/2;
   m.rotation.z = Math.random()*Math.PI*2;
+  m.scale.set(rnd(1.05, 1.35), rnd(.82, 1), 1);   // 타원 (원근 속 모네 패드)
   return m;
 }
-function makeFlower(s){
+function makeFlower(s, kind){
   const f = new THREE.Mesh(new THREE.PlaneGeometry(s, s),
-    new THREE.MeshBasicMaterial({ map: flowerTex, transparent: true, depthWrite: false }));
+    new THREE.MeshBasicMaterial({ map: flowerTexs[kind] || flowerTexs.rose, transparent: true, depthWrite: false }));
   f.rotation.x = -Math.PI/2;
   f.rotation.z = Math.random()*Math.PI*2;
   return f;
@@ -489,18 +632,19 @@ function addLeaf(text, opts = {}){
   const grp = new THREE.Group();
   // 주 패드 + 곁 패드 1~2 + 꽃 (군락)
   const r = 1.0 + Math.random()*.28;
-  const main = makePad(r, gold);
+  const main = makePad(r, gold ? 'gold' : 'green');
   grp.add(main);
-  const nSide = 1 + (Math.random()*2|0);
+  const vars = ['green', 'green', 'olive', 'wine', 'rose'];
+  const nSide = 3 + (Math.random()*3|0);
   for (let i = 0; i < nSide; i++) {
-    const sr = r * rnd(.38, .58);
-    const side = makePad(sr, false);
-    const a = Math.random()*Math.PI*2, d = r + sr*rnd(.7, 1.05);
-    side.position.set(Math.cos(a)*d, -.005, Math.sin(a)*d);
+    const sr = r * rnd(.32, .58);
+    const side = makePad(sr, vars[(Math.random()*vars.length)|0]);
+    const a = i/nSide*Math.PI*2 + rnd(-.5, .5), d = r + sr*rnd(.55, 1.1);
+    side.position.set(Math.cos(a)*d, -.008 - i*.004, Math.sin(a)*d);
     grp.add(side);
   }
-  if (gold || Math.random() < .5) {
-    const fl = makeFlower(rnd(.5, .75));
+  if (gold || Math.random() < .7) {
+    const fl = makeFlower(rnd(.5, .8), gold ? 'rose' : FLOWER_KINDS[(Math.random()*FLOWER_KINDS.length)|0]);
     const a = Math.random()*Math.PI*2, d = r*rnd(.4, .75);
     fl.position.set(Math.cos(a)*d, .06, Math.sin(a)*d);
     grp.add(fl);
@@ -517,24 +661,32 @@ function addLeaf(text, opts = {}){
   const sp = textSprite(text, gold);
   sp.position.set(px, 1.15, pz);
   scene.add(sp);
-  leaves.push({ m: grp, sp, phase: Math.random()*6.28, spin: (Math.random()-.5)*.0008 });
+  leaves.push({ m: grp, x: px, z: pz, sp, phase: Math.random()*6.28, spin: (Math.random()-.5)*.0008 });
   return { m: grp, sp };
 }
 
-// 장식용 무문구 군락 (연못을 채우는 배경 수련)
-for (let i = 0; i < 10; i++) {
-  const ang = Math.random()*Math.PI*2, dist = 9.5 + Math.random()*8;
+// 장식용 무문구 군락 — 연못을 채우는 수련 뗏목들
+for (let i = 0; i < 24; i++) {
+  const ang = Math.random()*Math.PI*2, dist = rnd(6.5, 16.5);
+  const px = Math.cos(ang)*dist, pz = Math.sin(ang)*dist;
+  if (dist < 10) placed.push({ x: px, z: pz });
   const grp = new THREE.Group();
-  const r = rnd(.7, 1.2);
-  grp.add(makePad(r, false));
-  if (Math.random() < .6) {
-    const fl = makeFlower(rnd(.4, .6));
-    fl.position.set(rnd(-.4,.4), .05, rnd(-.4,.4));
+  const vars = ['green', 'green', 'olive', 'wine'];
+  const n = 3 + (Math.random()*4|0);
+  for (let k = 0; k < n; k++) {
+    const r = rnd(.5, 1.05);
+    const p = makePad(r, vars[(Math.random()*vars.length)|0]);
+    p.position.set(rnd(-1.7, 1.7), -k*.004, rnd(-1.7, 1.7));
+    grp.add(p);
+  }
+  if (Math.random() < .55) {
+    const fl = makeFlower(rnd(.4, .65), FLOWER_KINDS[(Math.random()*FLOWER_KINDS.length)|0]);
+    fl.position.set(rnd(-.8, .8), .06, rnd(-.8, .8));
     grp.add(fl);
   }
-  grp.position.set(Math.cos(ang)*dist, .07, Math.sin(ang)*dist);
+  grp.position.set(px, .07, pz);
   scene.add(grp);
-  leaves.push({ m: grp, sp: null, phase: Math.random()*6.28, spin: (Math.random()-.5)*.0008 });
+  leaves.push({ m: grp, x: px, z: pz, sp: null, phase: Math.random()*6.28, spin: (Math.random()-.5)*.0008 });
 }
 
 // ── 데이터 ──
@@ -586,7 +738,7 @@ renderer.setAnimationLoop(() => {
   waterTex.offset.x = Math.sin(t*.05)*.004;
   waterTex.offset.y = Math.cos(t*.04)*.004;
   for (const L of leaves) {
-    const y = .07 + Math.sin(t*.8 + L.phase)*.04;
+    const y = waveH(L.x, L.z, t) + .06 + Math.sin(t*.8 + L.phase)*.015;
     L.m.position.y = y;
     L.m.rotation.y += L.spin;
     if (L.sp) {
