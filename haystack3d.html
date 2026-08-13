@@ -57,7 +57,7 @@
     <label>배경 워시</label><input type="range" id="sWash" min="0" max="100" value="80">
   </div>
   <div class="acts"><button id="shoot">📷 이 빛을 사진으로 남기기</button></div>
-  <p class="hint">드래그로 둘러보기 · 태양(키) · 보조광(필 2조) · 윤곽광(림) · 배경 워시(2조) 전 채널 콘솔 제어</p>
+  <p class="hint">드래그로 둘러보기 · 천장 레일의 스팟 6조가 콘솔로 움직입니다 (실제 운영 = DMX)</p>
 </div>
 
 <div id="shotView">
@@ -92,12 +92,15 @@ view.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050403);
 const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, .1, 100);
-camera.position.set(.4, 2.2, innerWidth < innerHeight ? 10.8 : 7.8);
+camera.position.set(.4, 2.4, innerWidth < innerHeight ? 10.4 : 8.2);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 1.65, 0);
 controls.maxPolarAngle = Math.PI * 0.52;
-controls.minDistance = 3.4; controls.maxDistance = 10.5;
+controls.minDistance = 3.4; controls.maxDistance = 11;
+// 방이 앞면만 열려 있으므로 좌우 회전 제한 (관람 동선 시점)
+controls.minAzimuthAngle = -Math.PI * .42;
+controls.maxAzimuthAngle =  Math.PI * .42;
 controls.enablePan = false;
 controls.enableDamping = true;
 
@@ -140,92 +143,143 @@ const strawBump = canvasTex(512, 512, (x,w,h) => {
   }
 }, [3, 2]);
 
-// 들판 바닥 (마른 풀)
-const fieldTex = canvasTex(1024, 1024, (x,w,h) => {
-  x.fillStyle = '#6a6b38'; x.fillRect(0,0,w,h);
-  for (let i = 0; i < 7000; i++) {
-    x.strokeStyle = `hsla(${rnd(48,90)},${rnd(28,52)}%,${rnd(22,52)}%,${rnd(.3,.75)})`;
-    x.lineWidth = rnd(.5, 1.5);
-    const px = Math.random()*w, py = Math.random()*h, len = rnd(5, 16);
-    x.beginPath(); x.moveTo(px, py); x.lineTo(px + rnd(-4,4), py - len); x.stroke();
+// 전시장 마루
+const woodTex = canvasTex(1024, 1024, (x,w,h) => {
+  const plank = 128;
+  for (let r = 0; r < h/plank; r++) {
+    const base = rnd(30, 38);
+    const g = x.createLinearGradient(0, r*plank, 0, r*plank+plank);
+    g.addColorStop(0, `hsl(30,22%,${base}%)`);
+    g.addColorStop(.5, `hsl(32,20%,${base+3}%)`);
+    g.addColorStop(1, `hsl(29,22%,${base-2}%)`);
+    x.fillStyle = g;
+    x.fillRect(0, r*plank, w, plank - 2);
+    for (let i = 0; i < 24; i++) {
+      x.strokeStyle = `hsla(28,26%,${rnd(18,28)}%,${rnd(.05,.16)})`;
+      x.lineWidth = rnd(.5, 1.4);
+      const yy = r*plank + rnd(4, plank-4);
+      x.beginPath(); x.moveTo(0, yy);
+      for (let px = 0; px <= w; px += 64) x.lineTo(px, yy + rnd(-3,3));
+      x.stroke();
+    }
+    // 판재 이음새
+    for (let sx = (r%2)*w/3; sx < w; sx += w/2) {
+      x.strokeStyle = 'hsla(28,20%,14%,.5)'; x.lineWidth = 2;
+      x.beginPath(); x.moveTo(sx, r*plank); x.lineTo(sx, r*plank+plank-2); x.stroke();
+    }
   }
-}, [6, 6]);
+}, [4, 4]);
 
-// 배경막: 모네 색감의 들판 파노라마 (붓질로 그린 벽화)
-const backdropTex = canvasTex(2048, 640, (x,w,h) => {
-  // 하늘
+// 건초 깔개 (더미 아래 흩어진 짚)
+const strawPadTex = canvasTex(512, 512, (x,w,h) => {
+  x.fillStyle = 'rgba(0,0,0,0)'; x.clearRect(0,0,w,h);
+  for (let i = 0; i < 3800; i++) {
+    const cxp = w/2, cyp = h/2;
+    const a = Math.random()*Math.PI*2, rr = Math.pow(Math.random(), .6) * w*.48;
+    const px = cxp + Math.cos(a)*rr, py = cyp + Math.sin(a)*rr;
+    const alpha = .75 * (1 - rr/(w*.5));
+    x.strokeStyle = `hsla(${rnd(36,50)},${rnd(40,60)}%,${rnd(35,62)}%,${alpha})`;
+    x.lineWidth = rnd(.6, 1.6);
+    const la = Math.random()*Math.PI*2, ll = rnd(4, 14);
+    x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(la)*ll, py + Math.sin(la)*ll); x.stroke();
+  }
+});
+
+// 벽화: 모네 색감의 들판 (3면 연속 파노라마 — 기획안 "배경은 들판을 모네의 색감으로")
+const muralTex = canvasTex(3072, 768, (x,w,h) => {
   const sky = x.createLinearGradient(0, 0, 0, h*.62);
   sky.addColorStop(0, '#cfd8e8'); sky.addColorStop(.55, '#dfd9d2'); sky.addColorStop(1, '#e8dcc8');
   x.fillStyle = sky; x.fillRect(0, 0, w, h*.62);
-  // 하늘 붓질
-  for (let i = 0; i < 900; i++) {
+  for (let i = 0; i < 1300; i++) {
     const py = Math.pow(Math.random(), 1.4) * h*.6;
     x.strokeStyle = `hsla(${rnd(200,260)},${rnd(12,30)}%,${rnd(72,90)}%,${rnd(.08,.22)})`;
     x.lineWidth = rnd(3, 9);
     const px = Math.random()*w, len = rnd(30, 110);
     x.beginPath(); x.moveTo(px, py); x.lineTo(px + len, py + rnd(-4,4)); x.stroke();
   }
-  // 먼 언덕
   x.fillStyle = 'hsla(230,18%,58%,.9)';
   x.beginPath(); x.moveTo(0, h*.56);
-  for (let px = 0; px <= w; px += 64) x.lineTo(px, h*.56 + Math.sin(px*.004)*14 + rnd(-5,5));
+  for (let px = 0; px <= w; px += 64) x.lineTo(px, h*.56 + Math.sin(px*.003)*14 + rnd(-5,5));
   x.lineTo(w, h*.62); x.lineTo(0, h*.62); x.fill();
-  // 나무들 (포플러 실루엣)
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 38; i++) {
     const px = Math.random()*w, base = h*.60 + rnd(-6, 4), tw = rnd(10, 26), th = rnd(24, 60);
     x.fillStyle = `hsla(${rnd(90,150)},${rnd(18,32)}%,${rnd(30,44)}%,${rnd(.5,.85)})`;
     x.beginPath(); x.ellipse(px, base - th/2, tw/2, th/2, 0, 0, Math.PI*2); x.fill();
   }
-  // 들판
   const fld = x.createLinearGradient(0, h*.6, 0, h);
   fld.addColorStop(0, '#b6a95c'); fld.addColorStop(.5, '#96934e'); fld.addColorStop(1, '#6d7038');
   x.fillStyle = fld; x.fillRect(0, h*.6, w, h*.4);
-  for (let i = 0; i < 2400; i++) {
+  for (let i = 0; i < 3600; i++) {
     const py = h*.62 + Math.pow(Math.random(), .8) * h*.38;
     x.strokeStyle = `hsla(${rnd(45,95)},${rnd(25,55)}%,${rnd(28,62)}%,${rnd(.15,.4)})`;
     x.lineWidth = rnd(2, 6);
     const px = Math.random()*w, len = rnd(14, 60);
     x.beginPath(); x.moveTo(px, py); x.lineTo(px + len, py + rnd(-2,2)); x.stroke();
   }
-  // 멀리 건초더미 두엇 (원경)
-  for (const [fx, fy, s] of [[w*.18, h*.66, 26], [w*.72, h*.64, 18]]) {
+  for (const [fx, fy, s] of [[w*.14, h*.66, 26], [w*.55, h*.645, 16], [w*.86, h*.66, 22]]) {
     x.fillStyle = 'hsla(38,42%,38%,.85)';
     x.beginPath(); x.moveTo(fx-s, fy); x.quadraticCurveTo(fx-s*.9, fy-s*.75, fx, fy-s*1.15);
     x.quadraticCurveTo(fx+s*.9, fy-s*.75, fx+s, fy); x.fill();
   }
 });
 
-// ══════════ 공간: 들판 디오라마 ══════════
-// 바닥 = 들판
-const ground = new THREE.Mesh(new THREE.CircleGeometry(11, 64),
-  new THREE.MeshStandardMaterial({ map: fieldTex, roughness: 1 }));
-ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
-scene.add(ground);
+// ══════════ 공간: 사각 전시실 (기획안 — 벽 3면 들판 벽화 + 마루) ══════════
+const ROOM = { w: 15, d: 11, h: 5.6 };   // 폭 · 깊이 · 높이
 
-// 배경막: 곡면 파노라마 (전시장 벽화)
-const backdrop = new THREE.Mesh(
-  new THREE.CylinderGeometry(10.8, 10.8, 7.2, 72, 1, true, 0, Math.PI*2),
-  new THREE.MeshStandardMaterial({ map: backdropTex, roughness: 1, side: THREE.BackSide }));
-backdrop.position.y = 3.6;
-backdropTex.wrapS = THREE.RepeatWrapping;
-backdropTex.repeat.set(2, 1);   // 파노라마 2회 반복으로 360° 채움
-scene.add(backdrop);
+// 바닥
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.w, ROOM.d),
+  new THREE.MeshStandardMaterial({ map: woodTex, roughness: .82 }));
+floor.rotation.x = -Math.PI/2; floor.receiveShadow = true;
+scene.add(floor);
 
-// ══════════ 건초더미 — 짧은 몸통 + 긴 원뿔 지붕 ══════════
+// 벽 3면 — 연속 벽화 (좌 → 뒤 → 우로 u좌표 이어짐)
+const total = ROOM.d + ROOM.w + ROOM.d;   // 벽 전개 길이
+function muralWall(width, height, x, z, ry, u0, u1){
+  const tex = muralTex.clone();
+  tex.needsUpdate = true;
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.repeat.set(u1 - u0, 1);
+  tex.offset.set(u0, 0);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(width, height),
+    new THREE.MeshStandardMaterial({ map: tex, roughness: .95 }));
+  m.position.set(x, height/2, z);
+  m.rotation.y = ry;
+  m.receiveShadow = true;
+  scene.add(m);
+  return m;
+}
+let uAcc = 0;
+muralWall(ROOM.d, ROOM.h, -ROOM.w/2, 0, Math.PI/2, uAcc/total, (uAcc+=ROOM.d)/total);          // 좌측 벽
+muralWall(ROOM.w, ROOM.h, 0, -ROOM.d/2, 0, uAcc/total, (uAcc+=ROOM.w)/total);                   // 뒷 벽
+muralWall(ROOM.d, ROOM.h, ROOM.w/2, 0, -Math.PI/2, uAcc/total, (uAcc+=ROOM.d)/total);           // 우측 벽
+
+// 천장 (어두운 전시장 천장)
+const ceil = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.w, ROOM.d),
+  new THREE.MeshStandardMaterial({ color: 0x121110, roughness: 1 }));
+ceil.rotation.x = Math.PI/2; ceil.position.y = ROOM.h;
+scene.add(ceil);
+
+// 짚 깔개 (더미 주변)
+const pad = new THREE.Mesh(new THREE.CircleGeometry(2.9, 48),
+  new THREE.MeshStandardMaterial({ map: strawPadTex, transparent: true, roughness: 1 }));
+pad.rotation.x = -Math.PI/2; pad.position.y = .012; pad.receiveShadow = true;
+scene.add(pad);
+
+// ══════════ 건초더미 (두꺼운 몸통 + 원뿔 지붕, 단일) ══════════
 function makeStack(scale, px, pz, seed){
   const g = new THREE.Group();
   const pts = [];
-  const BODY = .5;    // 몸통 절반, 지붕 절반
+  const BODY = .5;
   for (let i = 0; i <= 34; i++) {
     const t = i/34;
     let r;
     if (t < BODY) {
-      r = 1.85 + .05*Math.sin(Math.PI*t/BODY);                    // 두꺼운 드럼 몸통 (살짝 배부름)
+      r = 1.85 + .05*Math.sin(Math.PI*t/BODY);
     } else {
-      const k = (t - BODY) / (1 - BODY);                          // 0..1 원뿔 구간
-      r = (1.85*(1 - k) + .03) * (1 + .04*(1-k)*(1-k));           // 몸통 폭 그대로 직선으로 좁아지는 지붕
+      const k = (t - BODY) / (1 - BODY);
+      r = (1.85*(1 - k) + .03) * (1 + .04*(1-k)*(1-k));
     }
-    pts.push(new THREE.Vector2(Math.max(r, .02), t*3.45));         // 전체 높이 3.45 (두껍고 길게)
+    pts.push(new THREE.Vector2(Math.max(r, .02), t*3.45));
   }
   const geo = new THREE.LatheGeometry(pts, 96);
   const pos = geo.attributes.position;
@@ -242,7 +296,6 @@ function makeStack(scale, px, pz, seed){
   const body = new THREE.Mesh(geo, mat);
   body.castShadow = true; body.receiveShadow = true;
   g.add(body);
-  // 삐져나온 짚
   const tuftMat = new THREE.MeshStandardMaterial({ color: 0xb08d45, roughness: 1 });
   for (let i = 0; i < 60; i++) {
     const t = Math.random();
@@ -262,72 +315,74 @@ function makeStack(scale, px, pz, seed){
   g.rotation.y = seed;
   return g;
 }
-scene.add(makeStack(1, 0, 0, 1.7));   // 단 한 기
+scene.add(makeStack(1, 0, 0, 1.7));
 
-// ══════════ 조명 리그: 키 1 + 필 2 + 림 1 + 배경 워시 2 ══════════
+// ══════════ 천장 레일 + 조명 6조 ══════════
 scene.add(new THREE.HemisphereLight(0x50607a, 0x14110d, .05));
 const amb = new THREE.AmbientLight(0xffffff, .04); scene.add(amb);
 
 const TGT = new THREE.Object3D(); TGT.position.set(0, 1.5, 0); scene.add(TGT);
 
-// 태양 키 (콘솔이 직접 제어)
 const sun = new THREE.SpotLight(0xffffff, 2.4, 0, .42, .55, 1.35);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.bias = -0.0004;
 sun.target = TGT; scene.add(sun);
 
-// 필 2조 (태양 반대편 좌우 — 어두운 면을 살짝 들어올림)
 const fillA = new THREE.SpotLight(0xffffff, .3, 0, .6, .8, 1.6); fillA.target = TGT; scene.add(fillA);
 const fillB = new THREE.SpotLight(0xffffff, .3, 0, .6, .8, 1.6); fillB.target = TGT; scene.add(fillB);
-
-// 림 (실루엣 분리)
 const rim = new THREE.SpotLight(0xffffff, .5, 0, .5, .7, 1.5); rim.target = TGT; scene.add(rim);
 
-// 배경 워시 2조 (배경막 파노라마 물들이기)
-const washL = new THREE.SpotLight(0xffffff, .5, 0, 1.1, .9, 1.8);
-const washR = new THREE.SpotLight(0xffffff, .5, 0, 1.1, .9, 1.8);
-const washTgtL = new THREE.Object3D(); washTgtL.position.set(-6, 3.5, -8); scene.add(washTgtL);
-const washTgtR = new THREE.Object3D(); washTgtR.position.set(6, 3.5, -8); scene.add(washTgtR);
+const washL = new THREE.SpotLight(0xffffff, .5, 0, 1.05, .9, 1.8);
+const washR = new THREE.SpotLight(0xffffff, .5, 0, 1.05, .9, 1.8);
+const washTgtL = new THREE.Object3D(); washTgtL.position.set(-ROOM.w*.28, 3.2, -ROOM.d/2); scene.add(washTgtL);
+const washTgtR = new THREE.Object3D(); washTgtR.position.set(ROOM.w*.28, 3.2, -ROOM.d/2); scene.add(washTgtR);
 washL.target = washTgtL; washR.target = washTgtR;
 scene.add(washL); scene.add(washR);
 
-// 트러스 링 + 조명 기구
-const truss = new THREE.Mesh(new THREE.TorusGeometry(6.6, .05, 10, 80),
-  new THREE.MeshStandardMaterial({ color: 0x191714, roughness: .45, metalness: .7 }));
-truss.rotation.x = Math.PI/2; truss.position.y = 5.7;
-scene.add(truss);
+// 조명 레일 2줄 (전시장 트랙)
+const railMat = new THREE.MeshStandardMaterial({ color: 0x191714, roughness: .45, metalness: .7 });
+for (const rz of [2.6, -2.6]) {
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(ROOM.w - 2.5, .07, .14), railMat);
+  rail.position.set(0, ROOM.h - .18, rz);
+  scene.add(rail);
+}
 function makeFixture(){
   const g = new THREE.Group();
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(.02, .02, .22, 8), railMat);
+  stem.position.y = .22;
   const housing = new THREE.Mesh(new THREE.CylinderGeometry(.09, .14, .3, 14),
     new THREE.MeshStandardMaterial({ color: 0x14120f, roughness: .4, metalness: .7 }));
   const glow = new THREE.Mesh(new THREE.CircleGeometry(.1, 14),
     new THREE.MeshBasicMaterial({ color: 0xfff2cc }));
   glow.position.y = -.16; glow.rotation.x = Math.PI/2;
-  g.add(housing); g.add(glow);
+  g.add(stem); g.add(housing); g.add(glow);
   scene.add(g);
   return { g, glow };
 }
 const fxSun = makeFixture(), fxFillA = makeFixture(), fxFillB = makeFixture(),
       fxRim = makeFixture(), fxWashL = makeFixture(), fxWashR = makeFixture();
 
+// 레일 위 좌표로 클램프 (x는 레일 범위, z는 두 레일 중 가까운 쪽)
+function onRail(x, z){
+  const rx = THREE.MathUtils.clamp(x, -(ROOM.w-2.5)/2, (ROOM.w-2.5)/2);
+  const rz = Math.abs(z - 2.6) < Math.abs(z + 2.6) ? 2.6 : -2.6;
+  return new THREE.Vector3(rx, ROOM.h - .42, rz);
+}
 function placeFixture(fx, light, tgt){
-  fx.g.position.copy(light.position);
+  fx.g.position.copy(light.position).add(new THREE.Vector3(0, .18, 0));
   fx.g.lookAt(tgt);
   fx.g.rotateX(-Math.PI/2);
   fx.glow.material.color.copy(light.color);
-  fx.glow.material.opacity = 1;
 }
 
-// 광선 콘 (키 전용, 은은하게)
 const coneMat = new THREE.MeshBasicMaterial({
-  color: 0xfff0c8, transparent: true, opacity: .04,
+  color: 0xfff0c8, transparent: true, opacity: .03,
   blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
 });
 const cone = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 40, 1, true), coneMat);
 scene.add(cone);
 
-// 먼지
 const DUST = 150;
 const dustGeo = new THREE.BufferGeometry();
 const dustPos = new Float32Array(DUST*3);
@@ -341,8 +396,7 @@ const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
 }));
 scene.add(dust);
 
-// ══════════ 프리셋: 6조 조명의 오케스트레이션 ══════════
-// washT/washB: 배경 워시 색 (하늘/땅), fill: 필 색, rimC: 림 색
+// ══════════ 프리셋 ══════════
 const PRESETS = [
   { nm:'새벽',    az:60,  el:11, temp:20, int:36, fill:25, rimv:55, wash:65,
     washT:'#5a6b9e', washB:'#2e3a5e', fillC:'#4a5878', rimC:'#8fa3d0' },
@@ -355,39 +409,42 @@ const PRESETS = [
   { nm:'달밤',    az:300, el:48, temp:8,  int:20, fill:18, rimv:60, wash:45,
     washT:'#33436a', washB:'#101a30', fillC:'#26314e', rimC:'#7f95c8' },
 ];
-let cur = { ...PRESETS[3] };  // 저녁노을로 시작
+let cur = { ...PRESETS[3] };
 const st = { az: cur.az, el: cur.el, temp: cur.temp, int: cur.int, fill: cur.fill, rimv: cur.rimv, wash: cur.wash };
 const cold = new THREE.Color(0x9db4e8), warm = new THREE.Color(0xff9e4a);
 
 function apply(){
-  const azr = st.az*Math.PI/180, elr = st.el*Math.PI/180, R = 7.2;
-  // ── 태양 키 ──
-  sun.position.set(Math.cos(azr)*Math.cos(elr)*R, Math.max(Math.sin(elr)*R, 1.2) + .5, Math.sin(azr)*Math.cos(elr)*R);
+  const azr = st.az*Math.PI/180, elr = st.el*Math.PI/180;
+  // 태양: 천장 레일 마운트 — 높이(el)가 낮을수록 벽 쪽에서 그레이징
+  const dHoriz = .8 + 5.4 * Math.cos(elr);
+  const sx = Math.cos(azr) * dHoriz, sz = Math.sin(azr) * dHoriz;
+  const railPos = onRail(sx, sz);
+  sun.position.copy(railPos);
   const c = cold.clone().lerp(warm, st.temp/100);
   sun.color.copy(c);
   sun.intensity = .3 + st.int/100 * 3.4;
   amb.color.copy(c); amb.intensity = .015 + st.int/100 * .04;
-  // ── 필 2조: 태양 반대편 ±115°, 슬라이더 직결 ──
-  const k = st.int/100;
+  // 필 2조
   for (const [fill, off] of [[fillA, 115], [fillB, -115]]) {
     const a2 = (st.az + off) * Math.PI/180;
-    fill.position.set(Math.cos(a2)*6.6, 5.5, Math.sin(a2)*6.6);
+    fill.position.copy(onRail(Math.cos(a2)*5.4, Math.sin(a2)*5.4));
     fill.color.set(cur.fillC);
     fill.intensity = st.fill/100 * .9;
   }
-  // ── 림: 태양 정반대 + 높게, 슬라이더 직결 ──
+  // 림
   const a3 = (st.az + 180) * Math.PI/180;
-  rim.position.set(Math.cos(a3)*6.2, 6.2, Math.sin(a3)*6.2);
+  rim.position.copy(onRail(Math.cos(a3)*5.4, Math.sin(a3)*5.4));
   rim.color.set(cur.rimC);
   rim.intensity = st.rimv/100 * 1.3;
-  // ── 배경 워시: 슬라이더 직결 ──
-  washL.position.set(-4.5, 5.9, 5.5); washR.position.set(4.5, 5.9, 5.5);
+  // 배경 워시 (뒷벽을 물들임)
+  washL.position.copy(onRail(-ROOM.w*.22, 2.6));
+  washR.position.copy(onRail(ROOM.w*.22, 2.6));
   washL.color.set(cur.washT); washR.color.set(cur.washB);
   washL.intensity = st.wash/100 * 1.05;
   washR.intensity = st.wash/100 * .9;
-  // ── 콘·먼지·기구 ──
+  // 콘·먼지·기구
   coneMat.color.copy(c);
-  coneMat.opacity = .006 + k * .022;
+  coneMat.opacity = .006 + st.int/100 * .022;
   dust.material.color.copy(c);
   const from = sun.position.clone(), to = TGT.position.clone();
   const dir = to.clone().sub(from), len = dir.length();
@@ -469,7 +526,7 @@ renderer.setAnimationLoop(() => {
   const dp = dustGeo.attributes.position;
   for (let i = 0; i < DUST; i++) {
     dp.array[i*3+1] += Math.sin(t*.6 + i)*.0007 + .001;
-    if (dp.array[i*3+1] > 5) dp.array[i*3+1] = .1;
+    if (dp.array[i*3+1] > 5.2) dp.array[i*3+1] = .1;
   }
   dp.needsUpdate = true;
   controls.update();
