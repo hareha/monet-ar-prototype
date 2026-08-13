@@ -69,7 +69,7 @@ camera.position.set(0, innerWidth < innerHeight ? 8.0 : 5.8, innerWidth < innerH
 // 블룸 (등불·수면 하이라이트 번짐)
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .38, .7, .72);
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .28, .6, .88);
 composer.addPass(bloom);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -84,8 +84,8 @@ controls.autoRotateSpeed = .22;
 
 // ── 조명: 등불 + 달 ──
 scene.add(new THREE.AmbientLight(0x3a5c4a, .9));
-const l1 = new THREE.PointLight(0xd8b978, 1.2, 26, 1.6); l1.position.set(-5, 4.6, -3); scene.add(l1);
-const l2 = new THREE.PointLight(0x8fd0b0, .7, 24, 1.8); l2.position.set(6, 3.8, 4); scene.add(l2);
+const l1 = new THREE.PointLight(0xd8b978, .9, 26, 1.6); l1.position.set(-6, 6.5, -4); scene.add(l1);
+const l2 = new THREE.PointLight(0x8fd0b0, .55, 24, 1.8); l2.position.set(7, 5.5, 5); scene.add(l2);
 const moon = new THREE.DirectionalLight(0xa8bede, .5); moon.position.set(2, 9, -5); scene.add(moon);
 
 const rnd = (a,b) => a + Math.random()*(b-a);
@@ -138,7 +138,7 @@ function paintWater(){
 const waterTex = paintWater();
 const waterGeo = new THREE.PlaneGeometry(54, 54, 96, 96);
 const water = new THREE.Mesh(waterGeo,
-  new THREE.MeshPhongMaterial({ map: waterTex, color: 0xbfd0c2, specular: 0x9fd8c0, shininess: 60 }));
+  new THREE.MeshPhongMaterial({ map: waterTex, color: 0xcfdccf, specular: 0x1e3a30, shininess: 14 }));
 water.rotation.x = -Math.PI/2;
 scene.add(water);
 const wpos = waterGeo.attributes.position;
