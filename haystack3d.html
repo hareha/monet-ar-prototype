@@ -220,10 +220,10 @@ function makeStack(scale, px, pz, seed){
     const t = i/34;
     let r;
     if (t < BODY) {
-      r = 1.5 - .1*(t/BODY);                                      // 몸통: 위로 갈수록 아주 살짝 좁아짐
+      r = 1.85 + .05*Math.sin(Math.PI*t/BODY);                    // 두꺼운 드럼 몸통 (살짝 배부름)
     } else {
       const k = (t - BODY) / (1 - BODY);                          // 0..1 원뿔 구간
-      r = (1.62*(1 - k) + .03) * (1 + .06*(1-k)*(1-k));           // 처마가 몸통을 덮고 직선(살짝 볼록)으로
+      r = (1.85*(1 - k) + .03) * (1 + .04*(1-k)*(1-k));           // 몸통 폭 그대로 직선으로 좁아지는 지붕
     }
     pts.push(new THREE.Vector2(Math.max(r, .02), t*2.9));          // 전체 높이 2.9 (원뿔이 길다)
   }
@@ -248,8 +248,8 @@ function makeStack(scale, px, pz, seed){
     const t = Math.random();
     const yy = t*2.9;
     let rr;
-    if (t < BODY) rr = 1.5 - .1*(t/BODY);
-    else { const kk = (t-BODY)/(1-BODY); rr = Math.max(.02, (1.62*(1-kk)+.03)*(1+.06*(1-kk)*(1-kk))); }
+    if (t < BODY) rr = 1.85 + .05*Math.sin(Math.PI*t/BODY);
+    else { const kk = (t-BODY)/(1-BODY); rr = Math.max(.02, (1.85*(1-kk)+.03)*(1+.04*(1-kk)*(1-kk))); }
     const a = Math.random()*Math.PI*2;
     const tuft = new THREE.Mesh(new THREE.ConeGeometry(.008, rnd(.07,.18), 4), tuftMat);
     tuft.position.set(Math.cos(a)*(rr+.02), yy, Math.sin(a)*(rr+.02));
