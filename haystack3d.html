@@ -95,7 +95,7 @@ const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, .1, 100);
 camera.position.set(.4, 2.2, innerWidth < innerHeight ? 10.8 : 7.8);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 1.4, 0);
+controls.target.set(0, 1.65, 0);
 controls.maxPolarAngle = Math.PI * 0.52;
 controls.minDistance = 3.4; controls.maxDistance = 10.5;
 controls.enablePan = false;
@@ -225,7 +225,7 @@ function makeStack(scale, px, pz, seed){
       const k = (t - BODY) / (1 - BODY);                          // 0..1 원뿔 구간
       r = (1.85*(1 - k) + .03) * (1 + .04*(1-k)*(1-k));           // 몸통 폭 그대로 직선으로 좁아지는 지붕
     }
-    pts.push(new THREE.Vector2(Math.max(r, .02), t*2.9));          // 전체 높이 2.9 (원뿔이 길다)
+    pts.push(new THREE.Vector2(Math.max(r, .02), t*3.45));         // 전체 높이 3.45 (두껍고 길게)
   }
   const geo = new THREE.LatheGeometry(pts, 96);
   const pos = geo.attributes.position;
@@ -246,7 +246,7 @@ function makeStack(scale, px, pz, seed){
   const tuftMat = new THREE.MeshStandardMaterial({ color: 0xb08d45, roughness: 1 });
   for (let i = 0; i < 60; i++) {
     const t = Math.random();
-    const yy = t*2.9;
+    const yy = t*3.45;
     let rr;
     if (t < BODY) rr = 1.85 + .05*Math.sin(Math.PI*t/BODY);
     else { const kk = (t-BODY)/(1-BODY); rr = Math.max(.02, (1.85*(1-kk)+.03)*(1+.04*(1-kk)*(1-kk))); }
@@ -268,7 +268,7 @@ scene.add(makeStack(1, 0, 0, 1.7));   // 단 한 기
 scene.add(new THREE.HemisphereLight(0x50607a, 0x14110d, .05));
 const amb = new THREE.AmbientLight(0xffffff, .04); scene.add(amb);
 
-const TGT = new THREE.Object3D(); TGT.position.set(0, 1.3, 0); scene.add(TGT);
+const TGT = new THREE.Object3D(); TGT.position.set(0, 1.5, 0); scene.add(TGT);
 
 // 태양 키 (콘솔이 직접 제어)
 const sun = new THREE.SpotLight(0xffffff, 2.4, 0, .42, .55, 1.35);
