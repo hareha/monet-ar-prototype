@@ -219,6 +219,114 @@ function wisteriaTexture(){
 }
 const wistTex = wisteriaTexture();
 
+// ── 붓질 빌보드 텍스처 (민무늬 지오메트리 금지 — 전부 점묘/스트로크) ──
+const brushMat = tex => new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: .12, depthWrite: true, side: THREE.DoubleSide });
+function treeTexture(){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 512;
+  const x = c.getContext('2d');
+  for (let i = 0; i < 6; i++) {           // 줄기·가지
+    x.strokeStyle = `rgba(${(30+rnd(0,14))|0},${(26+rnd(0,10))|0},${(20+rnd(0,8))|0},${rnd(.5,.85)})`;
+    x.lineWidth = rnd(6, 14);
+    x.lineCap = 'round';
+    const bx0 = 256 + rnd(-30, 30);
+    x.beginPath(); x.moveTo(bx0, 502);
+    x.quadraticCurveTo(bx0 + rnd(-20,20), 380, bx0 + rnd(-55,55), rnd(215, 300));
+    x.stroke();
+  }
+  for (let i = 0; i < 460; i++) {          // 수관 점묘
+    const a = Math.random()*Math.PI*2, rr = Math.pow(Math.random(), .6);
+    x.fillStyle = `hsla(${rnd(105,145)}, ${rnd(20,36)}%, ${rnd(10,28)}%, ${rnd(.35,.8)})`;
+    x.beginPath(); x.ellipse(256 + Math.cos(a)*rr*218, 202 + Math.sin(a)*rr*168, rnd(10,26), rnd(7,16), rnd(0,3), 0, Math.PI*2); x.fill();
+  }
+  for (let i = 0; i < 70; i++) {           // 빛 받는 자리
+    const a = Math.random()*Math.PI*2, rr = Math.pow(Math.random(), .7);
+    x.fillStyle = `hsla(${rnd(100,135)}, ${rnd(24,40)}%, ${rnd(30,46)}%, ${rnd(.25,.5)})`;
+    x.beginPath(); x.ellipse(256 + Math.cos(a)*rr*196, 182 + Math.sin(a)*rr*146, rnd(6,16), rnd(4,10), rnd(0,3), 0, Math.PI*2); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+}
+function grassClumpTexture(flowerRGB){
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const x = c.getContext('2d');
+  for (let i = 0; i < 48; i++) {
+    x.strokeStyle = `hsla(${rnd(85,140)}, ${rnd(24,46)}%, ${rnd(16,42)}%, ${rnd(.5,.9)})`;
+    x.lineWidth = rnd(2, 4.5);
+    x.lineCap = 'round';
+    const bx0 = 128 + rnd(-34, 34), tip = 128 + rnd(-95, 95);
+    x.beginPath(); x.moveTo(bx0, 252);
+    x.quadraticCurveTo(bx0 + (tip-bx0)*.3, 170, tip, rnd(36, 130));
+    x.stroke();
+  }
+  if (flowerRGB) for (let i = 0; i < 9; i++) {
+    const px = 128 + rnd(-82, 82), py = rnd(26, 92);
+    for (let k = 0; k < 5; k++) {
+      const aa = k/5*Math.PI*2 + rnd(-.2,.2);
+      x.fillStyle = `rgba(${flowerRGB},${rnd(.55,.95).toFixed(2)})`;
+      x.beginPath(); x.ellipse(px + Math.cos(aa)*6.5, py + Math.sin(aa)*6.5, 6.5, 3.8, aa, 0, Math.PI*2); x.fill();
+    }
+    x.fillStyle = 'rgba(232,194,90,.9)';
+    x.beginPath(); x.arc(px, py, 2.6, 0, Math.PI*2); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+}
+function reedTexture(){
+  const c = document.createElement('canvas'); c.width = 256; c.height = 512;
+  const x = c.getContext('2d');
+  const tips = [];
+  for (let i = 0; i < 15; i++) {
+    x.strokeStyle = `hsla(${rnd(65,100)}, ${rnd(24,40)}%, ${rnd(18,38)}%, ${rnd(.55,.9)})`;
+    x.lineWidth = rnd(2.5, 5);
+    x.lineCap = 'round';
+    const bx0 = 128 + rnd(-56, 56), tipx = bx0 + rnd(-40, 40), tipy = rnd(20, 120);
+    x.beginPath(); x.moveTo(bx0, 508);
+    x.quadraticCurveTo(bx0 + (tipx-bx0)*.4, 300, tipx, tipy);
+    x.stroke();
+    if (i % 3 === 0) tips.push([tipx, tipy]);
+  }
+  for (const [tx, ty] of tips) {           // 부들 이삭
+    x.fillStyle = `rgba(${(92+rnd(0,20))|0},${(60+rnd(0,14))|0},${(38+rnd(0,10))|0},.92)`;
+    x.beginPath(); x.roundRect(tx - 5, ty, 10, rnd(30, 46), 5); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+}
+function canopyTexture(){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+  const x = c.getContext('2d');
+  for (let i = 0; i < 300; i++) {          // 초록 점묘 띠
+    const px = rnd(20, 492), py = 118 + rnd(-72, 72);
+    const edge = 1 - Math.abs(px - 256)/256;
+    x.fillStyle = `hsla(${rnd(100,140)}, ${rnd(22,40)}%, ${rnd(16,34)}%, ${(rnd(.3,.75)*Math.min(1, edge*2.4)).toFixed(2)})`;
+    x.beginPath(); x.ellipse(px, py, rnd(9,22), rnd(6,13), rnd(0,3), 0, Math.PI*2); x.fill();
+  }
+  for (let i = 0; i < 80; i++) {           // 등꽃 라벤더 점
+    x.fillStyle = `rgba(${(168+rnd(0,30))|0},${(148+rnd(0,26))|0},${(200+rnd(0,30))|0},${rnd(.3,.6).toFixed(2)})`;
+    x.beginPath(); x.ellipse(rnd(30,482), 130 + rnd(-64, 76), rnd(4,9), rnd(3,6), rnd(0,3), 0, Math.PI*2); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+}
+function barkTexture(){
+  const c = document.createElement('canvas'); c.width = 128; c.height = 256;
+  const x = c.getContext('2d');
+  x.fillStyle = '#3a3226'; x.fillRect(0, 0, 128, 256);
+  for (let i = 0; i < 90; i++) {
+    x.strokeStyle = `rgba(${(40+rnd(0,34))|0},${(34+rnd(0,26))|0},${(24+rnd(0,18))|0},${rnd(.3,.7)})`;
+    x.lineWidth = rnd(1.5, 4);
+    const px = Math.random()*128, py = Math.random()*256, len = rnd(30, 110);
+    x.beginPath(); x.moveTo(px, py);
+    x.quadraticCurveTo(px + rnd(-5,5), py + len*.5, px + rnd(-4,4), py + len);
+    x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1.5);
+  return t;
+}
+const canopyTexs = [canopyTexture(), canopyTexture(), canopyTexture()];
+const treeTexs = [treeTexture(), treeTexture(), treeTexture(), treeTexture()];
+const grassClumpTexs = [grassClumpTexture(), grassClumpTexture(), grassClumpTexture()];
+const irisTexs = [grassClumpTexture('150,122,190'), grassClumpTexture('166,147,204'), grassClumpTexture('230,224,238')];
+const reedTexs = [reedTexture(), reedTexture()];
+const barkTex = barkTexture();
+
 function bridge(){
   const g = new THREE.Group();
   const paint  = new THREE.MeshStandardMaterial({ color: 0x2f6b49, roughness: .72 });
@@ -295,14 +403,13 @@ function bridge(){
     slat.position.set(-SPAN/2 + SPAN*t, deckY(t) + 2.52, 0);
     g.add(slat);
   }
-  // 시렁 위 등나무 잎덩이
-  const folMats = [new THREE.MeshStandardMaterial({ color: 0x234b31, roughness: 1 }),
-                   new THREE.MeshStandardMaterial({ color: 0x2d5a3b, roughness: 1 })];
-  for (let i = 0; i < 90; i++) {
-    const t = Math.random();
-    const f = new THREE.Mesh(new THREE.SphereGeometry(rnd(.24, .46), 7, 6), folMats[i % 2]);
-    f.position.set(-SPAN/2 + SPAN*t + rnd(-.25,.25), deckY(t) + 2.58 + rnd(0,.34), rnd(-1.2, 1.2));
-    f.scale.set(rnd(1,1.5), .6, 1);
+  // 시렁 위 등나무 캐노피 — 점묘 빌보드 띠
+  for (let i = 0; i < 30; i++) {
+    const t = rnd(.02, .98);
+    const w = rnd(1.5, 2.4);
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(w, w*.6), brushMat(canopyTexs[(Math.random()*3)|0]));
+    f.position.set(-SPAN/2 + SPAN*t, deckY(t) + 2.78 + rnd(-.08, .26), rnd(-.9, .9));
+    f.rotation.y = rnd(-.6, .6);
     g.add(f);
   }
   // 늘어진 등꽃 송이
@@ -346,8 +453,8 @@ function willowTexture(){
 const willowTex = willowTexture();
 function willow(x, z, h){
   const g = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.22, .4, h*.5, 8),
-    new THREE.MeshStandardMaterial({ color: 0x3c3428, roughness: 1 }));
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.22, .42, h*.5, 10),
+    new THREE.MeshStandardMaterial({ map: barkTex, roughness: 1 }));
   trunk.position.y = h*.25;
   g.add(trunk);
   for (let i = 0; i < 3; i++) {
@@ -387,64 +494,60 @@ function grassTexture(){
   t.repeat.set(7, 7);
   return t;
 }
+const grassTexMain = grassTexture();
 const bankRing = new THREE.Mesh(new THREE.RingGeometry(15.2, 27, 72, 1),
-  new THREE.MeshStandardMaterial({ map: grassTexture(), roughness: 1 }));
+  new THREE.MeshStandardMaterial({ map: grassTexMain, roughness: 1 }));
+bankMat.map = grassTexMain;
+bankMat.color.set(0x9db898);
+bankMat.needsUpdate = true;
 bankRing.rotation.x = -Math.PI/2;
 bankRing.position.y = .15;
 scene.add(bankRing);
 
-// 풀 포기
-const tuftMats = [0x2a5236, 0x35603c, 0x24462c].map(cc => new THREE.MeshStandardMaterial({ color: cc, roughness: 1 }));
-for (let i = 0; i < 80; i++) {
+// 풀 포기 — 붓질 빌보드
+for (let i = 0; i < 64; i++) {
   const a = Math.random()*Math.PI*2, d = rnd(15.5, 19.5);
-  const h = rnd(.45, 1.05);
-  const tuft = new THREE.Mesh(new THREE.ConeGeometry(rnd(.13, .3), h, 5), tuftMats[i % 3]);
-  tuft.position.set(Math.cos(a)*d, .14 + h/2, Math.sin(a)*d);
-  tuft.rotation.z = rnd(-.18, .18);
-  scene.add(tuft);
-}
-// 붓꽃·아가판서스 무리
-const stemMat = new THREE.MeshStandardMaterial({ color: 0x33502e, roughness: 1 });
-const bloomMats = [0x8a7ab8, 0xa693cc, 0xd9c3e0, 0xe6e0ee].map(cc => new THREE.MeshStandardMaterial({ color: cc, roughness: .85 }));
-for (let i = 0; i < 16; i++) {
-  const a = Math.random()*Math.PI*2, d = rnd(15.6, 18);
-  const cx = Math.cos(a)*d, cz = Math.sin(a)*d;
-  const nS = 4 + (Math.random()*4|0);
-  for (let k = 0; k < nS; k++) {
-    const h = rnd(.6, 1.15);
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(.015, .02, h, 5), stemMat);
-    const sx = cx + rnd(-.5, .5), sz = cz + rnd(-.5, .5);
-    stem.position.set(sx, .14 + h/2, sz);
-    stem.rotation.z = rnd(-.12, .12);
-    scene.add(stem);
-    const bloom = new THREE.Mesh(new THREE.SphereGeometry(rnd(.06, .11), 7, 6), bloomMats[(Math.random()*bloomMats.length)|0]);
-    bloom.position.set(sx + stem.rotation.z*-h*.5, .14 + h + .04, sz);
-    bloom.scale.y = 1.35;
-    scene.add(bloom);
+  const h = rnd(.7, 1.4);
+  for (let k = 0; k < 2; k++) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(h*1.1, h), brushMat(grassClumpTexs[(Math.random()*3)|0]));
+    p.position.set(Math.cos(a)*d, .14 + h*.46, Math.sin(a)*d);
+    p.rotation.y = k*Math.PI/2 + rnd(-.4, .4);
+    scene.add(p);
   }
 }
-// 갈대 — 물가 안쪽
-const reedMat = new THREE.MeshStandardMaterial({ color: 0x4a5c34, roughness: 1 });
-for (let i = 0; i < 14; i++) {
-  const a = Math.random()*Math.PI*2, d = rnd(13.6, 15.1);
-  const cx = Math.cos(a)*d, cz = Math.sin(a)*d;
-  for (let k = 0; k < 3 + (Math.random()*4|0); k++) {
-    const h = rnd(.9, 1.9);
-    const reed = new THREE.Mesh(new THREE.CylinderGeometry(.012, .022, h, 4), reedMat);
-    reed.position.set(cx + rnd(-.4, .4), h/2 - .1, cz + rnd(-.4, .4));
-    reed.rotation.z = rnd(-.22, .22);
-    reed.rotation.x = rnd(-.15, .15);
-    scene.add(reed);
-  }
-}
-// 배경 숲 실루엣 — 안개 속 어두운 수관
-const woodMats = [0x14291b, 0x1a3322, 0x203c28].map(cc => new THREE.MeshStandardMaterial({ color: cc, roughness: 1 }));
+// 붓꽃·아가판서스 — 꽃 붓질 빌보드
 for (let i = 0; i < 18; i++) {
-  const a = i/18*Math.PI*2 + rnd(-.14, .14), d = rnd(20, 24.5);
-  const blob = new THREE.Mesh(new THREE.SphereGeometry(rnd(1.7, 3.1), 8, 6), woodMats[i % 3]);
-  blob.scale.y = rnd(1.2, 1.9);
-  blob.position.set(Math.cos(a)*d, rnd(1.6, 3.2), Math.sin(a)*d);
-  scene.add(blob);
+  const a = Math.random()*Math.PI*2, d = rnd(15.6, 18.2);
+  const h = rnd(1.0, 1.5);
+  const tex = irisTexs[(Math.random()*3)|0];
+  for (let k = 0; k < 2; k++) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(h*.95, h), brushMat(tex));
+    p.position.set(Math.cos(a)*d, .14 + h*.46, Math.sin(a)*d);
+    p.rotation.y = k*Math.PI/2 + rnd(-.35, .35);
+    scene.add(p);
+  }
+}
+// 갈대 — 물가 안쪽, 부들 이삭 붓질
+for (let i = 0; i < 14; i++) {
+  const a = Math.random()*Math.PI*2, d = rnd(13.7, 15.2);
+  const h = rnd(1.5, 2.3);
+  for (let k = 0; k < 2; k++) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(h*.55, h), brushMat(reedTexs[i % 2]));
+    p.position.set(Math.cos(a)*d, h*.4, Math.sin(a)*d);
+    p.rotation.y = k*Math.PI/2 + rnd(-.4, .4);
+    scene.add(p);
+  }
+}
+// 배경 숲 — 점묘 수관 빌보드 (안개 속)
+for (let i = 0; i < 16; i++) {
+  const a = i/16*Math.PI*2 + rnd(-.16, .16), d = rnd(19.5, 24);
+  const h = rnd(5.5, 9);
+  for (let k = 0; k < 2; k++) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(h, h), brushMat(treeTexs[i % 4]));
+    p.position.set(Math.cos(a)*d, h*.42, Math.sin(a)*d);
+    p.rotation.y = -a + Math.PI/2 + (k ? Math.PI/2.6 : 0) + rnd(-.15, .15);
+    scene.add(p);
+  }
 }
 
 // 다리 양끝 기슭 둔덕 + 붓꽃 무리
@@ -454,11 +557,15 @@ for (const bx of [-8.9, 8.9]) {
   mound.scale.set(3.2, 1.0, 2.6);
   mound.position.set(bx, -.38, -13.5);
   scene.add(mound);
-  for (let i = 0; i < 7; i++) {
-    const iris = new THREE.Mesh(new THREE.ConeGeometry(.05, rnd(.5,.9), 5),
-      new THREE.MeshStandardMaterial({ color: [0x7f6fae, 0x9d8cc4, 0x4f7d54][i % 3], roughness: .9 }));
-    iris.position.set(bx + rnd(-1.6,1.6), .5, -13.5 + rnd(-1.2,1.2));
-    scene.add(iris);
+  for (let i = 0; i < 4; i++) {
+    const h = rnd(.9, 1.3);
+    const tex = (i % 2) ? irisTexs[(Math.random()*3)|0] : grassClumpTexs[(Math.random()*3)|0];
+    for (let k = 0; k < 2; k++) {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(h*.95, h), brushMat(tex));
+      p.position.set(bx + rnd(-1.7, 1.7), .38 + h*.44, -13.5 + rnd(-1.2, 1.2));
+      p.rotation.y = k*Math.PI/2 + rnd(-.35, .35);
+      scene.add(p);
+    }
   }
 }
 
