@@ -14,14 +14,22 @@
   }
   #backdrop { display: none; }
   #view { position: fixed; inset: 0; z-index: 1; }
+  #grain {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    opacity: .12; mix-blend-mode: overlay;
+  }
+  #tone {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 52%, rgba(24,16,8,.4) 100%);
+  }
   #view canvas { display: block; }
 
   .hud { position: fixed; z-index: 5; color: #f2efe8; }
   #back {
-    top: max(12px, env(safe-area-inset-top)); left: 14px;
-    font-size: 13px; font-weight: 700; color: #f2efe8; text-decoration: none;
-    text-shadow: 0 1px 8px rgba(0,0,0,.7); letter-spacing: .04em;
+    position:fixed;top:max(12px, env(safe-area-inset-top));left:14px;z-index:9;display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;letter-spacing:.02em;color:#f2efe8;text-decoration:none;background:rgba(20,18,14,.55);border:1px solid rgba(242,239,232,.35);padding:9px 15px 9px 12px;border-radius:999px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 2px 10px rgba(0,0,0,.25);
   }
+  #back:active { transform:translateY(1px);background:rgba(20,18,14,.75); }
+  #back svg { display: block; }
   #zone {
     top: max(12px, env(safe-area-inset-top)); right: 14px;
     font-size: 11px; letter-spacing: .22em; color: rgba(242,239,232,.85);
@@ -118,8 +126,10 @@
 <video id="cam" autoplay playsinline muted></video>
 <canvas id="backdrop"></canvas>
 <div id="view"></div>
+<div id="grain"></div>
+<div id="tone"></div>
 
-<a class="hud" id="back" href="index.html">← 홈</a>
+<a class="hud" id="back" href="index.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>홈으로</a>
 <div class="hud" id="zone">ZONE B · 변화의 복도</div>
 <div class="hud" id="caption"></div>
 <div class="hud" id="hint">바닥을 비추면 흰 링이 나타납니다 — 탭하면 그 자리에 사람들이 내려섭니다</div>
@@ -134,7 +144,7 @@
   <div class="card">
     <div class="kicker">MONET 100 · THE NEXT IMPRESSION</div>
     <h1>시대상 보기</h1>
-    <p>카메라를 허용하고 <b>바닥을 비추면 흰 링</b>이 나타납니다. 탭하면 그 자리에 모네가 살았던 시대의 사람들이 내려서 걸어다닙니다.</p>
+    <p>카메라를 허용하고 <b>바닥을 비추면 흰 링</b>이 나타납니다. 탭하면 그 자리에 — 1890년대 파리에서 실제로 찍힌 — 그 시절 사람들의 잔상이 내려섭니다.</p>
     <div class="rule"></div>
     <button id="start">카메라 켜고 시대로 들어가기</button>
     <div class="tip">카메라를 허용하지 않으면 1889년의 파리 대로가 대신 펼쳐집니다</div>
@@ -149,27 +159,27 @@
 </script>
 <script type="module">
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const rnd = (a,b) => a + Math.random()*(b-a);
 
-// ══════════ 장면 정의 — 모네의 시대, 단일 캐스트 ══════════
-const SCENE = {
-  caption: '모네가 살았던 시대의 파리 — 지금 서 있는 자리를 함께 걷습니다',
-  filter: 'sepia(.26) contrast(1.04)',
-  cast: ['lucille','alienist','lillian','elder'],
-};
+// 필름 그레인 타일
+{
+  const c = document.createElement('canvas'); c.width = 192; c.height = 192;
+  const x = c.getContext('2d');
+  const id = x.createImageData(192, 192);
+  for (let i = 0; i < id.data.length; i += 4) {
+    const v = 110 + Math.random()*90 | 0;
+    id.data[i] = id.data[i+1] = id.data[i+2] = v;
+    id.data[i+3] = 255;
+  }
+  x.putImageData(id, 0, 0);
+  document.getElementById('grain').style.backgroundImage = `url(${c.toDataURL()})`;
+}
 
-// 모델 정의 — mode: walk(걷기)/amble(느린 산책)/stand(서 있음)/dance
-// 빅토리안 텍스처 모델 출처(CC-BY, Sketchfab): FragileWife(mikoala), MadCorvin(Nicu.Scarlat),
-// Lillian·Lucille(MooKorea), OldMan(Karin.Granlund), Fancy(CharacterZone), CanCan(LasquetiSpice)
-const MODEL_DEFS = {
-  alienist: { url: 'models/era/alienist.glb', mode: 'stand', clip: /Idle/i, hide: /stand/i },
-  elder:    { url: 'models/era/elder.glb',    mixamoWalk: true },
-  lillian:  { url: 'models/era/lillian.glb',  mode: 'stand', clip: /^Idle_g$/i, hide: /sword|weapon|blade/i },
-  lucille:  { url: 'models/era/lucille.glb',  clip: /^Walk_g$/i, hide: /sword|sheath|scabbard|blade|weapon/i },
+// ══════════ 장면 정의 — 시대의 잔상 (실제 그 시절의 사진 속 사람들) ══════════
+const SCENE = {
+  caption: '시대의 잔상 — 1890년대 파리, 실제 그 시절의 사람들이 지금 이 자리에 겹쳐 섭니다',
+  filter: 'sepia(.3) contrast(1.05) brightness(.98)',
 };
 
 // ══════════ three 기본 ══════════
@@ -185,8 +195,6 @@ function viewSize(){
 { const { w, h } = viewSize(); renderer.setSize(w, h); }
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.getElementById('view').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -194,27 +202,9 @@ window.__scene = scene;
 const camera = new THREE.PerspectiveCamera(64, viewSize().w/viewSize().h, .05, 120);
 camera.position.set(0, 1.5, 0);
 
-scene.add(new THREE.HemisphereLight(0xfff2dd, 0x8a7f6a, .95));
-
 // 군중 전체가 담기는 그룹 — 탭/히트테스트로 이 그룹째 실제 바닥 위로 옮긴다
 const crowd = new THREE.Group();
 scene.add(crowd);
-
-const sun = new THREE.DirectionalLight(0xffe8c4, 1.05);
-sun.position.set(4, 9, 3);
-sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
-sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
-sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -12;
-crowd.add(sun);
-crowd.add(sun.target);
-
-// 바닥 — 그림자만 받는 투명판 (카메라 영상 위에 그림자를 얹음)
-const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48),
-  new THREE.ShadowMaterial({ opacity: .28 }));
-ground.rotation.x = -Math.PI/2;
-ground.receiveShadow = true;
-crowd.add(ground);
 
 // ══════════ 카메라 영상 / 대체 배경 ══════════
 const video = document.getElementById('cam');
@@ -369,6 +359,7 @@ function placeCrowd(cx, cy){
   crowd.position.set(p.x, 0, p.z);
   placed = true;
   crowd.visible = true;
+  revealCrowd();
   hintEl.textContent = '다시 탭하면 그 자리로 옮겨섭니다';
   setTimeout(() => hintEl.style.display = 'none', 2500);
 }
@@ -408,6 +399,7 @@ xrBtn.onclick = async () => {
         crowd.position.setFromMatrixPosition(reticle.matrix);
         placed = true;
         crowd.visible = true;
+        revealCrowd();
         hintEl.style.display = 'none';
       }
     });
@@ -440,230 +432,117 @@ function updateCamera(){
   }
 }
 
-// ══════════ 모델 로드 ══════════
-const loader = new GLTFLoader();
-const draco = new DRACOLoader();
-draco.setDecoderPath('https://unpkg.com/three@0.147.0/examples/jsm/libs/draco/');
-loader.setDRACOLoader(draco);
+// ══════════ 사진 로드 — 그 시절의 실제 인물 컷아웃 ══════════
 const startBtn = document.getElementById('start');
-const assets = {};      // name → {scene, clips}
-let props = {};         // tophat/parasol scenes
+const texLoader = new THREE.TextureLoader();
+let FIGURES = [];
 
-function loadGLB(url){
-  return new Promise((res, rej) => loader.load(url, res, undefined, rej));
-}
-
-async function loadAll(){
-  const names = Object.keys(MODEL_DEFS);
-  const total = names.length + 2;
+async function loadFigures(){
+  const mf = await (await fetch('figures/manifest.json')).json();
+  FIGURES = mf.figures;
   let done = 0;
-  const tick = () => { startBtn.textContent = `시대의 사람들을 불러오는 중 · ${++done}/${total}`; };
-  for (const n of names) {
-    const g = await loadGLB(MODEL_DEFS[n].url);
-    assets[n] = { scene: g.scene, clips: g.animations };
-    tick();
+  for (const f of FIGURES) {
+    f.tex = await new Promise((res, rej) => texLoader.load('figures/' + f.file, res, undefined, rej));
+    f.tex.encoding = THREE.sRGBEncoding;
+    startBtn.textContent = `그 시절의 사람들을 불러오는 중 · ${++done}/${FIGURES.length}`;
   }
-  props.walkClip = (await loadGLB('models/era/anim_walk_m.glb')).animations[0]; tick(); tick();
 }
 
-// mixamo 클립을 접미사 붙은 mixamo 리그(예: mixamorigHips_01)로 리매핑
-function remapMixamoClip(clip, root){
-  const map = {};
-  root.traverse(o => {
-    const m = o.name.match(/^(mixamorig.+?)_\d+$/);
-    if (m) map[m[1]] = o.name;
-  });
-  const tracks = [];
-  for (const t of clip.tracks) {
-    const dot = t.name.lastIndexOf('.');
-    const node = t.name.slice(0, dot), prop = t.name.slice(dot + 1);
-    if (prop === 'position') continue;               // 제자리 걷기 (이동은 코드가)
-    const to = map[node];
-    if (!to) continue;
-    const nt = t.clone();
-    nt.name = to + '.' + prop;
-    tracks.push(nt);
-  }
-  return new THREE.AnimationClip('WalkRT', clip.duration, tracks);
-}
-
-function findClip(clips, re){
-  return clips.find(c => re.test(c.name));
-}
-function findBone(root, re){
-  let out = null;
-  root.traverse(o => { if (!out && o.isBone && re.test(o.name)) out = o; });
-  return out;
-}
-const _ws = new THREE.Vector3();
-function attachProp(root, boneRe, propScene, worldSize, dy, dz){
-  const bone = findBone(root, boneRe);
-  if (!bone) return;
-  const prop = propScene.clone(true);
-  const box = new THREE.Box3().setFromObject(prop);
-  const size = box.getSize(new THREE.Vector3());
-  const native = Math.max(size.x, size.z) || 1;
-  bone.updateWorldMatrix(true, false);
-  bone.getWorldScale(_ws);
-  const bs = _ws.x || 1;
-  prop.scale.setScalar(worldSize / native / bs);
-  prop.position.set(0, dy / bs, (dz || 0) / bs);
-  prop.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
-  bone.add(prop);
-}
-
-// 절차 생성 파라솔 — 크림 캐노피 + 프릴 + 나무 폴
-function makeParasol(){
-  const g = new THREE.Group();
-  const cream = new THREE.MeshStandardMaterial({ color: 0xe8ddc8, roughness: .8, side: THREE.DoubleSide });
-  const rose  = new THREE.MeshStandardMaterial({ color: 0xc9a29a, roughness: .8 });
-  const wood  = new THREE.MeshStandardMaterial({ color: 0x6b4a34, roughness: .9 });
-  const canopy = new THREE.Mesh(new THREE.ConeGeometry(.4, .2, 14, 1, true), cream);
-  canopy.position.y = .46;
-  g.add(canopy);
-  const frill = new THREE.Mesh(new THREE.TorusGeometry(.395, .018, 8, 28), rose);
-  frill.rotation.x = Math.PI/2; frill.position.y = .375;
-  g.add(frill);
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(.032, 8, 8), wood);
-  tip.position.y = .6; g.add(tip);
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(.013, .013, 1.1, 8), wood);
-  g.add(pole);
-  return g;   // 폴 축 = +Y (그립 -.55 … 꼭지 +.6)
-}
-function attachParasol(root){
-  const bone = findBone(root, /spine|chest|torso/i) || findBone(root, /neck/i);
-  if (!bone) return;
-  bone.updateWorldMatrix(true, false);
-  bone.getWorldScale(_ws);
-  const bs = _ws.x || 1;
-  const p = makeParasol();
-  p.scale.setScalar(1/bs);
-  // 본 축이 리그마다 제각각이므로: 본 월드 회전을 역보정해 파라솔을 월드 수직으로 세운 뒤 살짝 기울임
-  const bq = new THREE.Quaternion();
-  bone.getWorldQuaternion(bq);
-  const tilt = new THREE.Quaternion().setFromEuler(new THREE.Euler(-.22, 0, -.3));
-  p.quaternion.copy(bq.invert()).multiply(tilt);
-  // 위치도 월드 기준(오른어깨 위·뒤)으로 잡고 본 로컬로 환산
-  const wp = new THREE.Vector3();
-  bone.getWorldPosition(wp);
-  wp.add(new THREE.Vector3(.2, .42, -.08));
-  p.position.copy(bone.worldToLocal(wp));
-  p.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  window.__parasols = (window.__parasols || []).concat(p);
-  bone.add(p);
-}
-
-// ══════════ 걷는 사람들 ══════════
+// ══════════ 시대의 잔상 인물들 ══════════
 const walkers = [];
 const _fwd = new THREE.Vector3();
 const clock = new THREE.Clock();
 
-function spawnWalker(name){
-  const def = MODEL_DEFS[name];
-  const src = assets[name];
-  const obj = SkeletonUtils.clone(src.scene);
-  // 무기·받침대 등 캐릭터 외 메쉬 제거 (bbox 계산 전에)
-  {
-    const trash = [];
-    obj.traverse(o => {
-      if (!o.isMesh && !o.isSkinnedMesh) return;
-      if (def.hide && def.hide.test(o.name)) { trash.push(o); return; }
-      if (!o.isSkinnedMesh) {           // 모델에 딸려온 바닥판 제거
-        o.geometry.computeBoundingBox();
-        const sz = o.geometry.boundingBox.getSize(new THREE.Vector3());
-        if (sz.y < .06 * Math.max(sz.x, sz.z) && Math.max(sz.x, sz.z) > 1.2) trash.push(o);
-      }
-    });
-    trash.forEach(o => o.removeFromParent());
-  }
-  // 키 정규화 — 스킨드 메쉬는 지오메트리 bbox가 본 스케일을 무시하므로
-  // 본(뼈대) 월드 Y 범위로 키를 잰다 (본 없으면 bbox 폴백)
-  obj.updateMatrixWorld(true);
-  let minY = Infinity, maxY = -Infinity, boneN = 0;
-  const _bp = new THREE.Vector3();
-  obj.traverse(o => {
-    if (o.isBone) {
-      o.getWorldPosition(_bp);
-      minY = Math.min(minY, _bp.y); maxY = Math.max(maxY, _bp.y);
-      boneN++;
-    }
-  });
-  let h;
-  if (boneN > 3 && maxY - minY > .01) {
-    h = (maxY - minY) * 1.18;          // 관절 밖 머리·발 여유
-  } else {
-    const box = new THREE.Box3().setFromObject(obj);
-    h = box.getSize(new THREE.Vector3()).y || 1;
-  }
-  const s = rnd(1.6, 1.76) / h;
+function blobTexture(){
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(128, 64, 8, 128, 64, 120);
+  g.addColorStop(0, 'rgba(10,8,6,.85)');
+  g.addColorStop(.55, 'rgba(10,8,6,.35)');
+  g.addColorStop(1, 'rgba(10,8,6,0)');
+  x.save(); x.translate(128, 64); x.scale(1, .5); x.translate(-128, -64);
+  x.fillStyle = g; x.fillRect(0, 0, 256, 128);
+  x.restore();
+  return new THREE.CanvasTexture(c);
+}
+const blobTex = blobTexture();
+
+function spawnFigure(f){
+  const img = f.tex.image;
+  const aspect = (img.width / img.height) || .4;
+  const h = f.h || rnd(1.6, 1.78);
+  const w = h * aspect;
+  const mat = new THREE.MeshBasicMaterial({ map: f.tex, transparent: true, depthWrite: false, opacity: 0 });
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  plane.position.y = h/2;
   const root = new THREE.Group();
-  obj.scale.setScalar(s);
-  obj.traverse(o => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.frustumCulled = false; } });
-  root.add(obj);
+  root.add(plane);
+  const shMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: 0 });
+  const sh = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(w*.95, .55), Math.max(w*.5, .3)), shMat);
+  sh.rotation.x = -Math.PI/2;
+  sh.position.y = .012;
+  root.add(sh);
 
-  if (def.hat) attachProp(obj, /head/i, props.tophat, .34 * s / (s || 1) * 1, .22, .02);
-  if (def.parasol) attachParasol(obj);
-
-  const mixer = new THREE.AnimationMixer(obj);
-  let clip;
-  if (def.mixamoWalk) {
-    clip = remapMixamoClip(props.walkClip, obj);
-    if (!clip.tracks.length) clip = src.clips[0];    // 리매핑 실패 시 원래 클립
-  } else {
-    clip = (def.clip && findClip(src.clips, def.clip))
-      || findClip(src.clips, /walk(?!.*back)/i) || src.clips[0];
-  }
-  const act = mixer.clipAction(clip);
-  act.play();
-  mixer.update(Math.random()*2);      // 위상 어긋나게
-
-  const mode = def.mode || 'walk';
-  for (let tryN = 0; tryN < 24; tryN++) {
-    const a0 = Math.random()*Math.PI*2;
-    const d0 = mode === 'walk' ? rnd(2.6, 8.5) : rnd(2.4, 6.5);
+  for (let tryN = 0; tryN < 30; tryN++) {
+    const a0 = Math.random()*Math.PI*2, d0 = rnd(2.2, 7.5);
     root.position.set(Math.cos(a0)*d0, 0, Math.sin(a0)*d0);
-    if (walkers.every(o => o.root.position.distanceTo(root.position) > 1.8)) break;
+    if (walkers.every(o => o.root.position.distanceTo(root.position) > 1.6)) break;
   }
-  if (mode !== 'walk') root.rotation.y = Math.random()*Math.PI*2;
   crowd.add(root);
-  const w = {
-    root, mixer, mode,
-    speed: mode === 'amble' ? rnd(.16, .24) : rnd(.55, .95),
+  const wk = {
+    root, plane, mat, shMat, h,
+    mode: f.mode || (Math.random() < .5 ? 'stroll' : 'stand'),
+    speed: rnd(.09, .2),
     target: new THREE.Vector3(),
-    pause: 0,
+    pause: rnd(0, 3),
+    phase: Math.random()*6.28,
+    born: 1e9,                      // 배치 때 리셋
   };
-  pickTarget(w);
-  walkers.push(w);
+  pickTarget(wk);
+  walkers.push(wk);
 }
 
 function pickTarget(w){
-  const a = Math.random()*Math.PI*2, d = rnd(2.4, 9);
+  const a = Math.random()*Math.PI*2, d = rnd(2, 8);
   w.target.set(Math.cos(a)*d, 0, Math.sin(a)*d);
 }
 
+// 배치 순간: 잔상이 스르르 떠오르듯
+function revealCrowd(){
+  const t = clock.elapsedTime;
+  walkers.forEach((w, i) => { w.born = t + rnd(0, 1.1); w.mat.opacity = 0; w.shMat.opacity = 0; });
+}
+
 const _dir = new THREE.Vector3();
-function updateWalkers(dt){
+const _camW = new THREE.Vector3();
+function updateFigures(dt){
+  const t = clock.elapsedTime;
+  camera.getWorldPosition(_camW);
   for (const w of walkers) {
-    if (w.mode === 'stand' || w.mode === 'dance') { w.mixer.update(dt); continue; }
-    w.mixer.update(w.mode === 'amble' ? dt : dt * w.speed / .75);
+    // 등장 페이드
+    const age = t - w.born;
+    const vis = THREE.MathUtils.clamp(age / 1.6, 0, 1);
+    const o = vis * .94;
+    w.mat.opacity = o;
+    w.shMat.opacity = o * .5;
+    if (vis <= 0) continue;
+    // 요 빌보드 — 항상 관람자를 향해 서 있는 사진
+    const wx = crowd.position.x + w.root.position.x;
+    const wz = crowd.position.z + w.root.position.z;
+    w.root.rotation.y = Math.atan2(_camW.x - wx, _camW.z - wz);
+    // 미세한 숨
+    w.plane.position.y = w.h/2 + Math.sin(t*1.05 + w.phase)*.006;
+    // 잔상 산책 — 아주 느리게 떠돌기
+    if (w.mode !== 'stroll') continue;
     if (w.pause > 0) { w.pause -= dt; continue; }
     _dir.subVectors(w.target, w.root.position); _dir.y = 0;
-    const dist = _dir.length();
-    if (dist < .35) {
-      if (Math.random() < .3) w.pause = rnd(.8, 2.4);
+    if (_dir.length() < .3) {
+      w.pause = rnd(1.5, 5);
       pickTarget(w);
       continue;
     }
     _dir.normalize();
-    const want = Math.atan2(_dir.x, _dir.z);
-    let dyaw = want - w.root.rotation.y;
-    while (dyaw > Math.PI) dyaw -= Math.PI*2;
-    while (dyaw < -Math.PI) dyaw += Math.PI*2;
-    w.root.rotation.y += THREE.MathUtils.clamp(dyaw, -2.2*dt, 2.2*dt);
-    if (Math.abs(dyaw) < 1.1) {
-      w.root.position.x += Math.sin(w.root.rotation.y) * w.speed * dt;
-      w.root.position.z += Math.cos(w.root.rotation.y) * w.speed * dt;
-    }
+    w.root.position.addScaledVector(_dir, w.speed * dt);
   }
 }
 
@@ -675,7 +554,7 @@ function clearWalkers(){
 let placed = false;
 function buildCast(){
   clearWalkers();
-  for (const n of SCENE.cast) spawnWalker(n);
+  for (const f of FIGURES) spawnFigure(f);
   crowd.visible = placed;
 }
 
@@ -731,9 +610,9 @@ document.getElementById('start').onclick = async () => {
   } catch(e) {}
   await openCamera();
   try {
-    await loadAll();
+    await loadFigures();
   } catch(e) {
-    startBtn.textContent = '모델을 불러오지 못했습니다 — 다시 시도';
+    startBtn.textContent = '사진을 불러오지 못했습니다 — 다시 시도';
     startBtn.disabled = false;
     return;
   }
@@ -759,7 +638,7 @@ renderer.setAnimationLoop((time, frame) => {
     else if (isNaN(camera.projectionMatrix.elements[0])) fitView();
   }
   const dt = Math.min(clock.getDelta(), .1);
-  updateWalkers(dt);
+  updateFigures(dt);
   if (renderer.xr.isPresenting) {
     if (frame && hitTestSource) {
       const hits = frame.getHitTestResults(hitTestSource);

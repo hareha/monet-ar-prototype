@@ -1,0 +1,44 @@
+{
+ "figures": [
+  {
+   "file": "p01.png",
+   "h": 1.72,
+   "mode": "stroll"
+  },
+  {
+   "file": "p03.png",
+   "h": 1.7,
+   "mode": "stand"
+  },
+  {
+   "file": "p04.png",
+   "h": 1.76,
+   "mode": "stand"
+  },
+  {
+   "file": "p05.png",
+   "h": 1.45,
+   "mode": "stroll"
+  },
+  {
+   "file": "p06.png",
+   "h": 1.58,
+   "mode": "stand"
+  },
+  {
+   "file": "p07.png",
+   "h": 1.62,
+   "mode": "stroll"
+  },
+  {
+   "file": "p08.png",
+   "h": 1.66,
+   "mode": "stand"
+  },
+  {
+   "file": "p09.png",
+   "h": 1.67,
+   "mode": "stroll"
+  }
+ ]
+}
