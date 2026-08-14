@@ -940,7 +940,7 @@ function spawnMannequin(){
 }
 
 const CROWD_L = 26;
-const CROWD_N = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 46 : 72;
+const CROWD_N = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 27 : 48;
 
 function revealCrowd(){
   const t = clock.elapsedTime;
@@ -976,10 +976,12 @@ function clearWalkers(){
 let placed = false;
 function buildCast(){
   clearWalkers();
-  const meshyN = MESHY ? (/Mobi|Android|iPhone/i.test(navigator.userAgent) ? 14 : 26) : 0;
-  const kinds = MESHY && MESHY.porter ? ['gent', 'lady', 'porter'] : ['gent', 'lady'];
-  for (let i = 0; i < meshyN; i++) spawnMeshy(kinds[i % kinds.length]);
-  for (let i = 0; i < CROWD_N - meshyN; i++) spawnMannequin();
+  if (MESHY) {
+    const kinds = MESHY.porter ? ['gent', 'lady', 'porter'] : ['gent', 'lady'];
+    for (let i = 0; i < CROWD_N; i++) spawnMeshy(kinds[i % kinds.length]);
+  } else {
+    for (let i = 0; i < CROWD_N; i++) spawnMannequin();   // 폴백
+  }
   crowd.visible = placed;
 }
 
