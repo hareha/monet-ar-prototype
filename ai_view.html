@@ -1,0 +1,40 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;background:#3a3d42}</style></head><body>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.147.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.147.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const renderer = new THREE.WebGLRenderer({antialias:true});
+document.body.appendChild(renderer.domElement);
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x3a3d42);
+const cam = new THREE.PerspectiveCamera(40, 16/9, .1, 100);
+cam.position.set(0, 1.1, 4.4); cam.lookAt(0, .85, 0);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x777264, 1.05));
+const key = new THREE.DirectionalLight(0xfff4e0, .8); key.position.set(3, 6, 4); scene.add(key);
+scene.add(new THREE.GridHelper(8, 8, 0x5a5d63, 0x46494f));
+const urls = ['assets/ai/man_tophat.glb', 'assets/ai/woman_gown.glb', 'assets/ai/man_worker.glb'];
+const roots = [];
+const L = new GLTFLoader();
+let n = 0;
+urls.forEach((u, i) => L.load(u, g => {
+  const obj = g.scene;
+  obj.rotation.x = -Math.PI/2;   // TripoSR: Z-up → Y-up
+  obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const sc = 1.7 / (size.y || 1);
+  obj.scale.setScalar(sc);
+  const b2 = new THREE.Box3().setFromObject(obj);
+  obj.position.y = -b2.min.y;
+  const root = new THREE.Group();
+  root.add(obj);
+  root.position.x = (i - 1) * 1.6;
+  scene.add(root);
+  roots.push(root);
+  if (++n === 3) window.__ready = true;
+}));
+const fit = () => { const w = innerWidth||1600, h = innerHeight||900; renderer.setSize(w, h); cam.aspect = w/h; cam.updateProjectionMatrix(); };
+fit(); addEventListener('resize', fit); setTimeout(fit, 400);
+renderer.setAnimationLoop(() => renderer.render(scene, cam));
+window.__spin = (ry) => { fit(); roots.forEach(r => r.rotation.y = ry); renderer.render(scene, cam); return roots.length; };
+</script></body></html>
