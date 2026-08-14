@@ -146,17 +146,17 @@ const ERAS = {
   '1867': {
     caption: '제2제정의 파리 — 오스만의 새 대로 위, 크리놀린 드레스와 실크해트의 시대',
     filter: 'sepia(.45) contrast(1.06) brightness(.96)',
-    cast: ['gent1','gent2','vlady','lillian','oldman','gent3'],
+    cast: ['gent1','gent2','lillian','oldman','gent3'],
   },
   '1889': {
     caption: '1889년, 철과 증기의 파리 — 철탑이 오르고 기차가 도시의 시간을 바꾼 시대',
     filter: 'sepia(.28) contrast(1.04)',
-    cast: ['gent1','gent3','vlady','alienist','oldman','gent2'],
+    cast: ['gent1','gent3','alienist','oldman','gent2'],
   },
   '1900': {
     caption: '벨 에포크 — 전등이 켜진 밤, 화가들이 거리로 나온 시대',
     filter: 'sepia(.12) saturate(1.06)',
-    cast: ['gent2','gent3','lucille','vlady','lillian','alienist','oldman'],
+    cast: ['gent2','gent3','lucille','lillian','alienist','oldman'],
   },
 };
 let era = '1889';
@@ -168,7 +168,6 @@ const MODEL_DEFS = {
   gent1:    { url: 'models/era/gent1.glb',    hat: true },
   gent2:    { url: 'models/era/gent2.glb',    hat: true },
   gent3:    { url: 'models/era/gent3.glb',    hat: true },
-  vlady:    { url: 'models/era/vlady.glb',    mode: 'amble', clip: /Take/i, hide: /knife|blood/i, parasol: true },
   alienist: { url: 'models/era/alienist.glb', mode: 'stand', clip: /Idle/i, hide: /stand/i },
   lillian:  { url: 'models/era/lillian.glb',  mode: 'stand', clip: /^Idle_g$/i, hide: /sword|weapon|blade/i },
   oldman:   { url: 'models/era/oldman.glb',   clip: /^Walk$/i },
@@ -573,9 +572,12 @@ function spawnWalker(name){
   mixer.update(Math.random()*2);      // 위상 어긋나게
 
   const mode = def.mode || 'walk';
-  const a0 = Math.random()*Math.PI*2;
-  const d0 = mode === 'walk' ? rnd(2.6, 8.5) : rnd(2.4, 6.5);
-  root.position.set(Math.cos(a0)*d0, 0, Math.sin(a0)*d0);
+  for (let tryN = 0; tryN < 24; tryN++) {
+    const a0 = Math.random()*Math.PI*2;
+    const d0 = mode === 'walk' ? rnd(2.6, 8.5) : rnd(2.4, 6.5);
+    root.position.set(Math.cos(a0)*d0, 0, Math.sin(a0)*d0);
+    if (walkers.every(o => o.root.position.distanceTo(root.position) > 1.8)) break;
+  }
   if (mode !== 'walk') root.rotation.y = Math.random()*Math.PI*2;
   crowd.add(root);
   const w = {
