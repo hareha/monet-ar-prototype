@@ -481,26 +481,28 @@ function templateBones(root){
   return bones;
 }
 const SEGS = [
-  // [본, 방향끝 본, 반지름, 반지름스케일끝(미사용)]
-  ['Hips', 'Spine', .125],
-  ['Spine', 'Spine1', .118],
-  ['Spine1', 'Spine2', .115],
-  ['Spine2', 'Neck', .105],
-  ['Neck', 'Head', .045],
-  ['LeftShoulder', 'LeftArm', .05],
-  ['LeftArm', 'LeftForeArm', .045],
-  ['LeftForeArm', 'LeftHand', .038],
-  ['LeftHand', 'LeftHandMiddle1', .034],
-  ['RightShoulder', 'RightArm', .05],
-  ['RightArm', 'RightForeArm', .045],
-  ['RightForeArm', 'RightHand', .038],
-  ['RightHand', 'RightHandMiddle1', .034],
-  ['LeftUpLeg', 'LeftLeg', .068],
-  ['LeftLeg', 'LeftFoot', .052],
-  ['LeftFoot', 'LeftToeBase', .045],
-  ['RightUpLeg', 'RightLeg', .068],
-  ['RightLeg', 'RightFoot', .052],
-  ['RightFoot', 'RightToeBase', .045],
+  ['Neck', 'Head', .042],
+  ['LeftArm', 'LeftForeArm', .042],
+  ['LeftForeArm', 'LeftHand', .036],
+  ['LeftHand', 'LeftHandMiddle1', .032],
+  ['RightArm', 'RightForeArm', .042],
+  ['RightForeArm', 'RightHand', .036],
+  ['RightHand', 'RightHandMiddle1', .032],
+  ['LeftUpLeg', 'LeftLeg', .066],
+  ['LeftLeg', 'LeftFoot', .05],
+  ['LeftFoot', 'LeftToeBase', .044],
+  ['RightUpLeg', 'RightLeg', .066],
+  ['RightLeg', 'RightFoot', .05],
+  ['RightFoot', 'RightToeBase', .044],
+];
+// 관절 구슬 — 굽힘 때 이음새 메움
+const JOINTS = [
+  ['LeftArm', .046], ['RightArm', .046],
+  ['LeftForeArm', .038], ['RightForeArm', .038],
+  ['LeftUpLeg', .068], ['RightUpLeg', .068],
+  ['LeftLeg', .054], ['RightLeg', .054],
+  ['LeftFoot', .046], ['RightFoot', .046],
+  ['LeftHand', .033], ['RightHand', .033],
 ];
 let GEO = {};   // 4종 공유 지오메트리
 
@@ -524,7 +526,57 @@ function buildMannequinGeo(kind){
       v0.clone().addScaledVector(d, .5), q, new THREE.Vector3(1, 1, 1)));
     geos.push(skinAttrs(g, idxOf(A)));
   };
-  for (const [a, b, r] of SEGS) seg(a, b, r);
+  const noLegs = kind.includes('noLegs');
+  for (const [a, b, r] of SEGS) {
+    if (noLegs && /Leg|Foot/.test(a)) continue;
+    seg(a, b, r);
+  }
+  for (const [jn, jr] of JOINTS) {
+    if (noLegs && /Leg|Foot/.test(jn)) continue;
+    const J = byName[jn];
+    if (!J) continue;
+    J.getWorldPosition(v0);
+    const g = new THREE.SphereGeometry(jr, 10, 8);
+    g.translate(v0.x, v0.y, v0.z);
+    geos.push(skinAttrs(g, idxOf(J)));
+  }
+  // 몸통 — 힙에서 어깨까지 하나의 매끈한 셰이프
+  {
+    const wy = n => { byName[n].getWorldPosition(v0); return v0.y; };
+    const yH = wy('Hips'), yS1 = wy('Spine1'), yS2 = wy('Spine2'), yN = wy('Neck');
+    const shoulderHalf = (() => {
+      byName['LeftArm'].getWorldPosition(v0);
+      const t = v0.clone();
+      byName['RightArm'].getWorldPosition(v0);
+      return t.distanceTo(v0) / 2;
+    })();
+    const prof = [
+      [yH - .1, .002], [yH - .09, .105], [yH - .02, .142], [yH + .04, .128],
+      [(yH + yS1)/2 + .02, .114], [yS1, .12], [(yS1 + yS2)/2, .132],
+      [yS2, Math.max(.14, shoulderHalf*.92)], [yN - .015, Math.max(.12, shoulderHalf*.8)],
+      [yN + .01, .048], [yN + .02, .002],
+    ];
+    const g = new THREE.LatheGeometry(prof.map(([y, r]) => new THREE.Vector2(r, y)), 18);
+    // 몸통 앞뒤 두께 납작하게
+    const hipsPos = new THREE.Vector3();
+    byName['Hips'].getWorldPosition(hipsPos);
+    g.translate(-hipsPos.x, 0, -hipsPos.z);
+    g.scale(1, 1, .78);
+    g.translate(hipsPos.x, 0, hipsPos.z);
+    // 높이에 따라 힙/척추 본에 배분
+    const pos = g.attributes.position;
+    const n = pos.count;
+    const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+    const iH = idxOf(byName['Hips']), iS1 = idxOf(byName['Spine1']), iS2 = idxOf(byName['Spine2']);
+    for (let i = 0; i < n; i++) {
+      const y = pos.getY(i);
+      const idx = y < (yH + yS1)/2 ? iH : (y < (yS1 + yS2)/2 ? iS1 : iS2);
+      si[i*4] = idx; sw[i*4] = 1;
+    }
+    g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+    geos.push(g);
+  }
   // 머리
   {
     const H = byName['Head'], HT = byName['HeadTop_End'];
@@ -537,18 +589,6 @@ function buildMannequinGeo(kind){
   }
   const hipsY = (() => { byName['Hips'].getWorldPosition(v0); return v0.y; })();
   const headTop = (() => { (byName['HeadTop_End'] || byName['Head']).getWorldPosition(v0); return v0.y; })();
-  if (kind.includes('skirt')) {
-    // 롱 드레스 실루엣 — 힙에서 발목까지 A라인
-    const pts = [];
-    for (let i = 0; i <= 10; i++) {
-      const t = i/10;
-      const y = hipsY + .06 - t*(hipsY - .015);
-      const r = .15 + Math.pow(t, 1.35)*.31;
-      pts.push(new THREE.Vector2(r, y));
-    }
-    const g = new THREE.LatheGeometry(pts, 18);
-    geos.push(skinAttrs(g, idxOf(byName['Hips'])));
-  }
   if (kind.includes('tophat')) {
     const bIdx = idxOf(byName['Head']);
     const crown = new THREE.CylinderGeometry(.072, .078, .15, 14);
@@ -579,12 +619,30 @@ function buildMannequinGeo(kind){
   return merged;
 }
 
+function buildSkirtGeo(){
+  const bones = templateBones(walkTemplate);
+  const byName = {};
+  bones.forEach(b => byName[b.name.replace(/^mixamorig/, '')] = b);
+  const v = new THREE.Vector3();
+  byName['Hips'].getWorldPosition(v);
+  const yH = v.y;
+  const pts = [];
+  for (let i = 0; i <= 10; i++) {
+    const t = i/10;
+    const y = yH + .08 - t*(yH + .08 - .02);
+    const r = .148 + Math.pow(t, 1.3)*.30;
+    pts.push(new THREE.Vector2(r, y));
+  }
+  return new THREE.LatheGeometry(pts, 20);
+}
+
 function buildSharedGeometries(){
   GEO = {
     gentHat: buildMannequinGeo('tophat'),
     gent: buildMannequinGeo('plain'),
-    ladyBrim: buildMannequinGeo('skirt brim'),
-    ladyBun: buildMannequinGeo('skirt bun'),
+    ladyBrim: buildMannequinGeo('brim noLegs'),
+    ladyBun: buildMannequinGeo('bun noLegs'),
+    skirt: buildSkirtGeo(),
   };
 }
 
@@ -609,6 +667,13 @@ function spawnMannequin(){
   root.add(inst);
   root.add(mesh);
   mesh.bind(skeleton, new THREE.Matrix4());
+  if (!isMan) {
+    const smat = mat.clone();
+    smat.side = THREE.DoubleSide;
+    const skirt = new THREE.Mesh(GEO.skirt, smat);
+    skirt.frustumCulled = false;
+    root.add(skirt);
+  }
 
   const shMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: 0 });
   const sh = new THREE.Mesh(new THREE.PlaneGeometry(.85, .5), shMat);

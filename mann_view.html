@@ -1,0 +1,229 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;background:#3a3d42}</style></head><body>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.147.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.147.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+const renderer = new THREE.WebGLRenderer({antialias:true});
+document.body.appendChild(renderer.domElement);
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x3a3d42);
+const cam = new THREE.PerspectiveCamera(45, 16/9, .1, 100);
+cam.position.set(0, 1.35, 4.6);
+const ctrl = new OrbitControls(cam, renderer.domElement); ctrl.target.set(0, .95, 0);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8478, 1.0));
+const key = new THREE.DirectionalLight(0xfff4e0, .75); key.position.set(3, 8, 2); scene.add(key);
+scene.add(new THREE.GridHelper(8, 8, 0x5a5d63, 0x46494f));
+let walkTemplate = null, walkClip = null;
+function skinAttrs(g, idx){
+  const n = g.attributes.position.count;
+  const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+  for (let i = 0; i < n; i++) { si[i*4] = idx; sw[i*4] = 1; }
+  g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+  g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  return g;
+}
+function templateBones(root){
+  const bones = [];
+  root.traverse(o => { if (/^mixamorig/.test(o.name)) bones.push(o); });
+  return bones;
+}
+const SEGS = [
+  ['Neck', 'Head', .042],
+  ['LeftArm', 'LeftForeArm', .042],
+  ['LeftForeArm', 'LeftHand', .036],
+  ['LeftHand', 'LeftHandMiddle1', .032],
+  ['RightArm', 'RightForeArm', .042],
+  ['RightForeArm', 'RightHand', .036],
+  ['RightHand', 'RightHandMiddle1', .032],
+  ['LeftUpLeg', 'LeftLeg', .066],
+  ['LeftLeg', 'LeftFoot', .05],
+  ['LeftFoot', 'LeftToeBase', .044],
+  ['RightUpLeg', 'RightLeg', .066],
+  ['RightLeg', 'RightFoot', .05],
+  ['RightFoot', 'RightToeBase', .044],
+];
+// 관절 구슬 — 굽힘 때 이음새 메움
+const JOINTS = [
+  ['LeftArm', .046], ['RightArm', .046],
+  ['LeftForeArm', .038], ['RightForeArm', .038],
+  ['LeftUpLeg', .068], ['RightUpLeg', .068],
+  ['LeftLeg', .054], ['RightLeg', .054],
+  ['LeftFoot', .046], ['RightFoot', .046],
+  ['LeftHand', .033], ['RightHand', .033],
+];
+let GEO = {};   // 4종 공유 지오메트리
+
+function buildMannequinGeo(kind){
+  const bones = templateBones(walkTemplate);
+  const byName = {};
+  bones.forEach(b => byName[b.name.replace(/^mixamorig/, '')] = b);
+  const idxOf = b => bones.indexOf(b);
+  const v0 = new THREE.Vector3(), v1 = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  const geos = [];
+  const seg = (an, bn, r) => {
+    const A = byName[an], B = byName[bn];
+    if (!A || !B) return;
+    A.getWorldPosition(v0); B.getWorldPosition(v1);
+    const d = v1.clone().sub(v0), len = d.length();
+    if (len < .015) return;
+    const g = new THREE.CapsuleGeometry(r, Math.max(len - r, .02), 3, 10);
+    const q = new THREE.Quaternion().setFromUnitVectors(up, d.clone().normalize());
+    g.applyMatrix4(new THREE.Matrix4().compose(
+      v0.clone().addScaledVector(d, .5), q, new THREE.Vector3(1, 1, 1)));
+    geos.push(skinAttrs(g, idxOf(A)));
+  };
+  const noLegs = kind.includes('noLegs');
+  for (const [a, b, r] of SEGS) {
+    if (noLegs && /Leg|Foot/.test(a)) continue;
+    seg(a, b, r);
+  }
+  for (const [jn, jr] of JOINTS) {
+    if (noLegs && /Leg|Foot/.test(jn)) continue;
+    const J = byName[jn];
+    if (!J) continue;
+    J.getWorldPosition(v0);
+    const g = new THREE.SphereGeometry(jr, 10, 8);
+    g.translate(v0.x, v0.y, v0.z);
+    geos.push(skinAttrs(g, idxOf(J)));
+  }
+  // 몸통 — 힙에서 어깨까지 하나의 매끈한 셰이프
+  {
+    const wy = n => { byName[n].getWorldPosition(v0); return v0.y; };
+    const yH = wy('Hips'), yS1 = wy('Spine1'), yS2 = wy('Spine2'), yN = wy('Neck');
+    const shoulderHalf = (() => {
+      byName['LeftArm'].getWorldPosition(v0);
+      const t = v0.clone();
+      byName['RightArm'].getWorldPosition(v0);
+      return t.distanceTo(v0) / 2;
+    })();
+    const prof = [
+      [yH - .1, .002], [yH - .09, .105], [yH - .02, .142], [yH + .04, .128],
+      [(yH + yS1)/2 + .02, .114], [yS1, .12], [(yS1 + yS2)/2, .132],
+      [yS2, Math.max(.14, shoulderHalf*.92)], [yN - .015, Math.max(.12, shoulderHalf*.8)],
+      [yN + .01, .048], [yN + .02, .002],
+    ];
+    const g = new THREE.LatheGeometry(prof.map(([y, r]) => new THREE.Vector2(r, y)), 18);
+    // 몸통 앞뒤 두께 납작하게
+    const hipsPos = new THREE.Vector3();
+    byName['Hips'].getWorldPosition(hipsPos);
+    g.translate(-hipsPos.x, 0, -hipsPos.z);
+    g.scale(1, 1, .78);
+    g.translate(hipsPos.x, 0, hipsPos.z);
+    // 높이에 따라 힙/척추 본에 배분
+    const pos = g.attributes.position;
+    const n = pos.count;
+    const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+    const iH = idxOf(byName['Hips']), iS1 = idxOf(byName['Spine1']), iS2 = idxOf(byName['Spine2']);
+    for (let i = 0; i < n; i++) {
+      const y = pos.getY(i);
+      const idx = y < (yH + yS1)/2 ? iH : (y < (yS1 + yS2)/2 ? iS1 : iS2);
+      si[i*4] = idx; sw[i*4] = 1;
+    }
+    g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+    geos.push(g);
+  }
+  // 머리
+  {
+    const H = byName['Head'], HT = byName['HeadTop_End'];
+    H.getWorldPosition(v0); (HT || H).getWorldPosition(v1);
+    const c = v0.clone().lerp(v1, .45);
+    const g = new THREE.SphereGeometry(.093, 14, 12);
+    g.scale(1, 1.18, 1.05);
+    g.translate(c.x, c.y, c.z);
+    geos.push(skinAttrs(g, idxOf(H)));
+  }
+  const hipsY = (() => { byName['Hips'].getWorldPosition(v0); return v0.y; })();
+  const headTop = (() => { (byName['HeadTop_End'] || byName['Head']).getWorldPosition(v0); return v0.y; })();
+  if (kind.includes('tophat')) {
+    const bIdx = idxOf(byName['Head']);
+    const crown = new THREE.CylinderGeometry(.072, .078, .15, 14);
+    crown.translate(0, headTop + .085, .012);
+    geos.push(skinAttrs(crown, bIdx));
+    const brim = new THREE.CylinderGeometry(.125, .125, .014, 16);
+    brim.translate(0, headTop + .012, .012);
+    geos.push(skinAttrs(brim, bIdx));
+  }
+  if (kind.includes('brim')) {
+    const bIdx = idxOf(byName['Head']);
+    const brim = new THREE.CylinderGeometry(.16, .16, .02, 16);
+    brim.translate(0, headTop + .01, .01);
+    geos.push(skinAttrs(brim, bIdx));
+    const crown = new THREE.SphereGeometry(.08, 12, 8);
+    crown.scale(1, .6, 1);
+    crown.translate(0, headTop + .03, .01);
+    geos.push(skinAttrs(crown, bIdx));
+  }
+  if (kind.includes('bun')) {
+    const bIdx = idxOf(byName['Head']);
+    const bun = new THREE.SphereGeometry(.05, 10, 8);
+    byName['Head'].getWorldPosition(v0);
+    bun.translate(v0.x, headTop - .03, v0.z - .09);
+    geos.push(skinAttrs(bun, bIdx));
+  }
+  const merged = BufferGeometryUtils.mergeBufferGeometries(geos, false);
+  return merged;
+}
+
+function buildSkirtGeo(){
+  const bones = templateBones(walkTemplate);
+  const byName = {};
+  bones.forEach(b => byName[b.name.replace(/^mixamorig/, '')] = b);
+  const v = new THREE.Vector3();
+  byName['Hips'].getWorldPosition(v);
+  const yH = v.y;
+  const pts = [];
+  for (let i = 0; i <= 10; i++) {
+    const t = i/10;
+    const y = yH + .08 - t*(yH + .08 - .02);
+    const r = .148 + Math.pow(t, 1.3)*.30;
+    pts.push(new THREE.Vector2(r, y));
+  }
+  return new THREE.LatheGeometry(pts, 20);
+}
+
+function buildSharedGeometries(){
+  GEO = {
+    gentHat: buildMannequinGeo('tophat'),
+    gent: buildMannequinGeo('plain'),
+    ladyBrim: buildMannequinGeo('brim noLegs'),
+    ladyBun: buildMannequinGeo('bun noLegs'),
+    skirt: buildSkirtGeo(),
+  };
+}
+
+const mixers = [];
+new GLTFLoader().load('assets/walk.glb', g => {
+  walkTemplate = g.scene; walkClip = g.animations[0];
+  walkTemplate.updateMatrixWorld(true);
+  buildSharedGeometries();
+  const kinds = ['gentHat', 'gent', 'ladyBrim', 'ladyBun'];
+  const cols = [0x26282d, 0x33302c, 0xe0d8c6, 0xd6c8ae];
+  kinds.forEach((k, i) => {
+    const inst = walkTemplate.clone(true);
+    const bones = templateBones(inst);
+    const skeleton = new THREE.Skeleton(bones);
+    const mat = new THREE.MeshStandardMaterial({ color: cols[i], roughness: .92 });
+    const mesh = new THREE.SkinnedMesh(GEO[k], mat);
+    mesh.frustumCulled = false;
+    const root = new THREE.Group();
+    root.add(inst); root.add(mesh);
+    mesh.bind(skeleton, new THREE.Matrix4());
+    if (k.startsWith('lady')) { const sm = mat.clone(); sm.side = THREE.DoubleSide; const sk = new THREE.Mesh(GEO.skirt, sm); root.add(sk); }
+    root.position.x = (i - 1.5) * 1.1;
+    scene.add(root);
+    const mx = new THREE.AnimationMixer(inst);
+    mx.clipAction(walkClip).play();
+    mx.update(i*.4);
+    mixers.push(mx);
+  });
+});
+const clock = new THREE.Clock();
+const fit = () => { const w = innerWidth||1600, h = innerHeight||900; renderer.setSize(w,h); cam.aspect = w/h; cam.updateProjectionMatrix(); };
+fit(); addEventListener('resize', fit); setTimeout(fit, 400);
+renderer.setAnimationLoop(() => { const dt = clock.getDelta(); mixers.forEach(m => m.update(dt)); ctrl.update(); renderer.render(scene, cam); });
+window.__frame = (dt) => { fit(); mixers.forEach(m => m.update(dt ?? .1)); renderer.render(scene, cam); return 'r'; };
+</script></body></html>
