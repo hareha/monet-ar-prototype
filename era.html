@@ -122,7 +122,7 @@
 <a class="hud" id="back" href="index.html">← 홈</a>
 <div class="hud" id="zone">ZONE B · 변화의 복도</div>
 <div class="hud" id="caption"></div>
-<div class="hud" id="hint">바닥을 비추고 화면을 탭하면 그 자리에 사람들이 내려섭니다</div>
+<div class="hud" id="hint">바닥을 비추면 흰 링이 나타납니다 — 탭하면 그 자리에 사람들이 내려섭니다</div>
 <div class="hud" id="noCam">
   카메라가 꺼져 있어 대체 배경으로 보는 중입니다 — AR은 카메라 허용이 필요합니다
   <button id="retryCam">카메라 다시 켜기</button>
@@ -134,7 +134,7 @@
   <div class="card">
     <div class="kicker">MONET 100 · THE NEXT IMPRESSION</div>
     <h1>시대상 보기</h1>
-    <p>카메라를 허용한 뒤 <b>바닥을 비추고 화면을 탭</b>하면, 그 자리에 모네가 살았던 시대의 사람들이 내려서 걸어다닙니다. 기기를 천천히 돌려 주변을 둘러보세요.</p>
+    <p>카메라를 허용하고 <b>바닥을 비추면 흰 링</b>이 나타납니다. 탭하면 그 자리에 모네가 살았던 시대의 사람들이 내려서 걸어다닙니다.</p>
     <div class="rule"></div>
     <button id="start">카메라 켜고 시대로 들어가기</button>
     <div class="tip">카메라를 허용하지 않으면 1889년의 파리 대로가 대신 펼쳐집니다</div>
@@ -167,7 +167,7 @@ const SCENE = {
 // Lillian·Lucille(MooKorea), OldMan(Karin.Granlund), Fancy(CharacterZone), CanCan(LasquetiSpice)
 const MODEL_DEFS = {
   alienist: { url: 'models/era/alienist.glb', mode: 'stand', clip: /Idle/i, hide: /stand/i },
-  elder:    { url: 'models/era/elder.glb',    mode: 'stand', clip: /idle/i },
+  elder:    { url: 'models/era/elder.glb',    mixamoWalk: true },
   lillian:  { url: 'models/era/lillian.glb',  mode: 'stand', clip: /^Idle_g$/i, hide: /sword|weapon|blade/i },
   lucille:  { url: 'models/era/lucille.glb',  clip: /^Walk_g$/i, hide: /sword|sheath|scabbard|blade|weapon/i },
 };
@@ -175,7 +175,14 @@ const MODEL_DEFS = {
 // ══════════ three 기본 ══════════
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
+function viewSize(){
+  const r = document.getElementById('view').getBoundingClientRect();
+  const pr = renderer ? renderer.getPixelRatio() : 1;
+  const cw = renderer && renderer.domElement.width > 4 ? renderer.domElement.width / pr : 0;
+  const ch = renderer && renderer.domElement.height > 4 ? renderer.domElement.height / pr : 0;
+  return { w: r.width || innerWidth || cw || 1, h: r.height || innerHeight || ch || 1 };
+}
+{ const { w, h } = viewSize(); renderer.setSize(w, h); }
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
@@ -184,7 +191,7 @@ document.getElementById('view').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 window.__scene = scene;
-const camera = new THREE.PerspectiveCamera(64, innerWidth/innerHeight, .05, 120);
+const camera = new THREE.PerspectiveCamera(64, viewSize().w/viewSize().h, .05, 120);
 camera.position.set(0, 1.5, 0);
 
 scene.add(new THREE.HemisphereLight(0xfff2dd, 0x8a7f6a, .95));
@@ -350,15 +357,20 @@ const _ndc = new THREE.Vector2();
 const hintEl = document.getElementById('hint');
 function placeCrowd(cx, cy){
   if (renderer.xr.isPresenting) return;          // XR에서는 히트테스트 셀렉트로
-  _ndc.set(cx/innerWidth*2 - 1, -(cy/innerHeight)*2 + 1);
+  const { w: vw, h: vh } = viewSize();
+  _ndc.set(THREE.MathUtils.clamp(cx/vw*2 - 1, -1, 1), THREE.MathUtils.clamp(-(cy/vh)*2 + 1, -1, 1));
+  camera.updateMatrixWorld(true);
   _ray.setFromCamera(_ndc, camera);
   const d = _ray.ray.direction;
-  if (d.y > -.04) return;                        // 바닥을 향해 탭했을 때만
+  if (d.y > -.08) return;                        // 바닥을 향해 탭했을 때만
   const t = (0 - _ray.ray.origin.y) / d.y;
-  if (t <= 0 || t > 40) return;
+  if (t <= 0 || t > 30) return;
   const p = _ray.ray.origin.clone().addScaledVector(d, t);
   crowd.position.set(p.x, 0, p.z);
-  hintEl.style.display = 'none';
+  placed = true;
+  crowd.visible = true;
+  hintEl.textContent = '다시 탭하면 그 자리로 옮겨섭니다';
+  setTimeout(() => hintEl.style.display = 'none', 2500);
 }
 
 // ── WebXR immersive-ar (지원 기기: 실제 평면 인식 + 히트테스트) ──
@@ -384,6 +396,7 @@ xrBtn.onclick = async () => {
       domOverlay: { root: document.body },
     });
     renderer.xr.enabled = true;
+    reticle.matrixAutoUpdate = false;
     renderer.xr.setReferenceSpaceType('local');
     await renderer.xr.setSession(session);
     video.style.display = 'none';
@@ -393,6 +406,8 @@ xrBtn.onclick = async () => {
     session.addEventListener('select', () => {
       if (reticle.visible) {
         crowd.position.setFromMatrixPosition(reticle.matrix);
+        placed = true;
+        crowd.visible = true;
         hintEl.style.display = 'none';
       }
     });
@@ -448,7 +463,28 @@ async function loadAll(){
     assets[n] = { scene: g.scene, clips: g.animations };
     tick();
   }
-  props.tophat = (await loadGLB('models/era/tophat.glb')).scene; tick(); tick();
+  props.walkClip = (await loadGLB('models/era/anim_walk_m.glb')).animations[0]; tick(); tick();
+}
+
+// mixamo 클립을 접미사 붙은 mixamo 리그(예: mixamorigHips_01)로 리매핑
+function remapMixamoClip(clip, root){
+  const map = {};
+  root.traverse(o => {
+    const m = o.name.match(/^(mixamorig.+?)_\d+$/);
+    if (m) map[m[1]] = o.name;
+  });
+  const tracks = [];
+  for (const t of clip.tracks) {
+    const dot = t.name.lastIndexOf('.');
+    const node = t.name.slice(0, dot), prop = t.name.slice(dot + 1);
+    if (prop === 'position') continue;               // 제자리 걷기 (이동은 코드가)
+    const to = map[node];
+    if (!to) continue;
+    const nt = t.clone();
+    nt.name = to + '.' + prop;
+    tracks.push(nt);
+  }
+  return new THREE.AnimationClip('WalkRT', clip.duration, tracks);
 }
 
 function findClip(clips, re){
@@ -519,6 +555,7 @@ function attachParasol(root){
 
 // ══════════ 걷는 사람들 ══════════
 const walkers = [];
+const _fwd = new THREE.Vector3();
 const clock = new THREE.Clock();
 
 function spawnWalker(name){
@@ -568,8 +605,14 @@ function spawnWalker(name){
   if (def.parasol) attachParasol(obj);
 
   const mixer = new THREE.AnimationMixer(obj);
-  const clip = (def.clip && findClip(src.clips, def.clip))
-    || findClip(src.clips, /walk(?!.*back)/i) || src.clips[0];
+  let clip;
+  if (def.mixamoWalk) {
+    clip = remapMixamoClip(props.walkClip, obj);
+    if (!clip.tracks.length) clip = src.clips[0];    // 리매핑 실패 시 원래 클립
+  } else {
+    clip = (def.clip && findClip(src.clips, def.clip))
+      || findClip(src.clips, /walk(?!.*back)/i) || src.clips[0];
+  }
   const act = mixer.clipAction(clip);
   act.play();
   mixer.update(Math.random()*2);      // 위상 어긋나게
@@ -629,9 +672,11 @@ function clearWalkers(){
   walkers.length = 0;
 }
 
+let placed = false;
 function buildCast(){
   clearWalkers();
   for (const n of SCENE.cast) spawnWalker(n);
+  crowd.visible = placed;
 }
 
 // ══════════ 장면 적용 ══════════
@@ -697,13 +742,22 @@ document.getElementById('start').onclick = async () => {
   hintEl.style.display = 'block';
 };
 
-addEventListener('resize', () => {
-  camera.aspect = innerWidth/innerHeight;
+function fitView(){
+  const { w, h } = viewSize();
+  if (w < 2 || h < 2) return;
+  camera.aspect = w/h;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
+  renderer.setSize(w, h);
+}
+addEventListener('resize', fitView);
 
+let _fitTick = 0;
 renderer.setAnimationLoop((time, frame) => {
+  if ((_fitTick++ & 15) === 0 && !renderer.xr.isPresenting) {
+    const { w } = viewSize();
+    if (w > 2 && Math.abs(renderer.domElement.clientWidth - w) > 2) fitView();
+    else if (isNaN(camera.projectionMatrix.elements[0])) fitView();
+  }
   const dt = Math.min(clock.getDelta(), .1);
   updateWalkers(dt);
   if (renderer.xr.isPresenting) {
@@ -717,6 +771,16 @@ renderer.setAnimationLoop((time, frame) => {
     }
   } else {
     updateCamera();
+    // 화면 중앙 광선 → 바닥 평면: 조준 링 (배치 전 피드백)
+    camera.getWorldDirection(_fwd);
+    if (_fwd.y < -.12) {
+      const t = (0 - camera.position.y) / _fwd.y;
+      if (t > .4 && t < 14) {
+        reticle.matrixAutoUpdate = true;
+        reticle.position.copy(camera.position).addScaledVector(_fwd, t);
+        reticle.visible = true;
+      } else reticle.visible = false;
+    } else reticle.visible = false;
   }
   renderer.render(scene, camera);
 });
