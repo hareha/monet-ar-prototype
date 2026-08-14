@@ -159,7 +159,7 @@ const rnd = (a,b) => a + Math.random()*(b-a);
 const SCENE = {
   caption: '모네가 살았던 시대의 파리 — 지금 서 있는 자리를 함께 걷습니다',
   filter: 'sepia(.26) contrast(1.04)',
-  cast: ['lucille','alienist','lillian','oldman'],
+  cast: ['lucille','alienist','lillian','elder'],
 };
 
 // 모델 정의 — mode: walk(걷기)/amble(느린 산책)/stand(서 있음)/dance
@@ -167,8 +167,8 @@ const SCENE = {
 // Lillian·Lucille(MooKorea), OldMan(Karin.Granlund), Fancy(CharacterZone), CanCan(LasquetiSpice)
 const MODEL_DEFS = {
   alienist: { url: 'models/era/alienist.glb', mode: 'stand', clip: /Idle/i, hide: /stand/i },
+  elder:    { url: 'models/era/elder.glb',    mode: 'stand', clip: /idle/i },
   lillian:  { url: 'models/era/lillian.glb',  mode: 'stand', clip: /^Idle_g$/i, hide: /sword|weapon|blade/i },
-  oldman:   { url: 'models/era/oldman.glb',   clip: /^Walk$/i },
   lucille:  { url: 'models/era/lucille.glb',  clip: /^Walk_g$/i, hide: /sword|sheath|scabbard|blade|weapon/i },
 };
 
