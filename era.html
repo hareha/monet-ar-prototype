@@ -690,8 +690,9 @@ function spawnMannequin(){
   root.add(inst);
   root.add(mesh);
   mesh.bind(skeleton, new THREE.Matrix4());
+  let smat = null;
   if (!isMan) {
-    const smat = mat.clone();
+    smat = mat.clone();
     smat.side = THREE.DoubleSide;
     const skirt = new THREE.Mesh(GEO.skirt, smat);
     skirt.frustumCulled = false;
@@ -716,7 +717,7 @@ function spawnMannequin(){
   root.rotation.y = dir > 0 ? 0 : Math.PI;
   root.scale.setScalar(rnd(.95, 1.05));
   crowd.add(root);
-  walkers.push({ root, mesh, mat, shMat, mixer, speed, dir, lane, born: 1e9,
+  walkers.push({ root, mesh, mat, smat, shMat, mixer, speed, dir, lane, born: 1e9,
     sway: rnd(-.06, .06), phase: Math.random()*6.28 });
 }
 
@@ -745,6 +746,7 @@ function updateFigures(dt){
     const edge = THREE.MathUtils.clamp((CROWD_L/2 - Math.abs(w.root.position.z)) / 2.2, 0, 1);
     const o = appear * edge;
     w.mat.opacity = o * .98;
+    if (w.smat) w.smat.opacity = o * .98;
     w.shMat.opacity = o * .5;
   }
 }
