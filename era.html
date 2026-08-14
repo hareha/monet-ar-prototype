@@ -438,10 +438,7 @@ function updateCamera(){
 const startBtn = document.getElementById('start');
 const gltfLoader = new GLTFLoader();
 let walkTemplate = null, walkClipM = null, walkClipF = null;
-const AI_FIGURES = [   // TripoSR 생성 시대 인물 (정적 조각) — 시대 사진 3장에서 AI 복원
-  { url: 'assets/ai/man_tophat.glb',  h: 1.74 },
-  { url: 'assets/ai/woman_gown.glb',  h: 1.66 },
-  { url: 'assets/ai/man_worker.glb',  h: 1.70 },
+const AI_FIGURES = [   // 고품질 리깅 모델 확보 시 여기에 등록 (Meshy/Tripo GLB)
 ];
 let aiLoaded = [];
 

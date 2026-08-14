@@ -1,0 +1,189 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;background:#3a3d42}#log{position:fixed;top:6px;left:8px;color:#9f9;font:12px monospace;white-space:pre;z-index:9}</style></head><body>
+<div id="log"></div>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.147.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.147.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const log = m => document.getElementById('log').textContent += m + '\n';
+const renderer = new THREE.WebGLRenderer({antialias:true});
+document.body.appendChild(renderer.domElement);
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x3a3d42);
+const cam = new THREE.PerspectiveCamera(42, 16/9, .1, 100);
+cam.position.set(0, 1.25, 4.8); cam.lookAt(0, .9, 0);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x777264, 1.05));
+const key = new THREE.DirectionalLight(0xfff4e0, .8); key.position.set(3, 6, 4); scene.add(key);
+scene.add(new THREE.GridHelper(8, 8, 0x5a5d63, 0x46494f));
+
+const L = new GLTFLoader();
+const load = u => new Promise((res, rej) => L.load(u, res, undefined, rej));
+
+// ── 스켈레톤 유틸 ──
+const boneMapOf = root => {
+  const m = {};
+  root.traverse(o => { if (/^mixamorig/.test(o.name)) m[o.name.replace(/^mixamorig/, '')] = o; });
+  return m;
+};
+const bonesOf = root => {
+  const b = [];
+  root.traverse(o => { if (/^mixamorig/.test(o.name)) b.push(o); });
+  return b;
+};
+
+// 팔 내리기 — 조각상 포즈에 맞춤 (월드 방향 조준)
+function poseArmsDown(byName){
+  const aim = (bn, cn, dir) => {
+    const bone = byName[bn], child = byName[cn];
+    if (!bone || !child) return;
+    bone.updateWorldMatrix(true, false); child.updateWorldMatrix(true, false);
+    const bw = bone.getWorldPosition(new THREE.Vector3());
+    const cw = child.getWorldPosition(new THREE.Vector3());
+    const cur = cw.sub(bw).normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(cur, dir.clone().normalize());
+    const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+    bone.quaternion.premultiply(pq.clone().invert().multiply(q).multiply(pq));
+    bone.updateWorldMatrix(true, true);
+  };
+  aim('LeftArm', 'LeftForeArm', new THREE.Vector3(.24, -.95, .05));
+  aim('LeftForeArm', 'LeftHand', new THREE.Vector3(.16, -.97, .1));
+  aim('RightArm', 'RightForeArm', new THREE.Vector3(-.24, -.95, .05));
+  aim('RightForeArm', 'RightHand', new THREE.Vector3(-.16, -.97, .1));
+}
+
+// 가중치용 본 세그먼트 (포즈드 바인드 월드 좌표)
+const SEG_DEF = [
+  ['Hips','Spine'], ['Spine','Spine1'], ['Spine1','Spine2'], ['Spine2','Neck'], ['Neck','Head'],
+  ['LeftShoulder','LeftArm'], ['LeftArm','LeftForeArm'], ['LeftForeArm','LeftHand'], ['LeftHand','LeftHandMiddle1'],
+  ['RightShoulder','RightArm'], ['RightArm','RightForeArm'], ['RightForeArm','RightHand'], ['RightHand','RightHandMiddle1'],
+  ['LeftUpLeg','LeftLeg'], ['LeftLeg','LeftFoot'], ['LeftFoot','LeftToeBase'],
+  ['RightUpLeg','RightLeg'], ['RightLeg','RightFoot'], ['RightFoot','RightToeBase'],
+];
+function buildSegments(byName, bones){
+  const segs = [];
+  for (const [a, b] of SEG_DEF) {
+    const A = byName[a], B = byName[b];
+    if (!A || !B) continue;
+    segs.push({
+      idx: bones.indexOf(A),
+      p0: A.getWorldPosition(new THREE.Vector3()),
+      p1: B.getWorldPosition(new THREE.Vector3()),
+    });
+  }
+  // 머리 상단 가상 세그먼트 (모자 커버)
+  const H = byName['Head'];
+  const hp = H.getWorldPosition(new THREE.Vector3());
+  segs.push({ idx: bones.indexOf(H), p0: hp.clone(), p1: hp.clone().add(new THREE.Vector3(0, .4, 0)) });
+  return segs;
+}
+const _ab = new THREE.Vector3(), _ap = new THREE.Vector3(), _cl = new THREE.Vector3();
+function distToSeg(p, s){
+  _ab.subVectors(s.p1, s.p0);
+  _ap.subVectors(p, s.p0);
+  const t = THREE.MathUtils.clamp(_ap.dot(_ab) / _ab.lengthSq(), 0, 1);
+  _cl.copy(s.p0).addScaledVector(_ab, t);
+  return p.distanceTo(_cl);
+}
+
+// ── AI 조각 → 스킨드 워커 지오메트리 ──
+// template: 포즈드 바인드 상태의 스켈레톤 루트 (월드 갱신 완료)
+function skinStatue(aiScene, byName, bones, opts){
+  // 1) 통짜 지오메트리 추출 (Z-up 보정 + 월드 베이크)
+  let src = null;
+  aiScene.traverse(o => { if (!src && o.isMesh) src = o; });
+  const geo = src.geometry.clone();
+  geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+  geo.computeBoundingBox();
+  const bb = geo.boundingBox, size = bb.getSize(new THREE.Vector3());
+  // 2) 스켈레톤 치수에 맞춤: 발=0, 키=머리끝*1.06, 중심=힙 축
+  const headTop = byName['Head'].getWorldPosition(new THREE.Vector3()).y + .22;
+  const s = (headTop * (opts.hScale || 1.04)) / size.y;
+  const hips = byName['Hips'].getWorldPosition(new THREE.Vector3());
+  const cx = (bb.min.x + bb.max.x)/2, cz = (bb.min.z + bb.max.z)/2;
+  geo.translate(-cx, -bb.min.y, -cz);
+  geo.scale(s, s, s);
+  geo.translate(hips.x, 0, hips.z);
+  // 3) 정점별 가중치
+  const segs = buildSegments(byName, bones);
+  const hipsY = hips.y;
+  const pos = geo.attributes.position;
+  const n = pos.count;
+  const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+  const p = new THREE.Vector3();
+  const hipsIdx = bones.indexOf(byName['Hips']);
+  for (let i = 0; i < n; i++) {
+    p.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    if (opts.gown && p.y < hipsY - .04) {   // 가운: 힙 고정 (찢어짐 방지)
+      si[i*4] = hipsIdx; sw[i*4] = 1;
+      continue;
+    }
+    let b1 = -1, d1 = 1e9, b2 = -1, d2 = 1e9;
+    for (const sg of segs) {
+      const d = distToSeg(p, sg);
+      if (d < d1) { b2 = b1; d2 = d1; b1 = sg.idx; d1 = d; }
+      else if (d < d2) { b2 = sg.idx; d2 = d; }
+    }
+    if (b2 < 0 || d2 > d1 * 1.7) { si[i*4] = b1; sw[i*4] = 1; }
+    else {
+      const w1 = 1/Math.pow(d1 + 1e-4, 3), w2 = 1/Math.pow(d2 + 1e-4, 3);
+      const t = w1/(w1 + w2);
+      si[i*4] = b1; sw[i*4] = t;
+      si[i*4+1] = b2; sw[i*4+1] = 1 - t;
+    }
+  }
+  geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  return geo;
+}
+
+const mixers = [];
+(async () => {
+  try {
+    const gm = await load('assets/walk_m.glb');
+    const gf = await load('assets/walk_f.glb');
+    const walkM = gm.animations[0], walkF = gf.animations[0];
+    // 루트모션 제거
+    for (const clip of [walkM, walkF]) for (const t of clip.tracks) {
+      if (/Hips\.position$/.test(t.name)) {
+        const v = t.values, x0 = v[0], z0 = v[2];
+        for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i+2] = z0; }
+      }
+    }
+    const template = gm.scene;
+    const AIs = [
+      { url: 'assets/ai/man_tophat.glb', gown: false, clip: walkM },
+      { url: 'assets/ai/woman_gown.glb', gown: true, clip: walkF },
+      { url: 'assets/ai/man_worker.glb', gown: false, clip: walkM },
+    ];
+    let x = -1.7;
+    for (const A of AIs) {
+      const ai = await load(A.url);
+      // 인스턴스 스켈레톤: 템플릿 복제 → 팔 내림 포즈 → 세그먼트/지오 생성
+      const inst = template.clone(true);
+      inst.updateMatrixWorld(true);
+      const byName = boneMapOf(inst), bones = bonesOf(inst);
+      poseArmsDown(byName);
+      inst.updateMatrixWorld(true);
+      const geo = skinStatue(ai.scene, byName, bones, A);
+      const skeleton = new THREE.Skeleton(bones);   // 포즈드 바인드에서 인버스 계산
+      const mesh = new THREE.SkinnedMesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .9 }));
+      mesh.frustumCulled = false;
+      const root = new THREE.Group();
+      root.add(inst); root.add(mesh);
+      mesh.bind(skeleton, new THREE.Matrix4());
+      root.position.x = x; x += 1.7;
+      scene.add(root);
+      const mx = new THREE.AnimationMixer(inst);
+      mx.clipAction(A.clip).play();
+      mx.update(Math.random()*1);
+      mixers.push(mx);
+      log(A.url.split('/').pop() + ' rigged, verts=' + geo.attributes.position.count);
+    }
+  } catch(e) { log('FAIL ' + e.message); }
+})();
+
+const clock = new THREE.Clock();
+const fit = () => { const w = innerWidth||1600, h = innerHeight||900; renderer.setSize(w, h); cam.aspect = w/h; cam.updateProjectionMatrix(); };
+fit(); addEventListener('resize', fit); setTimeout(fit, 400);
+renderer.setAnimationLoop(() => { const dt = clock.getDelta(); mixers.forEach(m => m.update(dt)); renderer.render(scene, cam); });
+window.__frame = (dt) => { fit(); mixers.forEach(m => m.update(dt ?? .12)); renderer.render(scene, cam); return mixers.length; };
+</script></body></html>
