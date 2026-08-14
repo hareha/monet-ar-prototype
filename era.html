@@ -66,6 +66,21 @@
     backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     display: none;
   }
+  #noCam {
+    bottom: calc(max(14px, env(safe-area-inset-bottom)) + 150px);
+    left: 50%; transform: translateX(-50%);
+    width: min(92vw, 460px); text-align: center;
+    background: rgba(120,42,32,.82); border: 1px solid rgba(255,255,255,.25);
+    color: #fff; font-size: 12.5px; font-weight: 600; line-height: 1.5;
+    padding: 10px 14px; border-radius: 12px;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    display: none;
+  }
+  #noCam button {
+    appearance: none; border: 0; margin-top: 7px; display: block; width: 100%;
+    background: #fff; color: #1c1a16; border-radius: 8px;
+    font: 700 13px/1 "Apple SD Gothic Neo", sans-serif; padding: 9px;
+  }
   #xrBtn {
     top: calc(max(12px, env(safe-area-inset-top)) + 30px); right: 14px;
     appearance: none; border: 1px solid rgba(242,239,232,.4);
@@ -113,6 +128,10 @@
 </div>
 <div class="hud" id="caption"></div>
 <div class="hud" id="hint">바닥을 비추고 화면을 탭하면 그 자리에 사람들이 내려섭니다</div>
+<div class="hud" id="noCam">
+  카메라가 꺼져 있어 대체 배경으로 보는 중입니다 — AR은 카메라 허용이 필요합니다
+  <button id="retryCam">카메라 다시 켜기</button>
+</div>
 <button class="hud" id="shot">이 시대를 사진으로</button>
 <button class="hud" id="xrBtn">실측 AR로 보기</button>
 
@@ -299,13 +318,18 @@ async function openCamera(){
     video.srcObject = stream;
     await video.play();
     usingCam = true;
+    video.style.display = 'block';
+    backdrop.style.display = 'none';
+    document.getElementById('noCam').style.display = 'none';
   } catch(e) {
     usingCam = false;
     paintBoulevard();
     video.style.display = 'none';
     backdrop.style.display = 'block';
+    document.getElementById('noCam').style.display = 'block';
   }
 }
+document.getElementById('retryCam').onclick = () => openCamera();
 
 // ══════════ 자이로 + 드래그 룩 ══════════
 const zee = new THREE.Vector3(0, 0, 1);
