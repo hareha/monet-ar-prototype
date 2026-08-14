@@ -15,7 +15,7 @@ const ctrl = new OrbitControls(cam, renderer.domElement); ctrl.target.set(0, .95
 scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8478, 1.0));
 const key = new THREE.DirectionalLight(0xfff4e0, .75); key.position.set(3, 8, 2); scene.add(key);
 scene.add(new THREE.GridHelper(8, 8, 0x5a5d63, 0x46494f));
-let walkTemplate = null, walkClip = null;
+let walkTemplate = null, walkClipM = null, walkClipF = null;
 function skinAttrs(g, idx){
   const n = g.attributes.position.count;
   const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
@@ -196,8 +196,9 @@ function buildSharedGeometries(){
 }
 
 const mixers = [];
-new GLTFLoader().load('assets/walk.glb', g => {
-  walkTemplate = g.scene; walkClip = g.animations[0];
+const _load = (u) => new Promise(r => new GLTFLoader().load(u, r));
+Promise.all([_load('assets/walk_m.glb'), _load('assets/walk_f.glb')]).then(([gm, gf]) => {
+  walkTemplate = gm.scene; walkClipM = gm.animations[0]; walkClipF = gf.animations[0];
   walkTemplate.updateMatrixWorld(true);
   buildSharedGeometries();
   const kinds = ['gentHat', 'gent', 'ladyBrim', 'ladyBun'];
@@ -216,7 +217,7 @@ new GLTFLoader().load('assets/walk.glb', g => {
     root.position.x = (i - 1.5) * 1.1;
     scene.add(root);
     const mx = new THREE.AnimationMixer(inst);
-    mx.clipAction(walkClip).play();
+    mx.clipAction(k.startsWith('lady') ? walkClipF : walkClipM).play();
     mx.update(i*.4);
     mixers.push(mx);
   });

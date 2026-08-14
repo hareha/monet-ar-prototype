@@ -437,13 +437,16 @@ function updateCamera(){
 // ══════════ 시대의 인파 — 절차 생성 마네킹 군중 ══════════
 const startBtn = document.getElementById('start');
 const gltfLoader = new GLTFLoader();
-let walkTemplate = null, walkClip = null;
+let walkTemplate = null, walkClipM = null, walkClipF = null;
 
 async function loadCrowdAssets(){
   startBtn.textContent = '인파를 준비하는 중…';
-  const g = await new Promise((res, rej) => gltfLoader.load('assets/walk.glb', res, undefined, rej));
-  walkTemplate = g.scene;
-  walkClip = g.animations[0];
+  const load = u => new Promise((res, rej) => gltfLoader.load(u, res, undefined, rej));
+  const gm = await load('assets/walk_m.glb');
+  const gf = await load('assets/walk_f.glb');
+  walkTemplate = gm.scene;
+  walkClipM = gm.animations[0];
+  walkClipF = gf.animations[0];
   walkTemplate.updateMatrixWorld(true);
   buildSharedGeometries();
 }
@@ -682,7 +685,7 @@ function spawnMannequin(){
   root.add(sh);
 
   const mixer = new THREE.AnimationMixer(inst);
-  mixer.clipAction(walkClip).play();
+  mixer.clipAction(isMan ? walkClipM : walkClipF).play();
   mixer.update(Math.random()*2);
 
   const speed = rnd(.72, 1.22);
