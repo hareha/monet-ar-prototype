@@ -16,7 +16,7 @@
   #view { position: fixed; inset: 0; z-index: 1; }
   #grain {
     position: fixed; inset: 0; z-index: 2; pointer-events: none;
-    opacity: .12; mix-blend-mode: overlay;
+    opacity: .07; mix-blend-mode: overlay;
   }
   #tone {
     position: fixed; inset: 0; z-index: 2; pointer-events: none;
@@ -132,7 +132,7 @@
 <a class="hud" id="back" href="index.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>홈으로</a>
 <div class="hud" id="zone">ZONE B · 변화의 복도</div>
 <div class="hud" id="caption"></div>
-<div class="hud" id="hint">바닥을 비추면 흰 링이 나타납니다 — 탭하면 그 자리에 사람들이 내려섭니다</div>
+<div class="hud" id="hint">바닥을 비추면 흰 링이 나타납니다 — 탭하면 그 자리로 인파가 지나갑니다</div>
 <div class="hud" id="noCam">
   카메라가 꺼져 있어 대체 배경으로 보는 중입니다 — AR은 카메라 허용이 필요합니다
   <button id="retryCam">카메라 다시 켜기</button>
@@ -144,7 +144,7 @@
   <div class="card">
     <div class="kicker">MONET 100 · THE NEXT IMPRESSION</div>
     <h1>시대상 보기</h1>
-    <p>카메라를 허용하고 <b>바닥을 비추면 흰 링</b>이 나타납니다. 탭하면 그 자리에 — 1890년대 파리에서 실제로 찍힌 — 그 시절 사람들의 잔상이 내려섭니다.</p>
+    <p>카메라를 허용하고 <b>바닥을 비추면 흰 링</b>이 나타납니다. 탭하면 그 자리로 — 실크해트와 긴 드레스의 — 시대의 인파가 지나가기 시작합니다.</p>
     <div class="rule"></div>
     <button id="start">카메라 켜고 시대로 들어가기</button>
     <div class="tip">카메라를 허용하지 않으면 1889년의 파리 대로가 대신 펼쳐집니다</div>
@@ -159,6 +159,8 @@
 </script>
 <script type="module">
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
 const rnd = (a,b) => a + Math.random()*(b-a);
 
@@ -178,8 +180,8 @@ const rnd = (a,b) => a + Math.random()*(b-a);
 
 // ══════════ 장면 정의 — 시대의 잔상 (실제 그 시절의 사진 속 사람들) ══════════
 const SCENE = {
-  caption: '시대의 잔상 — 1890년대 파리, 실제 그 시절의 사람들이 지금 이 자리에 겹쳐 섭니다',
-  filter: 'sepia(.3) contrast(1.05) brightness(.98)',
+  caption: '시대의 물결 — 실크해트와 긴 드레스의 인파가 지금 이 자리를 지나갑니다',
+  filter: 'contrast(1.03) saturate(.92)',
 };
 
 // ══════════ three 기본 ══════════
@@ -432,23 +434,20 @@ function updateCamera(){
   }
 }
 
-// ══════════ 사진 로드 — 그 시절의 실제 인물 컷아웃 ══════════
+// ══════════ 시대의 인파 — 절차 생성 마네킹 군중 ══════════
 const startBtn = document.getElementById('start');
-const texLoader = new THREE.TextureLoader();
-let FIGURES = [];
+const gltfLoader = new GLTFLoader();
+let walkTemplate = null, walkClip = null;
 
-async function loadFigures(){
-  const mf = await (await fetch('figures/manifest.json')).json();
-  FIGURES = mf.figures;
-  let done = 0;
-  for (const f of FIGURES) {
-    f.tex = await new Promise((res, rej) => texLoader.load('figures/' + f.file, res, undefined, rej));
-    f.tex.encoding = THREE.sRGBEncoding;
-    startBtn.textContent = `그 시절의 사람들을 불러오는 중 · ${++done}/${FIGURES.length}`;
-  }
+async function loadCrowdAssets(){
+  startBtn.textContent = '인파를 준비하는 중…';
+  const g = await new Promise((res, rej) => gltfLoader.load('assets/walk.glb', res, undefined, rej));
+  walkTemplate = g.scene;
+  walkClip = g.animations[0];
+  walkTemplate.updateMatrixWorld(true);
+  buildSharedGeometries();
 }
 
-// ══════════ 시대의 잔상 인물들 ══════════
 const walkers = [];
 const _fwd = new THREE.Vector3();
 const clock = new THREE.Clock();
@@ -457,8 +456,8 @@ function blobTexture(){
   const c = document.createElement('canvas'); c.width = 256; c.height = 128;
   const x = c.getContext('2d');
   const g = x.createRadialGradient(128, 64, 8, 128, 64, 120);
-  g.addColorStop(0, 'rgba(10,8,6,.85)');
-  g.addColorStop(.55, 'rgba(10,8,6,.35)');
+  g.addColorStop(0, 'rgba(10,8,6,.8)');
+  g.addColorStop(.55, 'rgba(10,8,6,.32)');
   g.addColorStop(1, 'rgba(10,8,6,0)');
   x.save(); x.translate(128, 64); x.scale(1, .5); x.translate(-128, -64);
   x.fillStyle = g; x.fillRect(0, 0, 256, 128);
@@ -467,82 +466,198 @@ function blobTexture(){
 }
 const blobTex = blobTexture();
 
-function spawnFigure(f){
-  const img = f.tex.image;
-  const aspect = (img.width / img.height) || .4;
-  const h = f.h || rnd(1.6, 1.78);
-  const w = h * aspect;
-  const mat = new THREE.MeshBasicMaterial({ map: f.tex, transparent: true, depthWrite: false, opacity: 0 });
-  const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-  plane.position.y = h/2;
+// ── 본 세그먼트 → 스킨드 마네킹 지오메트리 ──
+function skinAttrs(g, idx){
+  const n = g.attributes.position.count;
+  const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+  for (let i = 0; i < n; i++) { si[i*4] = idx; sw[i*4] = 1; }
+  g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+  g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  return g;
+}
+function templateBones(root){
+  const bones = [];
+  root.traverse(o => { if (/^mixamorig/.test(o.name)) bones.push(o); });
+  return bones;
+}
+const SEGS = [
+  // [본, 방향끝 본, 반지름, 반지름스케일끝(미사용)]
+  ['Hips', 'Spine', .125],
+  ['Spine', 'Spine1', .118],
+  ['Spine1', 'Spine2', .115],
+  ['Spine2', 'Neck', .105],
+  ['Neck', 'Head', .045],
+  ['LeftShoulder', 'LeftArm', .05],
+  ['LeftArm', 'LeftForeArm', .045],
+  ['LeftForeArm', 'LeftHand', .038],
+  ['LeftHand', 'LeftHandMiddle1', .034],
+  ['RightShoulder', 'RightArm', .05],
+  ['RightArm', 'RightForeArm', .045],
+  ['RightForeArm', 'RightHand', .038],
+  ['RightHand', 'RightHandMiddle1', .034],
+  ['LeftUpLeg', 'LeftLeg', .068],
+  ['LeftLeg', 'LeftFoot', .052],
+  ['LeftFoot', 'LeftToeBase', .045],
+  ['RightUpLeg', 'RightLeg', .068],
+  ['RightLeg', 'RightFoot', .052],
+  ['RightFoot', 'RightToeBase', .045],
+];
+let GEO = {};   // 4종 공유 지오메트리
+
+function buildMannequinGeo(kind){
+  const bones = templateBones(walkTemplate);
+  const byName = {};
+  bones.forEach(b => byName[b.name.replace(/^mixamorig/, '')] = b);
+  const idxOf = b => bones.indexOf(b);
+  const v0 = new THREE.Vector3(), v1 = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  const geos = [];
+  const seg = (an, bn, r) => {
+    const A = byName[an], B = byName[bn];
+    if (!A || !B) return;
+    A.getWorldPosition(v0); B.getWorldPosition(v1);
+    const d = v1.clone().sub(v0), len = d.length();
+    if (len < .015) return;
+    const g = new THREE.CapsuleGeometry(r, Math.max(len - r, .02), 3, 10);
+    const q = new THREE.Quaternion().setFromUnitVectors(up, d.clone().normalize());
+    g.applyMatrix4(new THREE.Matrix4().compose(
+      v0.clone().addScaledVector(d, .5), q, new THREE.Vector3(1, 1, 1)));
+    geos.push(skinAttrs(g, idxOf(A)));
+  };
+  for (const [a, b, r] of SEGS) seg(a, b, r);
+  // 머리
+  {
+    const H = byName['Head'], HT = byName['HeadTop_End'];
+    H.getWorldPosition(v0); (HT || H).getWorldPosition(v1);
+    const c = v0.clone().lerp(v1, .45);
+    const g = new THREE.SphereGeometry(.093, 14, 12);
+    g.scale(1, 1.18, 1.05);
+    g.translate(c.x, c.y, c.z);
+    geos.push(skinAttrs(g, idxOf(H)));
+  }
+  const hipsY = (() => { byName['Hips'].getWorldPosition(v0); return v0.y; })();
+  const headTop = (() => { (byName['HeadTop_End'] || byName['Head']).getWorldPosition(v0); return v0.y; })();
+  if (kind.includes('skirt')) {
+    // 롱 드레스 실루엣 — 힙에서 발목까지 A라인
+    const pts = [];
+    for (let i = 0; i <= 10; i++) {
+      const t = i/10;
+      const y = hipsY + .06 - t*(hipsY - .015);
+      const r = .15 + Math.pow(t, 1.35)*.31;
+      pts.push(new THREE.Vector2(r, y));
+    }
+    const g = new THREE.LatheGeometry(pts, 18);
+    geos.push(skinAttrs(g, idxOf(byName['Hips'])));
+  }
+  if (kind.includes('tophat')) {
+    const bIdx = idxOf(byName['Head']);
+    const crown = new THREE.CylinderGeometry(.072, .078, .15, 14);
+    crown.translate(0, headTop + .085, .012);
+    geos.push(skinAttrs(crown, bIdx));
+    const brim = new THREE.CylinderGeometry(.125, .125, .014, 16);
+    brim.translate(0, headTop + .012, .012);
+    geos.push(skinAttrs(brim, bIdx));
+  }
+  if (kind.includes('brim')) {
+    const bIdx = idxOf(byName['Head']);
+    const brim = new THREE.CylinderGeometry(.16, .16, .02, 16);
+    brim.translate(0, headTop + .01, .01);
+    geos.push(skinAttrs(brim, bIdx));
+    const crown = new THREE.SphereGeometry(.08, 12, 8);
+    crown.scale(1, .6, 1);
+    crown.translate(0, headTop + .03, .01);
+    geos.push(skinAttrs(crown, bIdx));
+  }
+  if (kind.includes('bun')) {
+    const bIdx = idxOf(byName['Head']);
+    const bun = new THREE.SphereGeometry(.05, 10, 8);
+    byName['Head'].getWorldPosition(v0);
+    bun.translate(v0.x, headTop - .03, v0.z - .09);
+    geos.push(skinAttrs(bun, bIdx));
+  }
+  const merged = BufferGeometryUtils.mergeBufferGeometries(geos, false);
+  return merged;
+}
+
+function buildSharedGeometries(){
+  GEO = {
+    gentHat: buildMannequinGeo('tophat'),
+    gent: buildMannequinGeo('plain'),
+    ladyBrim: buildMannequinGeo('skirt brim'),
+    ladyBun: buildMannequinGeo('skirt bun'),
+  };
+}
+
+// 팔레트 — 신사는 잉크/차콜, 여성은 아이보리/샴페인 (매트)
+const MAN_COLS = [0x23252a, 0x2c2e34, 0x1d1f24, 0x3a3532];
+const WOMAN_COLS = [0xe4dccb, 0xd9cbb2, 0xcfc4b4, 0xbfae9a, 0x9a8f80];
+
+function spawnMannequin(){
+  const isMan = Math.random() < .54;
+  const kind = isMan
+    ? (Math.random() < .72 ? 'gentHat' : 'gent')
+    : (Math.random() < .5 ? 'ladyBrim' : 'ladyBun');
+  const geo = GEO[kind];
+  const inst = walkTemplate.clone(true);
+  const bones = templateBones(inst);
+  const skeleton = new THREE.Skeleton(bones);
+  const col = isMan ? MAN_COLS[(Math.random()*MAN_COLS.length)|0] : WOMAN_COLS[(Math.random()*WOMAN_COLS.length)|0];
+  const mat = new THREE.MeshStandardMaterial({ color: col, roughness: .92, metalness: 0, transparent: true, opacity: 0 });
+  const mesh = new THREE.SkinnedMesh(geo, mat);
+  mesh.frustumCulled = false;
   const root = new THREE.Group();
-  root.add(plane);
+  root.add(inst);
+  root.add(mesh);
+  mesh.bind(skeleton, new THREE.Matrix4());
+
   const shMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: 0 });
-  const sh = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(w*.95, .55), Math.max(w*.5, .3)), shMat);
+  const sh = new THREE.Mesh(new THREE.PlaneGeometry(.85, .5), shMat);
   sh.rotation.x = -Math.PI/2;
   sh.position.y = .012;
   root.add(sh);
 
-  for (let tryN = 0; tryN < 30; tryN++) {
-    const a0 = Math.random()*Math.PI*2, d0 = rnd(2.2, 7.5);
-    root.position.set(Math.cos(a0)*d0, 0, Math.sin(a0)*d0);
-    if (walkers.every(o => o.root.position.distanceTo(root.position) > 1.6)) break;
-  }
+  const mixer = new THREE.AnimationMixer(inst);
+  mixer.clipAction(walkClip).play();
+  mixer.update(Math.random()*2);
+
+  const speed = rnd(.72, 1.22);
+  const lane = rnd(-4.6, 4.6);
+  const dir = (Math.random() < .12 ? -1 : 1) * (lane > 0 ? -1 : 1);   // 대체로 우측통행
+  const z0 = rnd(-CROWD_L/2, CROWD_L/2);
+  root.position.set(lane, 0, z0);
+  root.rotation.y = dir > 0 ? 0 : Math.PI;
+  root.scale.setScalar(rnd(.95, 1.05));
   crowd.add(root);
-  const wk = {
-    root, plane, mat, shMat, h,
-    mode: f.mode || (Math.random() < .5 ? 'stroll' : 'stand'),
-    speed: rnd(.09, .2),
-    target: new THREE.Vector3(),
-    pause: rnd(0, 3),
-    phase: Math.random()*6.28,
-    born: 1e9,                      // 배치 때 리셋
-  };
-  pickTarget(wk);
-  walkers.push(wk);
+  walkers.push({ root, mesh, mat, shMat, mixer, speed, dir, lane, born: 1e9,
+    sway: rnd(-.06, .06), phase: Math.random()*6.28 });
 }
 
-function pickTarget(w){
-  const a = Math.random()*Math.PI*2, d = rnd(2, 8);
-  w.target.set(Math.cos(a)*d, 0, Math.sin(a)*d);
-}
+const CROWD_L = 26;
+const CROWD_N = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 46 : 72;
 
-// 배치 순간: 잔상이 스르르 떠오르듯
 function revealCrowd(){
   const t = clock.elapsedTime;
-  walkers.forEach((w, i) => { w.born = t + rnd(0, 1.1); w.mat.opacity = 0; w.shMat.opacity = 0; });
+  walkers.forEach(w => { w.born = t + rnd(0, 1.6); });
 }
 
-const _dir = new THREE.Vector3();
-const _camW = new THREE.Vector3();
 function updateFigures(dt){
   const t = clock.elapsedTime;
-  camera.getWorldPosition(_camW);
   for (const w of walkers) {
-    // 등장 페이드
-    const age = t - w.born;
-    const vis = THREE.MathUtils.clamp(age / 1.6, 0, 1);
-    const o = vis * .94;
-    w.mat.opacity = o;
-    w.shMat.opacity = o * .5;
-    if (vis <= 0) continue;
-    // 요 빌보드 — 항상 관람자를 향해 서 있는 사진
-    const wx = crowd.position.x + w.root.position.x;
-    const wz = crowd.position.z + w.root.position.z;
-    w.root.rotation.y = Math.atan2(_camW.x - wx, _camW.z - wz);
-    // 미세한 숨
-    w.plane.position.y = w.h/2 + Math.sin(t*1.05 + w.phase)*.006;
-    // 잔상 산책 — 아주 느리게 떠돌기
-    if (w.mode !== 'stroll') continue;
-    if (w.pause > 0) { w.pause -= dt; continue; }
-    _dir.subVectors(w.target, w.root.position); _dir.y = 0;
-    if (_dir.length() < .3) {
-      w.pause = rnd(1.5, 5);
-      pickTarget(w);
-      continue;
+    w.mixer.update(dt * w.speed / 1.15);
+    // 이동 + 순환
+    w.root.position.z += w.dir * w.speed * dt;
+    if (Math.abs(w.root.position.z) > CROWD_L/2) {
+      w.root.position.z = -Math.sign(w.root.position.z) * CROWD_L/2;
+      w.lane = rnd(-4.6, 4.6);
+      w.root.position.x = w.lane;
     }
-    _dir.normalize();
-    w.root.position.addScaledVector(_dir, w.speed * dt);
+    w.root.rotation.y = (w.dir > 0 ? 0 : Math.PI) + Math.sin(t*.7 + w.phase)*w.sway;
+    // 등장 페이드 × 가장자리 페이드
+    const appear = THREE.MathUtils.clamp((t - w.born) / 1.4, 0, 1);
+    const edge = THREE.MathUtils.clamp((CROWD_L/2 - Math.abs(w.root.position.z)) / 2.2, 0, 1);
+    const o = appear * edge;
+    w.mat.opacity = o * .98;
+    w.shMat.opacity = o * .5;
   }
 }
 
@@ -554,9 +669,15 @@ function clearWalkers(){
 let placed = false;
 function buildCast(){
   clearWalkers();
-  for (const f of FIGURES) spawnFigure(f);
+  for (let i = 0; i < CROWD_N; i++) spawnMannequin();
   crowd.visible = placed;
 }
+
+// 인파 조명 — 매트 마네킹용
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8478, 1.0));
+const key = new THREE.DirectionalLight(0xfff4e0, .75);
+key.position.set(3, 8, 2);
+scene.add(key);
 
 // ══════════ 장면 적용 ══════════
 const capEl = document.getElementById('caption');
@@ -589,7 +710,7 @@ document.getElementById('shot').onclick = () => {
   x.fillRect(0, H - pad*2.6, W, pad*2.6);
   x.fillStyle = '#f2efe8';
   x.font = `700 ${pad*.78}px "Apple SD Gothic Neo"`;
-  x.fillText('변화의 복도 · 모네의 시대의 파리', pad, H - pad*1.5);
+  x.fillText('변화의 복도 · 시대의 물결', pad, H - pad*1.5);
   x.fillStyle = 'rgba(242,239,232,.7)';
   x.font = `600 ${pad*.55}px "Apple SD Gothic Neo"`;
   x.fillText('MONET 100 · THE NEXT IMPRESSION', pad, H - pad*.7);
@@ -610,9 +731,9 @@ document.getElementById('start').onclick = async () => {
   } catch(e) {}
   await openCamera();
   try {
-    await loadFigures();
+    await loadCrowdAssets();
   } catch(e) {
-    startBtn.textContent = '사진을 불러오지 못했습니다 — 다시 시도';
+    startBtn.textContent = '인파를 준비하지 못했습니다 — 다시 시도';
     startBtn.disabled = false;
     return;
   }
