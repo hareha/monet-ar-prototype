@@ -462,20 +462,28 @@ async function loadCrowdAssets(){
   buildSharedGeometries();
   // Meshy 인물 2종 → 자동 리깅된 공유 지오메트리
   MESHY = {};
-  const prep = async (url, gown) => {
+  // 모델별 팔 바인드 각 (캘리브레이션 뷰어로 실측 확정)
+  const degDirs = (l, r) => {
+    const d = (deg, sgn) => {
+      const rad = deg * Math.PI / 180;
+      return new THREE.Vector3(sgn * Math.sin(rad), -Math.cos(rad), .02).normalize();
+    };
+    return { L: d(l, 1), R: d(r, -1) };
+  };
+  const prep = async (url, gown, armDirs) => {
     const g = await load(url);
     const inst = walkTemplate.clone(true);
     inst.updateMatrixWorld(true);
     const byName = boneMapOf(inst), bones = bonesOf(inst);
-    const opts = { gown };
+    const opts = { gown, armDirs };
     const geo = skinStatue(g.scene, byName, bones, opts);
     return { geo, material: opts.material, armDirs: opts.armDirs, gown };
   };
   try {
     startBtn.textContent = '시대의 사람들을 준비하는 중…';
-    MESHY.gent = await prep('assets/ai/mgent.glb', false);
-    MESHY.lady = await prep('assets/ai/mlady.glb', true);
-    try { MESHY.porter = await prep('assets/ai/mporter.glb', false); } catch(e) {}
+    MESHY.gent = await prep('assets/ai/mgent.glb', false, degDirs(6, 6));
+    MESHY.lady = await prep('assets/ai/mlady.glb', true, degDirs(40, 40));
+    try { MESHY.porter = await prep('assets/ai/mporter.glb', false, degDirs(80, 88)); } catch(e) {}
   } catch(e) { MESHY = null; }
 }
 

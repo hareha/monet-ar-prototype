@@ -140,69 +140,97 @@ function skinStatue(aiScene, byName, bones, opts){
 }
 
 const mixers = [];
+const RIGS = [];   // {name, root, inst, byName, bones, mesh, ai}
+window.__DIRS = {
+  mgent:   { L1:[.45,-.88,.05], L2:[.3,-.95,.1], R1:[-.45,-.88,.05], R2:[-.3,-.95,.1] },
+  mlady:   { L1:[.45,-.88,.05], L2:[.3,-.95,.1], R1:[-.45,-.88,.05], R2:[-.3,-.95,.1] },
+  mporter: { L1:[.45,-.88,.05], L2:[.3,-.95,.1], R1:[-.45,-.88,.05], R2:[-.3,-.95,.1] },
+};
+function poseArms4(byName, D){
+  const aim = (bn, cn, arr) => {
+    const dir = new THREE.Vector3(...arr);
+    const bone = byName[bn], child = byName[cn];
+    bone.updateWorldMatrix(true, false); child.updateWorldMatrix(true, false);
+    const bw = bone.getWorldPosition(new THREE.Vector3());
+    const cw = child.getWorldPosition(new THREE.Vector3());
+    const cur = cw.sub(bw).normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(cur, dir.clone().normalize());
+    const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+    bone.quaternion.premultiply(pq.clone().invert().multiply(q).multiply(pq));
+    bone.updateWorldMatrix(true, true);
+  };
+  aim('LeftArm', 'LeftForeArm', D.L1);
+  aim('LeftForeArm', 'LeftHand', D.L2);
+  aim('RightArm', 'RightForeArm', D.R1);
+  aim('RightForeArm', 'RightHand', D.R2);
+}
+
 (async () => {
   try {
     const gm = await load('assets/walk_m.glb');
-    const gf = await load('assets/walk_f.glb');
-    const walkM = gm.animations[0], walkF = gf.animations[0];
-    // 루트모션 제거
-    for (const clip of [walkM, walkF]) for (const t of clip.tracks) {
-      if (/Hips\.position$/.test(t.name)) {
-        const v = t.values, x0 = v[0], z0 = v[2];
-        for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i+2] = z0; }
-      }
-    }
+    const walkM = gm.animations[0];
     const template = gm.scene;
-    const dd = (l, r) => {
-      const d = (deg, sgn) => { const rad = deg*Math.PI/180; return new THREE.Vector3(sgn*Math.sin(rad), -Math.cos(rad), .02).normalize(); };
-      return { L: d(l, 1), R: d(r, -1) };
-    };
-    const AIs = [
-      { url: 'assets/ai/mgent.glb', gown: false, clip: walkM, dirs: dd(6, 6) },
-      { url: 'assets/ai/mlady.glb', gown: true, clip: walkF, dirs: dd(40, 40) },
-      { url: 'assets/ai/mporter.glb', gown: false, clip: walkM, dirs: dd(80, 88) },
-    ];
+    const NAMES = ['mgent', 'mlady', 'mporter'];
     let x = -1.9;
-    for (const A of AIs) {
-      const ai = await load(A.url);
-      // 인스턴스 스켈레톤: 템플릿 복제 → 팔 내림 포즈 → 세그먼트/지오 생성
+    for (const name of NAMES) {
+      const ai = await load('assets/ai/' + name + '.glb');
       const inst = template.clone(true);
       inst.updateMatrixWorld(true);
       const byName = boneMapOf(inst), bones = bonesOf(inst);
-      const aim2 = (bn, cn, dir) => {
-        const bone = byName[bn], child = byName[cn];
-        bone.updateWorldMatrix(true, false); child.updateWorldMatrix(true, false);
-        const bw = bone.getWorldPosition(new THREE.Vector3());
-        const cw = child.getWorldPosition(new THREE.Vector3());
-        const q = new THREE.Quaternion().setFromUnitVectors(cw.sub(bw).normalize(), dir.clone().normalize());
-        const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
-        bone.quaternion.premultiply(pq.clone().invert().multiply(q).multiply(pq));
-        bone.updateWorldMatrix(true, true);
-      };
-      aim2('LeftArm', 'LeftForeArm', A.dirs.L); aim2('LeftForeArm', 'LeftHand', A.dirs.L);
-      aim2('RightArm', 'RightForeArm', A.dirs.R); aim2('RightForeArm', 'RightHand', A.dirs.R);
-      inst.updateMatrixWorld(true);
-      const geo = skinStatue(ai.scene, byName, bones, A);   // A.material 채워짐
-      const skeleton = new THREE.Skeleton(bones);   // 포즈드 바인드에서 인버스 계산
-      const mesh = new THREE.SkinnedMesh(geo, A.material || new THREE.MeshStandardMaterial({ roughness: .9 }));
-      mesh.frustumCulled = false;
+      // 지오메트리를 스켈레톤 치수에 정렬만 (스킨 없이 원본 표시)
+      let src = null;
+      ai.scene.traverse(o => { if (!src && o.isMesh) src = o; });
+      const geo = src.geometry.clone();
+      src.updateWorldMatrix(true, false);
+      geo.applyMatrix4(src.matrixWorld);
+      geo.computeBoundingBox();
+      const bb = geo.boundingBox, size = bb.getSize(new THREE.Vector3());
+      const headTop = byName['Head'].getWorldPosition(new THREE.Vector3()).y + .22;
+      const s = (headTop * 1.04) / size.y;
+      const hips = byName['Hips'].getWorldPosition(new THREE.Vector3());
+      geo.translate(-(bb.min.x+bb.max.x)/2, -bb.min.y, -(bb.min.z+bb.max.z)/2);
+      geo.scale(s, s, s);
+      geo.translate(hips.x, 0, hips.z);
+      const mat = src.material.clone();
+      mat.transparent = true; mat.opacity = .55; mat.depthWrite = false;
+      const mesh = new THREE.Mesh(geo, mat);
       const root = new THREE.Group();
       root.add(inst); root.add(mesh);
-      mesh.bind(skeleton, new THREE.Matrix4());
-      root.position.x = x; x += 1.7;
+      const sk = new THREE.SkeletonHelper(inst);
+      sk.material.linewidth = 2;
+      root.add(sk);
+      root.position.x = x; x += 1.9;
       scene.add(root);
-      const mx = new THREE.AnimationMixer(inst);
-      mx.clipAction(A.clip).play();
-      mx.update(Math.random()*1);
-      mixers.push(mx);
-      log(A.url.split('/').pop() + ' rigged, verts=' + geo.attributes.position.count);
+      RIGS.push({ name, byName, bones, inst, geo });
+      window.__RIGS = RIGS;
+      log(name + ' loaded');
     }
+    window.__apply = () => {
+      for (const r of RIGS) {
+        // 리셋: 템플릿 포즈로 복원 후 재조준
+        r.inst.traverse(o => { if (o.__q0) o.quaternion.copy(o.__q0); });
+        if (!r.inst.__saved) {
+          r.inst.traverse(o => { o.__q0 = o.quaternion.clone(); });
+          r.inst.__saved = true;
+        } else {
+          r.inst.traverse(o => { if (o.__q0) o.quaternion.copy(o.__q0); });
+        }
+        r.inst.updateMatrixWorld(true);
+        poseArms4(r.byName, window.__DIRS[r.name]);
+      }
+      renderer.render(scene, cam);
+      return 'applied';
+    };
+    // 최초 저장 + 적용
+    RIGS.forEach(r => { r.inst.traverse(o => { o.__q0 = o.quaternion.clone(); }); r.inst.__saved = true; });
+    window.__apply();
+    window.__ready = true;
   } catch(e) { log('FAIL ' + e.message); }
 })();
 
 const clock = new THREE.Clock();
 const fit = () => { const w = innerWidth||1600, h = innerHeight||900; renderer.setSize(w, h); cam.aspect = w/h; cam.updateProjectionMatrix(); };
 fit(); addEventListener('resize', fit); setTimeout(fit, 400);
-renderer.setAnimationLoop(() => { const dt = clock.getDelta(); mixers.forEach(m => m.update(dt)); renderer.render(scene, cam); });
-window.__frame = (dt) => { fit(); mixers.forEach(m => m.update(dt ?? .12)); renderer.render(scene, cam); return mixers.length; };
+renderer.setAnimationLoop(() => renderer.render(scene, cam));
+window.__frame = () => { fit(); renderer.render(scene, cam); return RIGS.length; };
 </script></body></html>
