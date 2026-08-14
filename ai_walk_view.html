@@ -31,7 +31,8 @@ const bonesOf = root => {
 };
 
 // 팔 내리기 — 조각상 포즈에 맞춤 (월드 방향 조준)
-function poseArmsDown(byName){
+function poseArmsDown(byName, spread){
+  const sp = spread ?? .24;
   const aim = (bn, cn, dir) => {
     const bone = byName[bn], child = byName[cn];
     if (!bone || !child) return;
@@ -44,10 +45,10 @@ function poseArmsDown(byName){
     bone.quaternion.premultiply(pq.clone().invert().multiply(q).multiply(pq));
     bone.updateWorldMatrix(true, true);
   };
-  aim('LeftArm', 'LeftForeArm', new THREE.Vector3(.24, -.95, .05));
-  aim('LeftForeArm', 'LeftHand', new THREE.Vector3(.16, -.97, .1));
-  aim('RightArm', 'RightForeArm', new THREE.Vector3(-.24, -.95, .05));
-  aim('RightForeArm', 'RightHand', new THREE.Vector3(-.16, -.97, .1));
+  aim('LeftArm', 'LeftForeArm', new THREE.Vector3(sp, -.95, .05));
+  aim('LeftForeArm', 'LeftHand', new THREE.Vector3(sp*.7, -.97, .1));
+  aim('RightArm', 'RightForeArm', new THREE.Vector3(-sp, -.95, .05));
+  aim('RightForeArm', 'RightHand', new THREE.Vector3(-sp*.7, -.97, .1));
 }
 
 // 가중치용 본 세그먼트 (포즈드 바인드 월드 좌표)
@@ -90,8 +91,11 @@ function skinStatue(aiScene, byName, bones, opts){
   // 1) 통짜 지오메트리 추출 (Z-up 보정 + 월드 베이크)
   let src = null;
   aiScene.traverse(o => { if (!src && o.isMesh) src = o; });
+  opts.material = src.material;
   const geo = src.geometry.clone();
-  geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+  src.updateWorldMatrix(true, false);
+  geo.applyMatrix4(src.matrixWorld);
+  if (opts.zUp) geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI/2));
   geo.computeBoundingBox();
   const bb = geo.boundingBox, size = bb.getSize(new THREE.Vector3());
   // 2) 스켈레톤 치수에 맞춤: 발=0, 키=머리끝*1.06, 중심=힙 축
@@ -150,9 +154,8 @@ const mixers = [];
     }
     const template = gm.scene;
     const AIs = [
-      { url: 'assets/ai/man_tophat.glb', gown: false, clip: walkM },
-      { url: 'assets/ai/woman_gown.glb', gown: true, clip: walkF },
-      { url: 'assets/ai/man_worker.glb', gown: false, clip: walkM },
+      { url: 'assets/ai/mgent.glb', gown: false, clip: walkM, spread: .5 },
+      { url: 'assets/ai/mlady.glb', gown: true, clip: walkF, spread: 1.15 },
     ];
     let x = -1.7;
     for (const A of AIs) {
@@ -161,11 +164,11 @@ const mixers = [];
       const inst = template.clone(true);
       inst.updateMatrixWorld(true);
       const byName = boneMapOf(inst), bones = bonesOf(inst);
-      poseArmsDown(byName);
+      poseArmsDown(byName, A.spread);
       inst.updateMatrixWorld(true);
-      const geo = skinStatue(ai.scene, byName, bones, A);
+      const geo = skinStatue(ai.scene, byName, bones, A);   // A.material 채워짐
       const skeleton = new THREE.Skeleton(bones);   // 포즈드 바인드에서 인버스 계산
-      const mesh = new THREE.SkinnedMesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .9 }));
+      const mesh = new THREE.SkinnedMesh(geo, A.material || new THREE.MeshStandardMaterial({ roughness: .9 }));
       mesh.frustumCulled = false;
       const root = new THREE.Group();
       root.add(inst); root.add(mesh);

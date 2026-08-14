@@ -438,9 +438,7 @@ function updateCamera(){
 const startBtn = document.getElementById('start');
 const gltfLoader = new GLTFLoader();
 let walkTemplate = null, walkClipM = null, walkClipF = null;
-const AI_FIGURES = [   // 고품질 리깅 모델 확보 시 여기에 등록 (Meshy/Tripo GLB)
-];
-let aiLoaded = [];
+let MESHY = null;   // 자동 리깅된 Meshy 인물
 
 async function loadCrowdAssets(){
   startBtn.textContent = '인파를 준비하는 중…';
@@ -462,14 +460,147 @@ async function loadCrowdAssets(){
   walkClipF = lockHipsXZ(gf.animations[0]);
   walkTemplate.updateMatrixWorld(true);
   buildSharedGeometries();
-  aiLoaded = [];
-  for (const f of AI_FIGURES) {
-    try {
-      const g = await load(f.url);
-      aiLoaded.push({ ...f, scene: g.scene });
-    } catch(e) {}
-  }
+  // Meshy 인물 2종 → 자동 리깅된 공유 지오메트리
+  MESHY = {};
+  const prep = async (url, spread, gown) => {
+    const g = await load(url);
+    const inst = walkTemplate.clone(true);
+    inst.updateMatrixWorld(true);
+    const byName = boneMapOf(inst), bones = bonesOf(inst);
+    poseArmsDown(byName, spread);
+    inst.updateMatrixWorld(true);
+    const opts = { gown };
+    const geo = skinStatue(g.scene, byName, bones, opts);
+    return { geo, material: opts.material, spread, gown };
+  };
+  try {
+    startBtn.textContent = '시대의 사람들을 준비하는 중…';
+    MESHY.gent = await prep('assets/ai/mgent.glb', .5, false);
+    MESHY.lady = await prep('assets/ai/mlady.glb', 1.15, true);
+  } catch(e) { MESHY = null; }
 }
+
+// ── 스켈레톤 유틸 ──
+const boneMapOf = root => {
+  const m = {};
+  root.traverse(o => { if (/^mixamorig/.test(o.name)) m[o.name.replace(/^mixamorig/, '')] = o; });
+  return m;
+};
+const bonesOf = root => {
+  const b = [];
+  root.traverse(o => { if (/^mixamorig/.test(o.name)) b.push(o); });
+  return b;
+};
+
+// 팔 내리기 — 조각상 포즈에 맞춤 (월드 방향 조준)
+function poseArmsDown(byName, spread){
+  const sp = spread ?? .24;
+  const aim = (bn, cn, dir) => {
+    const bone = byName[bn], child = byName[cn];
+    if (!bone || !child) return;
+    bone.updateWorldMatrix(true, false); child.updateWorldMatrix(true, false);
+    const bw = bone.getWorldPosition(new THREE.Vector3());
+    const cw = child.getWorldPosition(new THREE.Vector3());
+    const cur = cw.sub(bw).normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(cur, dir.clone().normalize());
+    const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+    bone.quaternion.premultiply(pq.clone().invert().multiply(q).multiply(pq));
+    bone.updateWorldMatrix(true, true);
+  };
+  aim('LeftArm', 'LeftForeArm', new THREE.Vector3(sp, -.95, .05));
+  aim('LeftForeArm', 'LeftHand', new THREE.Vector3(sp*.7, -.97, .1));
+  aim('RightArm', 'RightForeArm', new THREE.Vector3(-sp, -.95, .05));
+  aim('RightForeArm', 'RightHand', new THREE.Vector3(-sp*.7, -.97, .1));
+}
+
+// 가중치용 본 세그먼트 (포즈드 바인드 월드 좌표)
+const SEG_DEF = [
+  ['Hips','Spine'], ['Spine','Spine1'], ['Spine1','Spine2'], ['Spine2','Neck'], ['Neck','Head'],
+  ['LeftShoulder','LeftArm'], ['LeftArm','LeftForeArm'], ['LeftForeArm','LeftHand'], ['LeftHand','LeftHandMiddle1'],
+  ['RightShoulder','RightArm'], ['RightArm','RightForeArm'], ['RightForeArm','RightHand'], ['RightHand','RightHandMiddle1'],
+  ['LeftUpLeg','LeftLeg'], ['LeftLeg','LeftFoot'], ['LeftFoot','LeftToeBase'],
+  ['RightUpLeg','RightLeg'], ['RightLeg','RightFoot'], ['RightFoot','RightToeBase'],
+];
+function buildSegments(byName, bones){
+  const segs = [];
+  for (const [a, b] of SEG_DEF) {
+    const A = byName[a], B = byName[b];
+    if (!A || !B) continue;
+    segs.push({
+      idx: bones.indexOf(A),
+      p0: A.getWorldPosition(new THREE.Vector3()),
+      p1: B.getWorldPosition(new THREE.Vector3()),
+    });
+  }
+  // 머리 상단 가상 세그먼트 (모자 커버)
+  const H = byName['Head'];
+  const hp = H.getWorldPosition(new THREE.Vector3());
+  segs.push({ idx: bones.indexOf(H), p0: hp.clone(), p1: hp.clone().add(new THREE.Vector3(0, .4, 0)) });
+  return segs;
+}
+const _ab = new THREE.Vector3(), _ap = new THREE.Vector3(), _cl = new THREE.Vector3();
+function distToSeg(p, s){
+  _ab.subVectors(s.p1, s.p0);
+  _ap.subVectors(p, s.p0);
+  const t = THREE.MathUtils.clamp(_ap.dot(_ab) / _ab.lengthSq(), 0, 1);
+  _cl.copy(s.p0).addScaledVector(_ab, t);
+  return p.distanceTo(_cl);
+}
+
+// ── AI 조각 → 스킨드 워커 지오메트리 ──
+// template: 포즈드 바인드 상태의 스켈레톤 루트 (월드 갱신 완료)
+function skinStatue(aiScene, byName, bones, opts){
+  // 1) 통짜 지오메트리 추출 (Z-up 보정 + 월드 베이크)
+  let src = null;
+  aiScene.traverse(o => { if (!src && o.isMesh) src = o; });
+  opts.material = src.material;
+  const geo = src.geometry.clone();
+  src.updateWorldMatrix(true, false);
+  geo.applyMatrix4(src.matrixWorld);
+  if (opts.zUp) geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+  geo.computeBoundingBox();
+  const bb = geo.boundingBox, size = bb.getSize(new THREE.Vector3());
+  // 2) 스켈레톤 치수에 맞춤: 발=0, 키=머리끝*1.06, 중심=힙 축
+  const headTop = byName['Head'].getWorldPosition(new THREE.Vector3()).y + .22;
+  const s = (headTop * (opts.hScale || 1.04)) / size.y;
+  const hips = byName['Hips'].getWorldPosition(new THREE.Vector3());
+  const cx = (bb.min.x + bb.max.x)/2, cz = (bb.min.z + bb.max.z)/2;
+  geo.translate(-cx, -bb.min.y, -cz);
+  geo.scale(s, s, s);
+  geo.translate(hips.x, 0, hips.z);
+  // 3) 정점별 가중치
+  const segs = buildSegments(byName, bones);
+  const hipsY = hips.y;
+  const pos = geo.attributes.position;
+  const n = pos.count;
+  const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+  const p = new THREE.Vector3();
+  const hipsIdx = bones.indexOf(byName['Hips']);
+  for (let i = 0; i < n; i++) {
+    p.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    if (opts.gown && p.y < hipsY - .04) {   // 가운: 힙 고정 (찢어짐 방지)
+      si[i*4] = hipsIdx; sw[i*4] = 1;
+      continue;
+    }
+    let b1 = -1, d1 = 1e9, b2 = -1, d2 = 1e9;
+    for (const sg of segs) {
+      const d = distToSeg(p, sg);
+      if (d < d1) { b2 = b1; d2 = d1; b1 = sg.idx; d1 = d; }
+      else if (d < d2) { b2 = sg.idx; d2 = d; }
+    }
+    if (b2 < 0 || d2 > d1 * 1.7) { si[i*4] = b1; sw[i*4] = 1; }
+    else {
+      const w1 = 1/Math.pow(d1 + 1e-4, 3), w2 = 1/Math.pow(d2 + 1e-4, 3);
+      const t = w1/(w1 + w2);
+      si[i*4] = b1; sw[i*4] = t;
+      si[i*4+1] = b2; sw[i*4+1] = 1 - t;
+    }
+  }
+  geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  return geo;
+}
+
 
 const walkers = [];
 const _fwd = new THREE.Vector3();
@@ -693,6 +824,40 @@ function buildSharedGeometries(){
 const MAN_COLS = [0x23252a, 0x2c2e34, 0x1d1f24, 0x3a3532];
 const WOMAN_COLS = [0xe4dccb, 0xd9cbb2, 0xcfc4b4, 0xbfae9a, 0x9a8f80];
 
+function spawnMeshy(kind){
+  const M = MESHY[kind];
+  const isMan = kind === 'gent';
+  const inst = walkTemplate.clone(true);
+  inst.updateMatrixWorld(true);
+  const byName = boneMapOf(inst), bones = bonesOf(inst);
+  poseArmsDown(byName, M.spread);
+  inst.updateMatrixWorld(true);
+  const skeleton = new THREE.Skeleton(bones);
+  const mat = M.material.clone();
+  mat.transparent = true; mat.opacity = 0;
+  const mesh = new THREE.SkinnedMesh(M.geo, mat);
+  mesh.frustumCulled = false;
+  const root = new THREE.Group();
+  root.add(inst); root.add(mesh);
+  mesh.bind(skeleton, new THREE.Matrix4());
+  const shMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: 0 });
+  const sh = new THREE.Mesh(new THREE.PlaneGeometry(.85, .5), shMat);
+  sh.rotation.x = -Math.PI/2; sh.position.y = .012;
+  root.add(sh);
+  const mixer = new THREE.AnimationMixer(inst);
+  mixer.clipAction(isMan ? walkClipM : walkClipF).play();
+  mixer.update(Math.random()*2);
+  const speed = rnd(.72, 1.1);
+  const lane = rnd(-4.6, 4.6);
+  const dir = (Math.random() < .12 ? -1 : 1) * (lane > 0 ? -1 : 1);
+  root.position.set(lane, 0, rnd(-CROWD_L/2, CROWD_L/2));
+  root.rotation.y = dir > 0 ? 0 : Math.PI;
+  root.scale.setScalar(rnd(.97, 1.03));
+  crowd.add(root);
+  walkers.push({ root, mesh, mat, shMat, mixer, speed, dir, lane, born: 1e9,
+    sway: rnd(-.05, .05), phase: Math.random()*6.28 });
+}
+
 function spawnMannequin(){
   const isMan = Math.random() < .54;
   const kind = isMan
@@ -749,13 +914,6 @@ function revealCrowd(){
 function updateFigures(dt){
   const t = clock.elapsedTime;
   for (const w of walkers) {
-    if (w.mode === 'ai') {
-      const appear = THREE.MathUtils.clamp((t - w.born) / 1.4, 0, 1);
-      w.mats.forEach(m => m.opacity = appear);
-      w.shMat.opacity = appear * .5;
-      w.root.rotation.y += Math.sin(t*.4 + w.phase) * .0004;   // 미세한 살아있음
-      continue;
-    }
     w.mixer.update(dt * w.speed / 1.15);
     // 이동 + 순환
     w.root.position.z += w.dir * w.speed * dt;
@@ -779,48 +937,12 @@ function clearWalkers(){
   walkers.length = 0;
 }
 
-function spawnAIFigure(f, i){
-  const obj = f.scene.clone(true);
-  obj.rotation.x = -Math.PI/2;      // TripoSR 출력은 Z-up
-  obj.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(obj);
-  const size = box.getSize(new THREE.Vector3());
-  const sc = (f.h || 1.72) / (size.y || 1);
-  obj.scale.setScalar(sc);
-  obj.position.y = -box.min.y * sc;
-  if (f.rotY) obj.rotation.y = f.rotY;
-  const root = new THREE.Group();
-  root.add(obj);
-  const mats = [];
-  obj.traverse(o => {
-    if (o.isMesh) {
-      o.material = o.material.clone();
-      o.material.transparent = true;
-      o.material.opacity = 0;
-      o.frustumCulled = false;
-      mats.push(o.material);
-    }
-  });
-  const shMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: 0 });
-  const sh = new THREE.Mesh(new THREE.PlaneGeometry(.95, .55), shMat);
-  sh.rotation.x = -Math.PI/2;
-  sh.position.y = .012;
-  root.add(sh);
-  // 산책로 가장자리, 서로 떨어져 서 있게
-  const spots = [[-1.6, -2.2], [1.9, .8], [-.6, 3.2]];
-  const [sx, sz] = spots[i % spots.length];
-  root.position.set(sx, 0, sz);
-  root.rotation.y = Math.random()*Math.PI*2;
-  crowd.add(root);
-  walkers.push({ root, mats, shMat, mixer: null, mode: 'ai', speed: 0, dir: 0,
-    born: 1e9, sway: rnd(-.03,.03), phase: Math.random()*6.28 });
-}
-
 let placed = false;
 function buildCast(){
   clearWalkers();
-  aiLoaded.forEach((f, i) => spawnAIFigure(f, i));
-  for (let i = 0; i < CROWD_N; i++) spawnMannequin();
+  const meshyN = MESHY ? (/Mobi|Android|iPhone/i.test(navigator.userAgent) ? 14 : 26) : 0;
+  for (let i = 0; i < meshyN; i++) spawnMeshy(i % 2 ? 'lady' : 'gent');
+  for (let i = 0; i < CROWD_N - meshyN; i++) spawnMannequin();
   crowd.visible = placed;
 }
 
