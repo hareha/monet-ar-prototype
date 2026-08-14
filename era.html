@@ -89,6 +89,18 @@
     background: #fff; color: #1c1a16; border-radius: 8px;
     font: 700 13px/1 "Apple SD Gothic Neo", sans-serif; padding: 9px;
   }
+  #hcal {
+    right: 10px; top: 50%; transform: translateY(-50%);
+    display: none; flex-direction: column; align-items: center; gap: 8px;
+    background: rgba(20,18,14,.55); border: 1px solid rgba(242,239,232,.3);
+    padding: 12px 8px; border-radius: 999px;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  #hcal span { font-size: 10px; color: rgba(242,239,232,.9); writing-mode: vertical-rl; letter-spacing: .12em; }
+  #hcal input {
+    writing-mode: vertical-lr; direction: rtl;
+    width: 22px; height: 130px; accent-color: #f2efe8;
+  }
   #xrBtn {
     top: calc(max(12px, env(safe-area-inset-top)) + 30px); right: 14px;
     appearance: none; border: 1px solid rgba(242,239,232,.4);
@@ -133,6 +145,10 @@
 <div class="hud" id="zone">ZONE B · 변화의 복도</div>
 <div class="hud" id="caption"></div>
 <div class="hud" id="hint">바닥을 비추면 흰 링이 나타납니다 — 탭하면 그 자리로 인파가 지나갑니다</div>
+<div class="hud" id="hcal">
+  <span>발·바닥 맞춤</span>
+  <input id="hcalRange" type="range" min="1.05" max="1.95" step="0.02" value="1.45">
+</div>
 <div class="hud" id="noCam">
   카메라가 꺼져 있어 대체 배경으로 보는 중입니다 — AR은 카메라 허용이 필요합니다
   <button id="retryCam">카메라 다시 켜기</button>
@@ -202,7 +218,17 @@ document.getElementById('view').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 window.__scene = scene;
 const camera = new THREE.PerspectiveCamera(64, viewSize().w/viewSize().h, .05, 120);
-camera.position.set(0, 1.5, 0);
+let camH = parseFloat(localStorage.getItem('m100_era_h') || '1.45');
+camera.position.set(0, camH, 0);
+{
+  const r = document.getElementById('hcalRange');
+  r.value = camH;
+  r.addEventListener('input', () => {
+    camH = parseFloat(r.value);
+    camera.position.y = camH;
+    localStorage.setItem('m100_era_h', String(camH));
+  });
+}
 
 // 군중 전체가 담기는 그룹 — 탭/히트테스트로 이 그룹째 실제 바닥 위로 옮긴다
 const crowd = new THREE.Group();
@@ -362,7 +388,8 @@ function placeCrowd(cx, cy){
   placed = true;
   crowd.visible = true;
   revealCrowd();
-  hintEl.textContent = '다시 탭하면 그 자리로 옮겨섭니다';
+  document.getElementById('hcal').style.display = 'flex';
+  hintEl.textContent = '발이 바닥에서 뜨면 오른쪽 슬라이더로 맞춰 주세요';
   setTimeout(() => hintEl.style.display = 'none', 2500);
 }
 
@@ -463,12 +490,15 @@ async function loadCrowdAssets(){
   // Meshy 인물 2종 → 자동 리깅된 공유 지오메트리
   MESHY = {};
   // 모델별 팔 바인드 각 (캘리브레이션 뷰어로 실측 확정)
-  const degDirs = (l, r) => {
-    const d = (deg, sgn) => {
+  const degDirs = (l, r, legL, legR) => {
+    const d = (deg, sgn, z) => {
       const rad = deg * Math.PI / 180;
-      return new THREE.Vector3(sgn * Math.sin(rad), -Math.cos(rad), .02).normalize();
+      return new THREE.Vector3(sgn * Math.sin(rad), -Math.cos(rad), z ?? .02).normalize();
     };
-    return { L: d(l, 1), R: d(r, -1) };
+    const out = { L: d(l, 1), R: d(r, -1) };
+    if (legL != null) out.legL = d(legL, 1, 0);
+    if (legR != null) out.legR = d(legR, -1, 0);
+    return out;
   };
   const prep = async (url, gown, armDirs) => {
     const g = await load(url);
@@ -481,9 +511,9 @@ async function loadCrowdAssets(){
   };
   try {
     startBtn.textContent = '시대의 사람들을 준비하는 중…';
-    MESHY.gent = await prep('assets/ai/mgent.glb', false, degDirs(6, 6));
+    MESHY.gent = await prep('assets/ai/mgent.glb', false, degDirs(6, 6, 14, 0));
     MESHY.lady = await prep('assets/ai/mlady.glb', true, degDirs(40, 40));
-    try { MESHY.porter = await prep('assets/ai/mporter.glb', false, degDirs(80, 88)); } catch(e) {}
+    try { MESHY.porter = await prep('assets/ai/mporter.glb', false, degDirs(80, 88, 20, 20)); } catch(e) {}
   } catch(e) { MESHY = null; }
 }
 
@@ -517,6 +547,8 @@ function poseArmsDirs(byName, dirs){
   aim('LeftForeArm', 'LeftHand', dirs.L);
   aim('RightArm', 'RightForeArm', dirs.R);
   aim('RightForeArm', 'RightHand', dirs.R);
+  if (dirs.legL) { aim('LeftUpLeg', 'LeftLeg', dirs.legL); aim('LeftLeg', 'LeftFoot', dirs.legL); }
+  if (dirs.legR) { aim('RightUpLeg', 'RightLeg', dirs.legR); aim('RightLeg', 'RightFoot', dirs.legR); }
 }
 
 // 스케일 정렬된 지오메트리에서 실제 팔 방향 실측
@@ -626,19 +658,24 @@ function skinStatue(aiScene, byName, bones, opts){
       si[i*4] = hipsIdx; sw[i*4] = 1;
       continue;
     }
-    let b1 = -1, d1 = 1e9, b2 = -1, d2 = 1e9;
+    // 가장 가까운 본 3개, 역제곱 가중 (부드러운 굽힘)
+    const near = [];
     for (const sg of segs) {
       const d = distToSeg(p, sg);
-      if (d < d1) { b2 = b1; d2 = d1; b1 = sg.idx; d1 = d; }
-      else if (d < d2) { b2 = sg.idx; d2 = d; }
+      near.push([d, sg.idx]);
     }
-    if (b2 < 0 || d2 > d1 * 1.7) { si[i*4] = b1; sw[i*4] = 1; }
-    else {
-      const w1 = 1/Math.pow(d1 + 1e-4, 3), w2 = 1/Math.pow(d2 + 1e-4, 3);
-      const t = w1/(w1 + w2);
-      si[i*4] = b1; sw[i*4] = t;
-      si[i*4+1] = b2; sw[i*4+1] = 1 - t;
+    near.sort((a, b) => a[0] - b[0]);
+    const d1 = near[0][0];
+    let tot = 0;
+    const picks = [];
+    for (let k = 0; k < 3 && k < near.length; k++) {
+      const [d, idx] = near[k];
+      if (k > 0 && d > d1 * 2.2) break;
+      const w = 1 / ((d + 1e-3) * (d + 1e-3));
+      picks.push([idx, w]);
+      tot += w;
     }
+    picks.forEach(([idx, w], k) => { si[i*4+k] = idx; sw[i*4+k] = w / tot; });
   }
   geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
   geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
