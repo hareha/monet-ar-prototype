@@ -121,11 +121,6 @@
 
 <a class="hud" id="back" href="index.html">← 홈</a>
 <div class="hud" id="zone">ZONE B · 변화의 복도</div>
-<div class="hud" id="eras">
-  <button data-era="1867">1867</button>
-  <button data-era="1889" class="on">1889</button>
-  <button data-era="1900">1900</button>
-</div>
 <div class="hud" id="caption"></div>
 <div class="hud" id="hint">바닥을 비추고 화면을 탭하면 그 자리에 사람들이 내려섭니다</div>
 <div class="hud" id="noCam">
@@ -160,33 +155,17 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const rnd = (a,b) => a + Math.random()*(b-a);
 
-// ══════════ 시대 정의 ══════════
-const ERAS = {
-  '1867': {
-    caption: '제2제정의 파리 — 오스만의 새 대로 위, 크리놀린 드레스와 실크해트의 시대',
-    filter: 'sepia(.45) contrast(1.06) brightness(.96)',
-    cast: ['gent1','gent2','lillian','oldman','gent3'],
-  },
-  '1889': {
-    caption: '1889년, 철과 증기의 파리 — 철탑이 오르고 기차가 도시의 시간을 바꾼 시대',
-    filter: 'sepia(.28) contrast(1.04)',
-    cast: ['gent1','gent3','alienist','oldman','gent2'],
-  },
-  '1900': {
-    caption: '벨 에포크 — 전등이 켜진 밤, 화가들이 거리로 나온 시대',
-    filter: 'sepia(.12) saturate(1.06)',
-    cast: ['gent2','gent3','lucille','lillian','alienist','oldman'],
-  },
+// ══════════ 장면 정의 — 모네의 시대, 단일 캐스트 ══════════
+const SCENE = {
+  caption: '모네가 살았던 시대의 파리 — 지금 서 있는 자리를 함께 걷습니다',
+  filter: 'sepia(.26) contrast(1.04)',
+  cast: ['lucille','alienist','lillian','oldman'],
 };
-let era = '1889';
 
 // 모델 정의 — mode: walk(걷기)/amble(느린 산책)/stand(서 있음)/dance
 // 빅토리안 텍스처 모델 출처(CC-BY, Sketchfab): FragileWife(mikoala), MadCorvin(Nicu.Scarlat),
 // Lillian·Lucille(MooKorea), OldMan(Karin.Granlund), Fancy(CharacterZone), CanCan(LasquetiSpice)
 const MODEL_DEFS = {
-  gent1:    { url: 'models/era/gent1.glb',    hat: true },
-  gent2:    { url: 'models/era/gent2.glb',    hat: true },
-  gent3:    { url: 'models/era/gent3.glb',    hat: true },
   alienist: { url: 'models/era/alienist.glb', mode: 'stand', clip: /Idle/i, hide: /stand/i },
   lillian:  { url: 'models/era/lillian.glb',  mode: 'stand', clip: /^Idle_g$/i, hide: /sword|weapon|blade/i },
   oldman:   { url: 'models/era/oldman.glb',   clip: /^Walk$/i },
@@ -652,31 +631,25 @@ function clearWalkers(){
 
 function buildCast(){
   clearWalkers();
-  for (const n of ERAS[era].cast) spawnWalker(n);
+  for (const n of SCENE.cast) spawnWalker(n);
 }
 
-// ══════════ 시대 전환 ══════════
+// ══════════ 장면 적용 ══════════
 const capEl = document.getElementById('caption');
-function setEra(name, btn){
-  era = name;
-  capEl.textContent = ERAS[era].caption;
-  const f = ERAS[era].filter;
-  video.style.filter = f;
-  backdrop.style.filter = f;
-  document.querySelectorAll('#eras button').forEach(b => b.classList.toggle('on', b === btn));
+function applyScene(){
+  capEl.textContent = SCENE.caption;
+  video.style.filter = SCENE.filter;
+  backdrop.style.filter = SCENE.filter;
   buildCast();
 }
-document.querySelectorAll('#eras button').forEach(b => {
-  b.onclick = () => setEra(b.dataset.era, b);
-});
-capEl.textContent = ERAS[era].caption;
+capEl.textContent = SCENE.caption;
 
 // ══════════ 사진 ══════════
 document.getElementById('shot').onclick = () => {
   const W = renderer.domElement.width, H = renderer.domElement.height;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
-  x.filter = ERAS[era].filter;
+  x.filter = SCENE.filter;
   const src = usingCam ? video : backdrop;
   const sw = usingCam ? video.videoWidth : backdrop.width;
   const sh = usingCam ? video.videoHeight : backdrop.height;
@@ -692,12 +665,12 @@ document.getElementById('shot').onclick = () => {
   x.fillRect(0, H - pad*2.6, W, pad*2.6);
   x.fillStyle = '#f2efe8';
   x.font = `700 ${pad*.78}px "Apple SD Gothic Neo"`;
-  x.fillText(`변화의 복도 · ${era}년의 파리`, pad, H - pad*1.5);
+  x.fillText('변화의 복도 · 모네의 시대의 파리', pad, H - pad*1.5);
   x.fillStyle = 'rgba(242,239,232,.7)';
   x.font = `600 ${pad*.55}px "Apple SD Gothic Neo"`;
   x.fillText('MONET 100 · THE NEXT IMPRESSION', pad, H - pad*.7);
   const a = document.createElement('a');
-  a.download = `monet100_era_${era}.png`;
+  a.download = 'monet100_era.png';
   a.href = c.toDataURL('image/png');
   a.click();
 };
@@ -719,7 +692,7 @@ document.getElementById('start').onclick = async () => {
     startBtn.disabled = false;
     return;
   }
-  setEra(era, document.querySelector('#eras button.on'));
+  applyScene();
   document.getElementById('gate').style.display = 'none';
   hintEl.style.display = 'block';
 };
