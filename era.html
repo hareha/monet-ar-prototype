@@ -445,8 +445,18 @@ async function loadCrowdAssets(){
   const gm = await load('assets/walk_m.glb');
   const gf = await load('assets/walk_f.glb');
   walkTemplate = gm.scene;
-  walkClipM = gm.animations[0];
-  walkClipF = gf.animations[0];
+  // 클립의 루트 모션 제거 — 힙 수평 이동을 첫 프레임에 고정 (수직 바운스만 유지)
+  const lockHipsXZ = clip => {
+    for (const t of clip.tracks) {
+      if (/Hips\.position$/.test(t.name)) {
+        const v = t.values, x0 = v[0], z0 = v[2];
+        for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i+2] = z0; }
+      }
+    }
+    return clip;
+  };
+  walkClipM = lockHipsXZ(gm.animations[0]);
+  walkClipF = lockHipsXZ(gf.animations[0]);
   walkTemplate.updateMatrixWorld(true);
   buildSharedGeometries();
 }
