@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MONET 100 — 예매</title>
+<style>
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;--acc:#3f5a80;--gold:#a8853c;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
+  body{max-width:520px;margin:0 auto;padding:22px 20px 120px;}
+  .back{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:999px;
+        padding:8px 16px 8px 12px;font-size:12.5px;font-weight:700;color:var(--sub);text-decoration:none;
+        box-shadow:0 1px 3px rgba(28,26,22,.07),0 2px 0 var(--line);}
+  .back svg{width:13px;height:13px;stroke:var(--cap);stroke-width:2.4;fill:none;}
+  .cap{font-size:10.5px;letter-spacing:.34em;color:var(--cap);font-weight:600;text-align:center;margin-top:18px;}
+  h1{font-size:22px;font-weight:800;text-align:center;margin:8px 0 2px;}
+  .tagline{font-size:12px;color:var(--sub);text-align:center;margin:0 0 20px;}
+
+  .steps{display:flex;gap:6px;justify-content:center;margin-bottom:22px;}
+  .stepdot{width:7px;height:7px;border-radius:50%;background:var(--line);}
+  .stepdot.on{background:var(--ink);}
+
+  .sec{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px 16px;margin-bottom:12px;
+       box-shadow:0 1px 3px rgba(28,26,22,.06),0 3px 0 var(--line);}
+  .sec h2{font-size:13px;font-weight:800;margin:0 0 12px;letter-spacing:.02em;}
+  .sec h2 small{font-weight:600;color:var(--cap);font-size:10.5px;margin-left:6px;letter-spacing:.06em;}
+
+  .dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;}
+  .dates::-webkit-scrollbar{display:none;}
+  .d{flex:none;width:58px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:9px 0 8px;text-align:center;cursor:pointer;}
+  .d .dow{font-size:10px;color:var(--cap);font-weight:700;}
+  .d .num{font-size:16.5px;font-weight:800;margin-top:2px;}
+  .d .mon{font-size:9.5px;color:var(--cap);margin-top:1px;}
+  .d.sel{background:var(--ink);border-color:var(--ink);}
+  .d.sel .dow,.d.sel .num,.d.sel .mon{color:#faf9f6;}
+  .d .dow.sun{color:#b0563e;} .d.sel .dow.sun{color:#e8b8a8;}
+
+  .sessions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .s{border:1px solid var(--line);border-radius:9px;padding:10px 0 8px;text-align:center;cursor:pointer;background:#fff;}
+  .s .t{font-size:14.5px;font-weight:800;}
+  .s .r{font-size:10px;color:var(--cap);margin-top:2px;}
+  .s.sel{background:var(--ink);border-color:var(--ink);}
+  .s.sel .t{color:#faf9f6;} .s.sel .r{color:#c9c2b2;}
+  .s.soldout{opacity:.38;pointer-events:none;}
+  .s.soldout .r{color:#b0563e;}
+
+  .trow{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #f0ede6;}
+  .trow:last-child{border-bottom:none;}
+  .trow .nm{font-size:14px;font-weight:700;}
+  .trow .pr{font-size:11.5px;color:var(--sub);margin-top:2px;}
+  .ctr{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:999px;overflow:hidden;}
+  .ctr button{width:38px;height:34px;border:none;background:#fff;font-size:18px;color:var(--sub);cursor:pointer;}
+  .ctr button:active{background:#f0ede6;}
+  .ctr .n{width:34px;text-align:center;font-size:15px;font-weight:800;}
+
+  input[type=text],input[type=tel]{width:100%;border:1px solid var(--line);border-radius:9px;padding:12px 13px;font-size:14.5px;
+        background:#fff;color:var(--ink);outline:none;margin-bottom:9px;font-family:inherit;}
+  input:focus{border-color:var(--ink);}
+
+  .sumrow{display:flex;justify-content:space-between;font-size:13px;color:var(--sub);padding:5px 0;}
+  .sumrow.total{font-size:16px;font-weight:800;color:var(--ink);border-top:1px solid var(--line);margin-top:8px;padding-top:12px;}
+
+  .paynote{font-size:11px;color:var(--cap);line-height:1.8;background:#f4f1ea;border-radius:8px;padding:10px 12px;margin-top:12px;}
+
+  .cta{position:fixed;left:0;right:0;bottom:0;padding:12px 20px calc(14px + env(safe-area-inset-bottom));
+       background:linear-gradient(transparent,var(--bg) 30%);max-width:520px;margin:0 auto;}
+  .cta button{width:100%;padding:16px;border:none;border-radius:11px;background:var(--ink);color:#faf9f6;
+       font-size:15.5px;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:.02em;}
+  .cta button:disabled{opacity:.35;}
+  .cta .hint{text-align:center;font-size:11px;color:var(--cap);margin-top:8px;}
+
+  /* 결제 모달 */
+  .paywrap{position:fixed;inset:0;background:rgba(28,26,22,.5);display:none;align-items:flex-end;justify-content:center;z-index:50;}
+  .paywrap.show{display:flex;}
+  .paysheet{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:520px;padding:22px 20px calc(26px + env(safe-area-inset-bottom));}
+  .paysheet h3{margin:0 0 4px;font-size:16px;font-weight:800;}
+  .paysheet .sub{font-size:12px;color:var(--sub);margin-bottom:16px;}
+  .paymethod{display:flex;gap:8px;margin-bottom:14px;}
+  .pm{flex:1;border:1px solid var(--line);border-radius:9px;padding:13px 0;text-align:center;font-size:13px;font-weight:700;cursor:pointer;background:#fff;}
+  .pm.sel{border-color:var(--ink);background:var(--ink);color:#fff;}
+  .paysheet .go{width:100%;padding:15px;border:none;border-radius:10px;background:#1b64da;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .paysheet .cancel{width:100%;padding:12px;border:none;background:none;color:var(--cap);font-size:12.5px;cursor:pointer;font-family:inherit;margin-top:4px;}
+  .spin{display:none;text-align:center;padding:30px 0 20px;}
+  .spin.show{display:block;}
+  .ring{width:34px;height:34px;border:3px solid var(--line);border-top-color:#1b64da;border-radius:50%;margin:0 auto 14px;animation:rot 1s linear infinite;}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .spin p{font-size:13px;color:var(--sub);}
+
+  .done{display:none;text-align:center;padding-top:30px;}
+  .done.show{display:block;}
+  .done .mark{width:58px;height:58px;border-radius:50%;background:var(--ink);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;}
+  .done .mark svg{width:26px;height:26px;stroke:#faf9f6;stroke-width:3;fill:none;}
+  .done h2{font-size:19px;margin:0 0 6px;}
+  .done p{font-size:13px;color:var(--sub);line-height:1.8;margin:0 0 22px;}
+  .done .code{font-size:15px;font-weight:800;letter-spacing:.08em;color:var(--gold);}
+  .done a{display:block;background:var(--ink);color:#faf9f6;text-decoration:none;border-radius:11px;padding:15px;font-size:15px;font-weight:800;margin-bottom:10px;}
+  .done a.ghost{background:#fff;color:var(--sub);border:1px solid var(--line);}
+</style>
+</head>
+<body>
+  <a class="back" href="index.html"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>홈으로</a>
+
+  <div id="flow">
+    <div class="cap">MONET 100 · TICKETS</div>
+    <h1>관람권 예매</h1>
+    <p class="tagline">신세계 더 헤리티지 명동 · 2026.12.1 – 2027.2.28</p>
+    <div class="steps"><div class="stepdot on"></div><div class="stepdot" id="dot2"></div><div class="stepdot" id="dot3"></div></div>
+
+    <div class="sec">
+      <h2>관람일 <small>DATE</small></h2>
+      <div class="dates" id="dates"></div>
+    </div>
+
+    <div class="sec">
+      <h2>회차 <small>SESSION · 60분 관람</small></h2>
+      <div class="sessions" id="sessions"></div>
+    </div>
+
+    <div class="sec">
+      <h2>권종 <small>가격은 가안</small></h2>
+      <div class="trow"><div><div class="nm">성인</div><div class="pr">22,000원</div></div>
+        <div class="ctr"><button onclick="chg('adult',-1)">−</button><div class="n" id="n_adult">0</div><button onclick="chg('adult',1)">+</button></div></div>
+      <div class="trow"><div><div class="nm">청소년·어린이</div><div class="pr">16,000원 · 만 4세 미만 무료</div></div>
+        <div class="ctr"><button onclick="chg('youth',-1)">−</button><div class="n" id="n_youth">0</div><button onclick="chg('youth',1)">+</button></div></div>
+    </div>
+
+    <div class="sec">
+      <h2>예매자 <small>티켓 수령·현장 확인용</small></h2>
+      <input type="text" id="buyer" placeholder="이름" autocomplete="name">
+      <input type="tel" id="phone" placeholder="휴대전화 번호" autocomplete="tel">
+    </div>
+
+    <div class="sec">
+      <h2>결제 금액</h2>
+      <div class="sumrow"><span id="sum_a">성인 0매</span><span id="sum_ap">0원</span></div>
+      <div class="sumrow"><span id="sum_y">청소년·어린이 0매</span><span id="sum_yp">0원</span></div>
+      <div class="sumrow total"><span>합계</span><span id="sum_t">0원</span></div>
+      <div class="paynote">지금은 <b>테스트 결제</b>입니다 — 실제로 돈이 빠져나가지 않습니다.<br>
+      PG(토스페이먼츠) 계약 후 이 자리에 실결제 위젯이 붙습니다. 환불 규정·이용약관은 라이브 전 게시.</div>
+    </div>
+  </div>
+
+  <div class="done" id="done">
+    <div class="mark"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg></div>
+    <h2>예매가 완료되었습니다</h2>
+    <p id="doneinfo"></p>
+    <a href="myticket.html">내 티켓 보기 (QR)</a>
+    <a class="ghost" href="index.html">홈으로</a>
+  </div>
+
+  <div class="cta" id="cta">
+    <button id="paybtn" disabled onclick="openPay()">결제하기</button>
+    <div class="hint">이미 예매하셨나요? <a href="myticket.html" style="color:var(--acc)">내 티켓</a> · NOL(놀티켓) 구매분도 내 티켓에서 등록</div>
+  </div>
+
+  <div class="paywrap" id="paywrap">
+    <div class="paysheet">
+      <div id="payform">
+        <h3>결제 수단</h3>
+        <div class="sub">MONET 100 관람권 · <b id="payamt"></b></div>
+        <div class="paymethod">
+          <div class="pm sel" onclick="pm(this)">카드</div>
+          <div class="pm" onclick="pm(this)">토스페이</div>
+          <div class="pm" onclick="pm(this)">네이버페이</div>
+        </div>
+        <button class="go" onclick="doPay()">테스트 결제하기</button>
+        <button class="cancel" onclick="closePay()">취소</button>
+      </div>
+      <div class="spin" id="spin"><div class="ring"></div><p>결제 승인 중…</p></div>
+    </div>
+  </div>
+
+<script>
+const PRICE = {adult:22000, youth:16000};
+const state = {date:null, session:null, adult:0, youth:0};
+
+// ── 날짜: 2026-12-01 ~ 2027-02-28, 오늘 이후만
+const OPEN = new Date(2026,11,1), CLOSE = new Date(2027,1,28);
+const today = new Date(); today.setHours(0,0,0,0);
+let start = today > OPEN ? today : OPEN;
+const DOW = ['일','월','화','수','목','금','토'];
+const datesEl = document.getElementById('dates');
+for(let i=0;i<21;i++){
+  const d = new Date(start); d.setDate(d.getDate()+i);
+  if(d > CLOSE) break;
+  const el = document.createElement('div'); el.className='d';
+  el.innerHTML = `<div class="dow ${d.getDay()==0?'sun':''}">${DOW[d.getDay()]}</div><div class="num">${d.getDate()}</div><div class="mon">${d.getMonth()+1}월</div>`;
+  el.onclick = ()=>{ document.querySelectorAll('.d').forEach(x=>x.classList.remove('sel')); el.classList.add('sel');
+    state.date = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${DOW[d.getDay()]})`; upd(); };
+  datesEl.appendChild(el);
+}
+
+// ── 회차 10:00~18:00 — 잔여석은 목업(코드 기반 고정 난수)
+const sesEl = document.getElementById('sessions');
+for(let h=10;h<=18;h++){
+  const remain = (h*37)%3===0 ? 0 : 20+((h*53)%140);
+  const el = document.createElement('div'); el.className='s'+(remain===0?' soldout':'');
+  el.innerHTML = `<div class="t">${h}:00</div><div class="r">${remain===0?'매진':'잔여 '+remain}</div>`;
+  el.onclick = ()=>{ document.querySelectorAll('.s').forEach(x=>x.classList.remove('sel')); el.classList.add('sel');
+    state.session = `${h}:00`; upd(); };
+  sesEl.appendChild(el);
+}
+
+function chg(k,v){ state[k]=Math.max(0,Math.min(10,state[k]+v)); document.getElementById('n_'+k).textContent=state[k]; upd(); }
+function won(n){ return n.toLocaleString('ko-KR')+'원'; }
+function total(){ return state.adult*PRICE.adult + state.youth*PRICE.youth; }
+function upd(){
+  document.getElementById('sum_a').textContent=`성인 ${state.adult}매`;
+  document.getElementById('sum_ap').textContent=won(state.adult*PRICE.adult);
+  document.getElementById('sum_y').textContent=`청소년·어린이 ${state.youth}매`;
+  document.getElementById('sum_yp').textContent=won(state.youth*PRICE.youth);
+  document.getElementById('sum_t').textContent=won(total());
+  const dots=[state.date&&state.session, state.adult+state.youth>0];
+  document.getElementById('dot2').classList.toggle('on',!!dots[0]);
+  document.getElementById('dot3').classList.toggle('on',!!dots[1]);
+  document.getElementById('paybtn').disabled = !(state.date && state.session && total()>0);
+}
+
+function openPay(){
+  const buyer=document.getElementById('buyer').value.trim();
+  if(!buyer){ document.getElementById('buyer').focus(); return; }
+  document.getElementById('payamt').textContent=won(total());
+  document.getElementById('paywrap').classList.add('show');
+}
+function closePay(){ document.getElementById('paywrap').classList.remove('show'); }
+function pm(el){ document.querySelectorAll('.pm').forEach(x=>x.classList.remove('sel')); el.classList.add('sel'); }
+
+function code(){ const c='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s='';
+  for(let i=0;i<8;i++) s+=c[Math.floor(Math.random()*c.length)];
+  return 'M100-'+s.slice(0,4)+'-'+s.slice(4); }
+
+function doPay(){
+  document.getElementById('payform').style.display='none';
+  document.getElementById('spin').classList.add('show');
+  setTimeout(()=>{
+    const t = { id: Date.now(), code: code(), date: state.date, session: state.session,
+      adult: state.adult, youth: state.youth, amount: total(),
+      buyer: document.getElementById('buyer').value.trim(), phone: document.getElementById('phone').value.trim(),
+      src:'self', used:false, created: new Date().toISOString() };
+    const all = JSON.parse(localStorage.getItem('m100_tickets')||'[]'); all.push(t);
+    localStorage.setItem('m100_tickets', JSON.stringify(all));
+    document.getElementById('paywrap').classList.remove('show');
+    document.getElementById('flow').style.display='none';
+    document.getElementById('cta').style.display='none';
+    document.getElementById('done').classList.add('show');
+    document.getElementById('doneinfo').innerHTML =
+      `${t.date} · ${t.session} 회차<br>성인 ${t.adult}매 · 청소년 ${t.youth}매 · ${won(t.amount)}<br><span class="code">${t.code}</span>`;
+    window.scrollTo(0,0);
+  }, 1400);
+}
+upd();
+</script>
+</body>
+</html>

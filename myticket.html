@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MONET 100 — 내 티켓</title>
+<script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+  :root{--bg:#faf9f6;--ink:#1c1a16;--sub:#6f6a5e;--line:#e2ded6;--cap:#8a8578;--acc:#3f5a80;--gold:#a8853c;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
+  body{max-width:520px;margin:0 auto;padding:22px 20px 60px;}
+  .back{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:999px;
+        padding:8px 16px 8px 12px;font-size:12.5px;font-weight:700;color:var(--sub);text-decoration:none;
+        box-shadow:0 1px 3px rgba(28,26,22,.07),0 2px 0 var(--line);}
+  .back svg{width:13px;height:13px;stroke:var(--cap);stroke-width:2.4;fill:none;}
+  .cap{font-size:10.5px;letter-spacing:.34em;color:var(--cap);font-weight:600;text-align:center;margin-top:18px;}
+  h1{font-size:22px;font-weight:800;text-align:center;margin:8px 0 20px;}
+
+  .empty{text-align:center;color:var(--sub);font-size:13px;line-height:2;padding:34px 0 10px;}
+  .empty a{color:var(--acc);}
+
+  /* 티켓 카드 */
+  .tk{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:16px;overflow:hidden;
+      box-shadow:0 1px 3px rgba(28,26,22,.07),0 4px 0 var(--line);position:relative;}
+  .tk .head{background:var(--ink);color:#faf9f6;padding:13px 18px;display:flex;justify-content:space-between;align-items:center;}
+  .tk .head .ex{font-size:12.5px;font-weight:800;letter-spacing:.14em;}
+  .tk .head .src{font-size:10px;font-weight:700;letter-spacing:.1em;color:#c9c2b2;border:1px solid #4a463d;border-radius:999px;padding:3px 9px;}
+  .tk .head .src.nol{color:#7fd0ff;border-color:#33556b;}
+  .tk .bd{padding:18px;display:flex;gap:16px;align-items:center;}
+  .tk .qr{width:118px;height:118px;flex:none;border:1px solid var(--line);border-radius:8px;padding:7px;background:#fff;}
+  .tk .qr img,.tk .qr svg{width:100%;height:100%;display:block;image-rendering:pixelated;}
+  .tk .info .dt{font-size:15.5px;font-weight:800;}
+  .tk .info .ss{font-size:12.5px;color:var(--sub);margin-top:3px;line-height:1.7;}
+  .tk .info .cd{font-size:13.5px;font-weight:800;letter-spacing:.06em;color:var(--gold);margin-top:8px;}
+  .tk .perf{border-top:1.5px dashed var(--line);padding:10px 18px;display:flex;justify-content:space-between;align-items:center;}
+  .tk .perf .who{font-size:11.5px;color:var(--cap);}
+  .tk .perf .st{font-size:11px;font-weight:800;letter-spacing:.08em;color:#3e7a4e;}
+  .tk.used{opacity:.55;}
+  .tk.used .perf .st{color:#b0563e;}
+  .tk::before,.tk::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:var(--bg);
+      border:1px solid var(--line);bottom:33px;}
+  .tk::before{left:-9px;} .tk::after{right:-9px;}
+
+  /* NOL 등록 */
+  .sec{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px 16px;margin-top:24px;
+       box-shadow:0 1px 3px rgba(28,26,22,.06),0 3px 0 var(--line);}
+  .sec h2{font-size:13px;font-weight:800;margin:0 0 6px;}
+  .sec .ds{font-size:11.5px;color:var(--sub);line-height:1.8;margin-bottom:12px;}
+  .sec input{width:100%;border:1px solid var(--line);border-radius:9px;padding:12px 13px;font-size:14.5px;
+       background:#fff;color:var(--ink);outline:none;margin-bottom:9px;font-family:inherit;}
+  .sec input:focus{border-color:var(--ink);}
+  .sec button{width:100%;padding:13px;border:none;border-radius:9px;background:var(--ink);color:#faf9f6;
+       font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .msg{font-size:12px;margin-top:9px;display:none;line-height:1.7;}
+  .msg.err{display:block;color:#b0563e;} .msg.ok{display:block;color:#3e7a4e;}
+  .foot{font-size:11px;color:#a89f8d;text-align:center;margin-top:26px;line-height:1.9;}
+</style>
+</head>
+<body>
+  <a class="back" href="index.html"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>홈으로</a>
+  <div class="cap">MONET 100 · MY TICKETS</div>
+  <h1>내 티켓</h1>
+
+  <div id="list"></div>
+
+  <div class="sec">
+    <h2>NOL(놀티켓) 예매분 등록</h2>
+    <div class="ds">NOL에서 구매하셨다면 예매번호와 예매자 이름을 입력하세요.
+    확인되면 이 앱의 QR 입장권으로 전환됩니다. <b>지금은 목업</b> — 실서비스는 NOL 파트너 명단과 대조합니다.</div>
+    <input type="text" id="nolno" placeholder="NOL 예매번호 (예: T2612012345)">
+    <input type="text" id="nolname" placeholder="예매자 이름">
+    <button onclick="regNol()">등록하기</button>
+    <div class="msg" id="nolmsg"></div>
+  </div>
+
+  <p class="foot">티켓은 이 기기(브라우저)에 저장됩니다 — 데모 기준.<br>실서비스는 서버 계정으로 어느 기기에서든 조회.</p>
+
+<script>
+function load(){ return JSON.parse(localStorage.getItem('m100_tickets')||'[]'); }
+function save(a){ localStorage.setItem('m100_tickets', JSON.stringify(a)); }
+
+function render(){
+  const all = load().sort((a,b)=>b.id-a.id);
+  const el = document.getElementById('list');
+  if(!all.length){
+    el.innerHTML = `<div class="empty">보유한 티켓이 없습니다.<br><a href="ticket.html">예매하러 가기 ›</a></div>`;
+    return;
+  }
+  el.innerHTML = all.map(t=>{
+    const qr = qrcode(0,'M'); qr.addData(t.code); qr.make();
+    const cnt = [t.adult?`성인 ${t.adult}`:null, t.youth?`청소년 ${t.youth}`:null].filter(Boolean).join(' · ');
+    return `<div class="tk ${t.used?'used':''}">
+      <div class="head"><div class="ex">MONET 100 · 입장권</div>
+        <div class="src ${t.src==='nol'?'nol':''}">${t.src==='nol'?'NOL 예매':'자체 예매'}</div></div>
+      <div class="bd">
+        <div class="qr">${qr.createSvgTag({scalable:true,margin:0})}</div>
+        <div class="info">
+          <div class="dt">${t.date}</div>
+          <div class="ss">${t.session} 회차 입장 · ${cnt}매</div>
+          <div class="cd">${t.code}</div>
+        </div>
+      </div>
+      <div class="perf"><div class="who">${t.buyer||'-'} ${t.phone?'· '+t.phone.slice(-4):''}</div>
+        <div class="st">${t.used?'입장 완료':'입장 전 · 게이트에 QR 제시'}</div></div>
+    </div>`;
+  }).join('');
+}
+
+function regNol(){
+  const no = document.getElementById('nolno').value.trim();
+  const nm = document.getElementById('nolname').value.trim();
+  const msg = document.getElementById('nolmsg');
+  msg.className='msg';
+  if(no.length < 8 || !nm){ msg.className='msg err'; msg.textContent='예매번호(8자 이상)와 이름을 확인해주세요.'; return; }
+  const all = load();
+  if(all.some(t=>t.nolNo===no)){ msg.className='msg err'; msg.textContent='이미 등록된 예매번호입니다.'; return; }
+  const c='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s='';
+  for(let i=0;i<8;i++) s+=c[Math.floor(Math.random()*c.length)];
+  all.push({ id: Date.now(), code:'M100-'+s.slice(0,4)+'-'+s.slice(4), nolNo:no,
+    date:'2026.12.12 (토)', session:'14:00', adult:2, youth:0, amount:0,
+    buyer:nm, phone:'', src:'nol', used:false, created:new Date().toISOString() });
+  save(all);
+  msg.className='msg ok'; msg.textContent='등록되었습니다 — 목업이라 회차는 임의 배정. 실서비스는 NOL 예매 정보 그대로 표시됩니다.';
+  document.getElementById('nolno').value=''; document.getElementById('nolname').value='';
+  render();
+}
+render();
+</script>
+</body>
+</html>

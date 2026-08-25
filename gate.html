@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MONET 100 — 검표 (스태프)</title>
+<style>
+  :root{--bg:#1c1a16;--panel:#26231e;--ink:#faf9f6;--sub:#a89f8d;--line:#3b372f;--ok:#5fbf7a;--bad:#e07a5f;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;}
+  body{max-width:520px;margin:0 auto;padding:22px 20px 60px;}
+  .back{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);border-radius:999px;
+        padding:8px 16px 8px 12px;font-size:12.5px;font-weight:700;color:var(--sub);text-decoration:none;}
+  .back svg{width:13px;height:13px;stroke:var(--sub);stroke-width:2.4;fill:none;}
+  .cap{font-size:10.5px;letter-spacing:.34em;color:var(--sub);font-weight:600;text-align:center;margin-top:18px;}
+  h1{font-size:21px;font-weight:800;text-align:center;margin:8px 0 4px;}
+  .tagline{font-size:11.5px;color:var(--sub);text-align:center;margin:0 0 20px;line-height:1.8;}
+
+  .scanbox{position:relative;border-radius:14px;overflow:hidden;background:#000;border:1px solid var(--line);
+           aspect-ratio:1/1;margin-bottom:14px;display:none;}
+  .scanbox.show{display:block;}
+  .scanbox video{width:100%;height:100%;object-fit:cover;}
+  .frame{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+  .frame div{width:62%;aspect-ratio:1/1;border:2.5px solid rgba(250,249,246,.85);border-radius:16px;
+             box-shadow:0 0 0 999px rgba(0,0,0,.35);}
+
+  .row{display:flex;gap:9px;margin-bottom:14px;}
+  .row button{flex:1;padding:14px;border:1px solid var(--line);border-radius:11px;background:var(--panel);
+       color:var(--ink);font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .row button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+
+  input{width:100%;border:1px solid var(--line);border-radius:11px;padding:15px 14px;font-size:17px;font-weight:700;
+        letter-spacing:.08em;background:var(--panel);color:var(--ink);outline:none;text-transform:uppercase;
+        font-family:ui-monospace,Menlo,monospace;text-align:center;margin-bottom:10px;}
+  input::placeholder{color:#5c574c;font-weight:500;letter-spacing:.02em;}
+
+  .result{border-radius:14px;padding:22px 18px;margin-top:16px;display:none;text-align:center;}
+  .result.show{display:block;}
+  .result.ok{background:#20301f;border:1px solid #3c5a37;}
+  .result.bad{background:#33221c;border:1px solid #5a3b30;}
+  .result .big{font-size:19px;font-weight:800;margin-bottom:8px;}
+  .result.ok .big{color:var(--ok);} .result.bad .big{color:var(--bad);}
+  .result .dt{font-size:13.5px;color:var(--ink);line-height:1.9;}
+  .result .sub{font-size:11.5px;color:var(--sub);margin-top:8px;}
+  .result button{margin-top:14px;padding:13px 30px;border:none;border-radius:10px;background:var(--ok);color:#10160f;
+       font-size:14.5px;font-weight:800;cursor:pointer;font-family:inherit;}
+
+  .note{font-size:11px;color:#6f695c;line-height:1.9;text-align:center;margin-top:26px;}
+</style>
+</head>
+<body>
+  <a class="back" href="index.html"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>홈으로</a>
+  <div class="cap">MONET 100 · GATE</div>
+  <h1>검표 — 스태프 모드</h1>
+  <p class="tagline">관객의 QR을 스캔하거나 티켓 번호를 입력하세요</p>
+
+  <div class="scanbox" id="scanbox"><video id="video" playsinline muted></video>
+    <div class="frame"><div></div></div></div>
+
+  <div class="row">
+    <button class="primary" id="scanbtn" onclick="toggleScan()">QR 스캔 시작</button>
+  </div>
+
+  <input type="text" id="codein" placeholder="M100-XXXX-XXXX" autocapitalize="characters" autocomplete="off">
+  <div class="row"><button onclick="check(document.getElementById('codein').value)">번호로 확인</button></div>
+
+  <div class="result" id="result"></div>
+
+  <p class="note">데모: 이 기기(브라우저)에서 발권된 티켓만 조회됩니다.<br>
+  실서비스는 서버 대조 — 어떤 검표 단말에서든 전 채널(자체·NOL) 티켓 검증.</p>
+
+<script>
+function load(){ return JSON.parse(localStorage.getItem('m100_tickets')||'[]'); }
+function save(a){ localStorage.setItem('m100_tickets', JSON.stringify(a)); }
+
+let pending = null;
+function check(raw){
+  const code = (raw||'').trim().toUpperCase();
+  const r = document.getElementById('result');
+  if(!code){ return; }
+  const all = load();
+  const t = all.find(x=>x.code===code);
+  r.classList.add('show');
+  if(!t){
+    r.className='result show bad';
+    r.innerHTML = `<div class="big">✕ 유효하지 않은 티켓</div>
+      <div class="dt">${code}</div><div class="sub">이 기기 발권분에 없음 — 오타 또는 타 기기 발권(데모 한계)</div>`;
+    pending=null; return;
+  }
+  if(t.used){
+    r.className='result show bad';
+    r.innerHTML = `<div class="big">✕ 이미 입장 처리됨</div>
+      <div class="dt">${t.code}<br>${t.date} · ${t.session} · ${t.buyer||'-'}</div>
+      <div class="sub">중복 입장 시도 — 확인 필요</div>`;
+    pending=null; return;
+  }
+  pending = t.code;
+  const cnt = [t.adult?`성인 ${t.adult}`:null, t.youth?`청소년 ${t.youth}`:null].filter(Boolean).join(' · ');
+  r.className='result show ok';
+  r.innerHTML = `<div class="big">✓ 유효한 티켓</div>
+    <div class="dt">${t.code}<br>${t.date} · ${t.session} 회차 · ${cnt}매<br>${t.buyer||'-'} ${t.src==='nol'?'· NOL 예매':''}</div>
+    <button onclick="admit()">입장 처리</button>`;
+}
+function admit(){
+  const all = load();
+  const t = all.find(x=>x.code===pending);
+  if(t){ t.used=true; t.usedAt=new Date().toISOString(); save(all); }
+  const r = document.getElementById('result');
+  r.className='result show ok';
+  r.innerHTML = `<div class="big">✓ 입장 완료</div><div class="dt">${pending}</div>
+    <div class="sub">즐거운 관람 되세요 안내</div>`;
+  pending=null;
+}
+
+// ── QR 스캔 (BarcodeDetector 지원 기기: Android Chrome 등)
+let stream=null, scanning=false, raf=null;
+async function toggleScan(){
+  const box=document.getElementById('scanbox'), btn=document.getElementById('scanbtn');
+  if(scanning){ stopScan(); return; }
+  if(!('BarcodeDetector' in window)){
+    alert('이 브라우저는 QR 스캔 미지원 (iOS Safari 등) — 번호 입력을 사용하세요.\n실서비스 검표 단말은 안드로이드 권장.');
+    return;
+  }
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+  }catch(e){ alert('카메라 권한이 필요합니다.'); return; }
+  const v=document.getElementById('video'); v.srcObject=stream; await v.play();
+  box.classList.add('show'); btn.textContent='스캔 중지'; scanning=true;
+  const det = new BarcodeDetector({formats:['qr_code']});
+  const loop = async ()=>{
+    if(!scanning) return;
+    try{
+      const codes = await det.detect(v);
+      if(codes.length){ check(codes[0].rawValue); stopScan(); return; }
+    }catch(e){}
+    raf = requestAnimationFrame(loop);
+  };
+  loop();
+}
+function stopScan(){
+  scanning=false; if(raf) cancelAnimationFrame(raf);
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  document.getElementById('scanbox').classList.remove('show');
+  document.getElementById('scanbtn').textContent='QR 스캔 시작';
+}
+document.getElementById('codein').addEventListener('keydown',e=>{ if(e.key==='Enter') check(e.target.value); });
+</script>
+</body>
+</html>
