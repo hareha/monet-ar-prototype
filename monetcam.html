@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MONET 100 — 모네의 눈 (AI)</title>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.webgpu.min.js"></script>
+<style>
+  :root{--bg:#14120e;--ink:#f5f1e6;--sub:#a99f8a;--gold:#c9a24b;--panel:#1e1b15;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;
+            height:100%;overflow:hidden;}
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;}
+  #out{max-width:100%;max-height:100%;}
+  video{display:none;}
+  .top{position:fixed;top:0;left:0;right:0;padding:14px 16px calc(30px);z-index:5;
+       background:linear-gradient(rgba(20,18,14,.85),transparent);display:flex;justify-content:space-between;align-items:flex-start;}
+  .back{display:inline-flex;align-items:center;gap:6px;background:rgba(30,27,21,.8);border:1px solid #3b372f;border-radius:999px;
+        padding:8px 15px 8px 11px;font-size:12.5px;font-weight:700;color:var(--sub);text-decoration:none;}
+  .back svg{width:12px;height:12px;stroke:var(--sub);stroke-width:2.4;fill:none;}
+  .hud{font-size:10.5px;color:var(--sub);text-align:right;line-height:1.7;}
+  .hud b{color:var(--gold);}
+  .bottom{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:16px 18px calc(20px + env(safe-area-inset-bottom));
+          background:linear-gradient(transparent,rgba(20,18,14,.9));}
+  .row{display:flex;gap:10px;align-items:center;justify-content:center;}
+  .btn{border:1px solid #3b372f;background:rgba(30,27,21,.85);color:var(--ink);border-radius:999px;
+       padding:12px 18px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+  .btn.gold{background:var(--gold);border-color:var(--gold);color:#191507;}
+  .btn:disabled{opacity:.4;}
+  .msg{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:4;
+       background:var(--bg);padding:30px;text-align:center;}
+  .msg h2{margin:0;font-size:17px;}
+  .msg p{margin:0;font-size:12.5px;color:var(--sub);line-height:1.9;}
+  .bar{width:220px;height:4px;border-radius:2px;background:#2c2820;overflow:hidden;}
+  .bar div{height:100%;width:0%;background:var(--gold);transition:width .2s;}
+  input[type=file]{display:none;}
+</style>
+</head>
+<body>
+  <div id="stage"><canvas id="out"></canvas></div>
+  <video id="cam" playsinline muted></video>
+
+  <div class="top">
+    <a class="back" href="index.html"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>홈으로</a>
+    <div class="hud" id="hud">모델 로딩 전</div>
+  </div>
+
+  <div class="bottom">
+    <div class="row">
+      <button class="btn" id="srcBtn">원본</button>
+      <button class="btn gold" id="shotBtn" disabled>고화질 촬영</button>
+      <button class="btn" id="upBtn">사진 불러오기</button>
+    </div>
+  </div>
+  <input type="file" id="file" accept="image/*">
+
+  <div class="msg" id="msg">
+    <h2>모네의 눈 — AI 화풍 변환</h2>
+    <p>CycleGAN photo→Monet (버클리 공식 학습 모델)<br>모델 45MB를 내려받습니다 — 최초 1회</p>
+    <div class="bar"><div id="prog"></div></div>
+    <p id="stat">준비 중…</p>
+  </div>
+
+<script>
+window.__log = [];
+function LOG(...a){ window.__log.push(a.join(' ')); console.log(...a); }
+const S_LIVE = 256, S_PHOTO = 384;
+let session=null, running=false, showOrig=false, usingCam=false, still=null, ep='wasm';
+const out = document.getElementById('out'), ctx = out.getContext('2d');
+const video = document.getElementById('cam');
+const work = document.createElement('canvas'), wctx = work.getContext('2d', {willReadFrequently:true});
+const hud = document.getElementById('hud');
+
+async function loadModel(){
+  const stat = document.getElementById('stat'), prog = document.getElementById('prog');
+  // 모델 다운로드 (진행률)
+  stat.textContent = '모델 내려받는 중…';
+  const res = await fetch('models/gan/monet_dyn.onnx');
+  const total = +res.headers.get('Content-Length') || 45643985;
+  const reader = res.body.getReader(); const chunks=[]; let got=0;
+  while(true){ const {done, value} = await reader.read(); if(done) break;
+    chunks.push(value); got += value.length; prog.style.width = (got/total*100)+'%'; }
+  const buf = new Uint8Array(got); let o=0; for(const c of chunks){ buf.set(c,o); o+=c.length; }
+  stat.textContent = '엔진 초기화 중…';
+  ort.env.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency||2);
+  const warm = async (s) => {
+    const z = new ort.Tensor('float32', new Float32Array(3*32*32), [1,3,32,32]);
+    await Promise.race([s.run({input:z}), new Promise((_,rej)=>setTimeout(()=>rej(new Error('warmup timeout')), 15000))]);
+  };
+  if(navigator.gpu){
+    try {
+      LOG('webgpu: create');
+      session = await Promise.race([
+        ort.InferenceSession.create(buf.buffer.slice(0), {executionProviders:['webgpu']}),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('create timeout')), 20000)),
+      ]);
+      LOG('webgpu: warmup');
+      await warm(session); ep = 'webgpu';
+    } catch(e) { LOG('webgpu failed:', e.message); session = null; }
+  } else LOG('no navigator.gpu');
+  if(!session){
+    LOG('wasm: create');
+    session = await ort.InferenceSession.create(buf.buffer, {executionProviders:['wasm']});
+    LOG('wasm: warmup');
+    await warm(session); ep = 'wasm';
+  }
+  LOG('engine ready:', ep);
+  document.getElementById('msg').style.display='none';
+  document.getElementById('shotBtn').disabled=false;
+  startCam();
+}
+
+async function startCam(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment', width:{ideal:1280}}});
+    video.srcObject = stream; await video.play();
+    usingCam = true; loop();
+  }catch(e){
+    if(!still) hud.innerHTML = '카메라 없음 — <b>사진 불러오기</b>로 테스트';
+  }
+}
+
+function grab(size, srcCanvasOut){
+  // 소스(카메라 or 정지사진)를 정사각 크롭해 size로
+  const sw = usingCam && !still ? video.videoWidth : still.width;
+  const sh = usingCam && !still ? video.videoHeight : still.height;
+  const m = Math.min(sw, sh), sx=(sw-m)/2, sy=(sh-m)/2;
+  work.width = work.height = size;
+  wctx.drawImage(usingCam && !still ? video : still, sx, sy, m, m, 0, 0, size, size);
+  if(srcCanvasOut){ srcCanvasOut.width=srcCanvasOut.height=size;
+    srcCanvasOut.getContext('2d').drawImage(work,0,0); }
+  return wctx.getImageData(0,0,size,size);
+}
+
+function toTensor(im){
+  const n = im.width*im.height, f = new Float32Array(3*n), d = im.data;
+  for(let i=0;i<n;i++){ f[i]=d[i*4]/127.5-1; f[n+i]=d[i*4+1]/127.5-1; f[2*n+i]=d[i*4+2]/127.5-1; }
+  return new ort.Tensor('float32', f, [1,3,im.height,im.width]);
+}
+
+function paint(y, size){
+  const n=size*size, d=new Uint8ClampedArray(n*4), f=y.data;
+  for(let i=0;i<n;i++){
+    d[i*4]  =(f[i]+1)*127.5; d[i*4+1]=(f[n+i]+1)*127.5; d[i*4+2]=(f[2*n+i]+1)*127.5; d[i*4+3]=255;
+  }
+  out.width=out.height=size;
+  ctx.putImageData(new ImageData(d,size,size),0,0);
+}
+
+let ms=0;
+async function loop(){
+  if(running) return; running=true;
+  while(usingCam && !still){
+    if(showOrig){
+      const im = grab(S_PHOTO); out.width=out.height=S_PHOTO; ctx.putImageData(im,0,0);
+      await new Promise(r=>setTimeout(r,80));
+    } else {
+      const im = grab(S_LIVE);
+      const t0 = performance.now();
+      const y = (await session.run({input: toTensor(im)})).output;
+      ms = performance.now()-t0;
+      paint(y, S_LIVE);
+      hud.innerHTML = `CycleGAN photo→Monet · <b>${ep}</b><br>라이브 ${S_LIVE}px · <b>${ms|0}ms</b> (${(1000/ms).toFixed(1)}fps)`;
+      await new Promise(r=>requestAnimationFrame(r));
+    }
+  }
+  running=false;
+}
+
+async function renderStill(size){
+  const im = grab(size);
+  hud.innerHTML = `변환 중… ${size}px`;
+  LOG('renderStill: run', size);
+  const t0 = performance.now();
+  const y = (await session.run({input: toTensor(im)})).output;
+  LOG('renderStill: done', (performance.now()-t0)|0, 'ms');
+  paint(y, size);
+  hud.innerHTML = `CycleGAN photo→Monet · <b>${ep}</b><br>사진 ${size}px · <b>${(performance.now()-t0)|0}ms</b> · 길게 눌러 저장`;
+}
+
+document.getElementById('shotBtn').onclick = async ()=>{
+  if(usingCam && !still){
+    // 현재 프레임 고정
+    const c = document.createElement('canvas'); c.width=video.videoWidth; c.height=video.videoHeight;
+    c.getContext('2d').drawImage(video,0,0); still=c;
+  }
+  await renderStill(S_PHOTO);
+  document.getElementById('shotBtn').textContent = '라이브로';
+  document.getElementById('shotBtn').onclick = ()=>{ location.reload(); };
+};
+
+document.getElementById('srcBtn').onpointerdown = ()=>{ showOrig=true; if(still){ const im=grab(S_PHOTO); out.width=out.height=S_PHOTO; ctx.putImageData(im,0,0);} };
+document.getElementById('srcBtn').onpointerup = ()=>{ showOrig=false; if(still) renderStill(S_PHOTO); };
+
+document.getElementById('upBtn').onclick = ()=> document.getElementById('file').click();
+async function useStillFromBlob(blob){
+  LOG('still: decode', blob.size);
+  const bmp = await createImageBitmap(blob);
+  LOG('still: bitmap', bmp.width, bmp.height);
+  const c = document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height;
+  c.getContext('2d').drawImage(bmp,0,0);
+  still = c; usingCam = false;
+  await renderStill(S_PHOTO);
+}
+
+document.getElementById('file').onchange = async (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  await useStillFromBlob(f);
+};
+
+// 검증용: #sample 이면 샘플 사진 자동 처리
+window.addEventListener('load', async ()=>{
+  try{
+    await loadModel();
+    if(location.hash === '#sample'){
+      console.log('sample: fetching');
+      const blob = await (await fetch('assets/sample_street.jpg')).blob();
+      await useStillFromBlob(blob);
+      console.log('sample: rendered');
+    }
+  }catch(e){
+    console.log('FATAL:', e.message);
+    document.getElementById('stat').textContent = '오류: ' + e.message;
+    document.getElementById('msg').style.display='flex';
+  }
+});
+</script>
+</body>
+</html>
